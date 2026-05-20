@@ -2116,7 +2116,7 @@ async function loadTourGo(force){
   try {
     // Direct call to ScraperBot — bypasses FastAPI, works even when only Live Server + ScraperBot are running
     const SCRAPERBOT_URL = 'https://pushkara.onrender.com';
-    const apiUrl = `${SCRAPERBOT_URL}/places?lat=${uLat}&lon=${uLon}&radius_km=60`;
+    const apiUrl = `${SCRAPERBOT_URL}/tourgo/explore?lat=${uLat}&lon=${uLon}&radius_km=60`;
     console.log('[TourGo] Fetching ScraperBot directly:', apiUrl);
 
     // 30-second client-side timeout — prevents infinite spinner if Groq/backend hangs
