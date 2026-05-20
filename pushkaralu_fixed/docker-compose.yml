@@ -1,0 +1,329 @@
+version: "3.9"
+
+# ── Godavari Pushkaralu 2027 — Docker Compose  (v8) ──────────────────────────
+# FIXES vs v7:
+#   - JWT_SECRET_KEY, ADMIN_USERNAME, ADMIN_PASSWORD added to all api-* services
+#     (v7 omitted them — all instances used insecure hardcoded defaults)
+#   - S3 env vars added to api-* services (v7 omitted — S3 upload silently
+#     fell back to local disk on every container even when S3 was configured)
+#   - postgres depends_on condition added to all api-* services for proper
+#     startup ordering (v7 only waited for redis, not postgres)
+#   - DB_MIN_POOL / DB_MAX_POOL tuned per container memory limit
+
+networks:
+  pushkaralu-net:
+    driver: bridge
+
+
+volumes:
+  redis-data:
+  postgres-data:
+  uploads-data:
+
+services:
+
+  redis:
+    image: redis:7-alpine
+    container_name: pushkaralu-redis
+    restart: unless-stopped
+    command: >
+      redis-server
+      --maxmemory 2gb
+      --maxmemory-policy allkeys-lru
+      --save 60 1000
+      --appendonly yes
+      --appendfsync everysec
+      --tcp-keepalive 60
+      --timeout 300
+      --hz 20
+      --dynamic-hz yes
+    volumes:
+      - redis-data:/data
+    networks:
+      - pushkaralu-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: pushkaralu-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: pushkaralu
+      POSTGRES_USER: pushkaralu
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD required in .env}
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/schema.sql:ro
+      - ./infrastructure/postgres/postgresql.conf:/etc/postgresql/postgresql.conf:ro
+    command: postgres -c config_file=/etc/postgresql/postgresql.conf
+    networks:
+      - pushkaralu-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pushkaralu"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  api-1:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    image: pushkaralu-api:v8
+    container_name: pushkaralu-api-1
+    restart: unless-stopped
+    environment:
+      ADMIN_API_KEY: ${ADMIN_API_KEY}
+      REDIS_URL: redis://redis:6379/0
+      DATABASE_URL: postgresql://pushkaralu:${POSTGRES_PASSWORD}@postgres/pushkaralu
+      SCRAPERBOT_URL: ${SCRAPERBOT_URL:-http://localhost:3000}
+      CROWD_BROADCAST_INTERVAL: "2.5"
+      ENABLE_REDIS: "true"
+      INSTANCE_ID: "api-1"
+      # FIX (Issue 8): Align memory guardian thresholds with container limits
+      # Container hard limit: 896m. Python + OS overhead ~120m. Buffer for spikes: ~80m.
+      # Warn at 550m (61%), force GC at 700m (78%), leaving ~196m before OOM kill.
+      HEAL_MEM_WARN_MB: "550"
+      HEAL_MEM_CRIT_MB: "700"
+      ENVIRONMENT: ${ENVIRONMENT:-production}
+      # JWT Auth (Task 1) — FIX: was missing in v7
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?JWT_SECRET_KEY required in .env}
+      JWT_EXPIRY_HOURS: ${JWT_EXPIRY_HOURS:-8}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?ADMIN_PASSWORD required in .env}
+      # S3 Object Storage (Task 3) — FIX: was missing in v7
+      S3_BUCKET_NAME: ${S3_BUCKET_NAME:-}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-}
+      S3_ENDPOINT_URL: ${S3_ENDPOINT_URL:-}
+      S3_REGION: ${S3_REGION:-ap-south-1}
+      S3_PUBLIC_BASE_URL: ${S3_PUBLIC_BASE_URL:-}
+      S3_ACL: ${S3_ACL:-}
+      # DB Pool
+      DB_MIN_POOL: "2"
+      DB_MAX_POOL: "8"
+    volumes:
+      - uploads-data:/app/uploads
+    networks:
+      - pushkaralu-net
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    expose:
+      - "8000"
+    deploy:
+      resources:
+        limits:
+          memory: 896m
+          cpus: "1.0"
+        reservations:
+          memory: 256m
+
+  api-2:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    image: pushkaralu-api:v8
+    container_name: pushkaralu-api-2
+    restart: unless-stopped
+    environment:
+      ADMIN_API_KEY: ${ADMIN_API_KEY}
+      REDIS_URL: redis://redis:6379/0
+      DATABASE_URL: postgresql://pushkaralu:${POSTGRES_PASSWORD}@postgres/pushkaralu
+      ENABLE_REDIS: "true"
+      INSTANCE_ID: "api-2"
+      HEAL_MEM_WARN_MB: "550"
+      HEAL_MEM_CRIT_MB: "700"
+      ENVIRONMENT: ${ENVIRONMENT:-production}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?JWT_SECRET_KEY required in .env}
+      JWT_EXPIRY_HOURS: ${JWT_EXPIRY_HOURS:-8}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?ADMIN_PASSWORD required in .env}
+      S3_BUCKET_NAME: ${S3_BUCKET_NAME:-}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-}
+      S3_ENDPOINT_URL: ${S3_ENDPOINT_URL:-}
+      S3_REGION: ${S3_REGION:-ap-south-1}
+      S3_PUBLIC_BASE_URL: ${S3_PUBLIC_BASE_URL:-}
+      S3_ACL: ${S3_ACL:-}
+      DB_MIN_POOL: "2"
+      DB_MAX_POOL: "8"
+    volumes:
+      - uploads-data:/app/uploads
+    networks:
+      - pushkaralu-net
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    expose:
+      - "8000"
+    deploy:
+      resources:
+        limits:
+          memory: 896m
+          cpus: "1.0"
+
+  api-3:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    image: pushkaralu-api:v8
+    container_name: pushkaralu-api-3
+    restart: unless-stopped
+    environment:
+      ADMIN_API_KEY: ${ADMIN_API_KEY}
+      REDIS_URL: redis://redis:6379/0
+      DATABASE_URL: postgresql://pushkaralu:${POSTGRES_PASSWORD}@postgres/pushkaralu
+      ENABLE_REDIS: "true"
+      INSTANCE_ID: "api-3"
+      HEAL_MEM_WARN_MB: "550"
+      HEAL_MEM_CRIT_MB: "700"
+      ENVIRONMENT: ${ENVIRONMENT:-production}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?JWT_SECRET_KEY required in .env}
+      JWT_EXPIRY_HOURS: ${JWT_EXPIRY_HOURS:-8}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?ADMIN_PASSWORD required in .env}
+      S3_BUCKET_NAME: ${S3_BUCKET_NAME:-}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-}
+      S3_ENDPOINT_URL: ${S3_ENDPOINT_URL:-}
+      S3_REGION: ${S3_REGION:-ap-south-1}
+      S3_PUBLIC_BASE_URL: ${S3_PUBLIC_BASE_URL:-}
+      S3_ACL: ${S3_ACL:-}
+      DB_MIN_POOL: "2"
+      DB_MAX_POOL: "8"
+    volumes:
+      - uploads-data:/app/uploads
+    networks:
+      - pushkaralu-net
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    expose:
+      - "8000"
+    deploy:
+      resources:
+        limits:
+          memory: 896m
+          cpus: "1.0"
+
+  api-4:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    image: pushkaralu-api:v8
+    container_name: pushkaralu-api-4
+    restart: unless-stopped
+    environment:
+      ADMIN_API_KEY: ${ADMIN_API_KEY}
+      REDIS_URL: redis://redis:6379/0
+      DATABASE_URL: postgresql://pushkaralu:${POSTGRES_PASSWORD}@postgres/pushkaralu
+      ENABLE_REDIS: "true"
+      INSTANCE_ID: "api-4"
+      HEAL_MEM_WARN_MB: "550"
+      HEAL_MEM_CRIT_MB: "700"
+      ENVIRONMENT: ${ENVIRONMENT:-production}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?JWT_SECRET_KEY required in .env}
+      JWT_EXPIRY_HOURS: ${JWT_EXPIRY_HOURS:-8}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?ADMIN_PASSWORD required in .env}
+      S3_BUCKET_NAME: ${S3_BUCKET_NAME:-}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-}
+      S3_ENDPOINT_URL: ${S3_ENDPOINT_URL:-}
+      S3_REGION: ${S3_REGION:-ap-south-1}
+      S3_PUBLIC_BASE_URL: ${S3_PUBLIC_BASE_URL:-}
+      S3_ACL: ${S3_ACL:-}
+      DB_MIN_POOL: "2"
+      DB_MAX_POOL: "8"
+    volumes:
+      - uploads-data:/app/uploads
+    networks:
+      - pushkaralu-net
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    expose:
+      - "8000"
+    deploy:
+      resources:
+        limits:
+          memory: 896m
+          cpus: "1.0"
+
+  db-writer:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile.worker
+    container_name: pushkaralu-db-writer
+    restart: unless-stopped
+    command: python -m app.workers.db_writer
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      DATABASE_URL: postgresql://pushkaralu:${POSTGRES_PASSWORD}@postgres/pushkaralu
+      DB_FLUSH_INTERVAL: "5"
+      DB_BATCH_SIZE: "100"
+    networks:
+      - pushkaralu-net
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+
+  cctv-worker:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile.worker
+    container_name: pushkaralu-cctv-worker
+    restart: unless-stopped
+    command: python -m app.workers.cctv_worker
+    environment:
+      API_BASE: http://api-1:8000
+      CCTV_FPS: "1.5"
+      FRAME_MAX_PX: "640"
+      YOLO_MODEL: yolov8n.pt
+    networks:
+      - pushkaralu-net
+    depends_on:
+      - api-1
+
+  nginx:
+    image: nginx:1.25-alpine
+    container_name: pushkaralu-nginx
+    restart: unless-stopped
+    ports:
+      - "8088:8088"
+    volumes:
+      - ./infrastructure/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./index.html:/var/www/pushkaralu/dashboard/index.html:ro
+      - ./user.html:/var/www/pushkaralu/dashboard/user.html:ro
+      - ./admin.html:/var/www/pushkaralu/dashboard/admin.html:ro
+      - ./config.js:/var/www/pushkaralu/dashboard/config.js:ro
+      - uploads-data:/var/www/pushkaralu/uploads
+    networks:
+      - pushkaralu-net
+    depends_on:
+      - api-1
+      - api-2
+      - api-3
+      - api-4
+    healthcheck:
+      test: ["CMD", "nginx", "-t"]
+      interval: 30s
+      timeout: 5s
+      retries: 3

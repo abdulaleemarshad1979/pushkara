@@ -1,0 +1,28 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# Godavari Pushkaralu 2027 — Worker Dockerfile  (v5)
+# Used by: db_writer, cctv_worker
+# For CCTV worker: install ultralytics + opencv-python-headless (larger image)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+FROM python:3.11-slim
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir --upgrade pip \
+    && pip install --no-cache-dir -r requirements.txt
+
+# For CCTV worker, uncomment:
+# RUN pip install --no-cache-dir ultralytics opencv-python-headless
+
+COPY . .
+
+RUN groupadd -r worker && useradd -r -g worker worker
+USER worker
+
+# CMD is set per service in docker-compose.yml

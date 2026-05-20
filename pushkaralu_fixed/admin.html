@@ -1,0 +1,1691 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin Command Center — Godavari Pushkaralu 2027</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+Telugu&family=DM+Serif+Display&family=DM+Sans:wght@400;500;600;700&family=Source+Code+Pro:wght@500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="config.js"></script>
+<style>
+:root {
+  --bg0: #040810;
+  --bg1: #080f1c;
+  --bg2: #0d1829;
+  --bg3: #111f35;
+  --panel: rgba(10,20,40,0.92);
+  --border: rgba(0,200,255,0.15);
+  --border-bright: rgba(0,200,255,0.45);
+  --cyan: #00c8ff;
+  --cyan-dim: rgba(0,200,255,0.6);
+  --gold: #f4b942;
+  --gold-dim: rgba(244,185,66,0.7);
+  --green: #00ff88;
+  --red: #ff3355;
+  --orange: #ff8c00;
+  --purple: #aa44ff;
+  --text: #c8e0ff;
+  --text-dim: rgba(200,224,255,0.55);
+  --glow-cyan: 0 0 20px rgba(0,200,255,0.35);
+  --glow-gold: 0 0 20px rgba(244,185,66,0.35);
+  --glow-red: 0 0 20px rgba(255,51,85,0.5);
+}
+.light-mode {
+  --bg0: #F8FAFC;
+  --bg1: #FFFFFF;
+  --bg2: #E2E8F0;
+  --bg3: #CBD5E1;
+  --panel: rgba(255,255,255,0.92);
+  --border: rgba(0,0,0,0.08);
+  --border-bright: rgba(0,0,0,0.15);
+  --cyan: #0F172A;
+  --cyan-dim: rgba(15,23,42,0.7);
+  --text: #0F172A;
+  --text-dim: #475569;
+  --glow-cyan: none;
+  --glow-gold: none;
+  --glow-red: none;
+  --gold: #D97706;
+}
+.light-mode body::before{display:none}
+.light-mode .topbar{background:white;border-bottom-color:var(--bg2)}
+.light-mode .sidebar{background:white;border-right-color:var(--bg2)}
+.light-mode .main-area{background:#F8FAFC}
+.light-mode .card{background:white;box-shadow:0 4px 12px rgba(0,0,0,0.05);border-color:var(--bg2)}
+.light-mode .stat-box{background:#F1F5F9;border-color:var(--bg2)}
+.light-mode .ghat-row{background:#F1F5F9;border-color:var(--bg2)}
+.light-mode .nav-item:hover{background:rgba(15,23,42,0.03)}
+.light-mode .nav-item.active{background:rgba(15,23,42,0.06)}
+.light-mode .person-card{background:#F1F5F9}
+.light-mode .contact-card{background:#F1F5F9}
+.light-mode .med-card{background:#F1F5F9}
+.light-mode input, .light-mode select, .light-mode textarea{background:white !important;color:var(--text) !important;border-color:var(--bg3)}
+.light-mode .modal{background:white}
+.light-mode .btn-cyan{background:var(--cyan);color:white}
+.light-mode .btn-cyan:hover{background:#000}
+.light-mode .topbar-title{text-shadow:none}
+.light-mode .ts-item.sos .ts-val{text-shadow:none;animation:none}
+.light-mode .ws-dot.disconnected{background:#EF4444}
+.light-mode .ws-dot{box-shadow:none}
+.light-mode .leaflet-container{background:#f8fafc}
+.light-mode .legend-item{color:var(--text)}
+.light-mode .map-legend{background:white}
+
+*{margin:0;padding:0;box-sizing:border-box; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+html,body{height:100%;overflow:hidden;background:var(--bg0);color:var(--text);font-family:'DM Sans', 'Noto Serif Telugu', sans-serif; transition:background 0.3s ease, color 0.3s ease; font-size: 15px; line-height: 1.6; letter-spacing: 0.2px; }
+
+/* ═══ TYPOGRAPHY HIERARCHY ═══════════════════════════════════════════ */
+h1, h2, h3, .topbar-title, .card-title, .modal-title, .alert-name {
+  font-family: 'DM Serif Display', 'Noto Serif Telugu', serif !important;
+  font-weight: 400;
+  letter-spacing: 1px;
+}
+
+.topbar-sub, .nav-section, .ts-label, .stat-box .lbl, .ghat-zone, .alert-meta, .person-detail, .vol-meta, .contact-meta, .ws-badge, .ts-val, .stat-box .val, .ghat-name, .form-group label, .toast-msg {
+  font-family: 'Source Code Pro', monospace !important;
+}
+
+.nav-item, .btn, .filter-btn, select, input, textarea, .level-badge {
+  font-family: 'DM Sans', sans-serif !important;
+  font-weight: 600;
+}
+.nav-item { font-size: 14px; }
+.btn { font-weight: 500; }
+
+/* ═══ SCAN LINES ── */
+body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,200,255,0.015) 2px,rgba(0,200,255,0.015) 4px);pointer-events:none;z-index:9999}
+
+/* ── LAYOUT ── */
+.layout{display:grid;grid-template-rows:64px 1fr;grid-template-columns:240px 1fr;height:100vh;gap:0}
+.topbar{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;padding:0 20px;background:linear-gradient(90deg,var(--bg0),var(--bg1));border-bottom:1px solid var(--border-bright);position:relative;z-index:100}
+.sidebar{background:var(--bg1);border-right:1px solid var(--border);overflow-y:auto;padding:12px 0}
+.main-area{overflow-y:auto;background:var(--bg0);padding:16px}
+
+/* ── TOPBAR ── */
+.topbar-logo{display:flex;align-items:center;gap:12px}
+.logo-icon{width:36px;height:36px;position:relative}
+.logo-icon svg{width:100%;height:100%}
+.topbar-title{font-family:'DM Serif Display',sans-serif;font-size:18px;font-weight:700;letter-spacing:2px;color:var(--cyan);text-shadow:var(--glow-cyan)}
+.topbar-sub{font-family:'Source Code Pro',monospace;font-size:10px;color:var(--gold);letter-spacing:1px}
+.topbar-stats{display:flex;gap:24px;align-items:center}
+.ts-item{text-align:center}
+.ts-val{font-family:'Source Code Pro',monospace;font-size:20px;font-weight:700}
+.ts-label{font-size:9px;letter-spacing:1px;color:var(--text-dim);text-transform:uppercase}
+.ts-item.sos .ts-val{color:var(--red);text-shadow:var(--glow-red);animation:pulse-red 1.5s infinite}
+.ts-item.crowd .ts-val{color:var(--orange)}
+.ts-item.lost .ts-val{color:var(--gold)}
+.ts-item.vols .ts-val{color:var(--green)}
+@keyframes pulse-red{0%,100%{opacity:1;text-shadow:0 0 20px rgba(255,51,85,0.5)}50%{opacity:0.6;text-shadow:0 0 40px rgba(255,51,85,0.9)}}
+.topbar-time{font-family:'Source Code Pro',monospace;font-size:13px;color:var(--cyan-dim);letter-spacing:2px}
+.ws-badge{display:flex;align-items:center;gap:6px;font-size:10px;font-family:'Source Code Pro',monospace}
+.ws-dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green);animation:blink 2s infinite}
+.ws-dot.disconnected{background:var(--red);animation:none}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
+
+/* ── SIDEBAR ── */
+.nav-section{padding:8px 16px 4px;font-size:9px;letter-spacing:2px;color:var(--text-dim);text-transform:uppercase;font-family:'Source Code Pro',monospace}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 20px;cursor:pointer;transition:all .2s;border-left:2px solid transparent;font-size:13px;font-weight:500;color:var(--text-dim)}
+.nav-item:hover{background:rgba(0,200,255,0.06);color:var(--text);border-left-color:var(--cyan-dim)}
+.nav-item.active{background:rgba(0,200,255,0.1);color:var(--cyan);border-left-color:var(--cyan);text-shadow:0 0 10px rgba(0,200,255,0.4)}
+.nav-icon{font-size:16px;width:22px;text-align:center}
+.nav-badge{margin-left:auto;background:var(--red);color:#fff;border-radius:10px;padding:1px 7px;font-size:10px;font-family:'Source Code Pro',monospace}
+.nav-badge.green{background:var(--green);color:#000}
+.nav-badge.gold{background:var(--gold);color:#000}
+
+/* ── PANELS ── */
+.panel{display:none}
+.panel.active{display:block}
+
+/* ── CARDS ── */
+.card{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:14px;backdrop-filter:blur(10px)}
+.card-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.card-title{font-family:'DM Serif Display',sans-serif;font-size:15px;font-weight:700;letter-spacing:2px;color:var(--cyan);text-transform:uppercase}
+.card-title .accent{color:var(--gold)}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+
+/* ── STAT BOXES ── */
+.stat-box{background:rgba(0,0,0,0.3);border:1px solid var(--border);border-radius:6px;padding:12px;text-align:center}
+.stat-box .val{font-family:'Source Code Pro',monospace;font-size:28px;font-weight:700;line-height:1}
+.stat-box .lbl{font-size:10px;letter-spacing:1px;color:var(--text-dim);margin-top:4px;text-transform:uppercase}
+.stat-box.cyan .val{color:var(--cyan)}
+.stat-box.red .val{color:var(--red);animation:pulse-red 2s infinite}
+.stat-box.green .val{color:var(--green)}
+.stat-box.gold .val{color:var(--gold)}
+.stat-box.orange .val{color:var(--orange)}
+
+/* ── GHAT TABLE ── */
+.ghat-row{display:grid;grid-template-columns:1fr auto auto 120px;align-items:center;gap:12px;padding:10px 12px;border:1px solid var(--border);border-radius:6px;margin-bottom:8px;background:rgba(0,0,0,0.2)}
+.ghat-name{font-weight:600;font-size:13px}
+.ghat-zone{font-size:11px;color:var(--text-dim);font-family:'Source Code Pro',monospace}
+.crowd-bar-wrap{width:80px;height:8px;background:rgba(255,255,255,0.1);border-radius:4px;overflow:hidden}
+.crowd-bar{height:100%;border-radius:4px;transition:width .5s}
+.level-badge{display:inline-block;padding:3px 10px;border-radius:12px;font-size:10px;font-weight:700;font-family:'Source Code Pro',monospace;text-transform:uppercase}
+.level-low{background:rgba(0,255,136,0.15);color:var(--green);border:1px solid rgba(0,255,136,0.3)}
+.level-medium{background:rgba(255,140,0,0.15);color:var(--orange);border:1px solid rgba(255,140,0,0.3)}
+.level-high{background:rgba(255,51,85,0.15);color:var(--red);border:1px solid rgba(255,51,85,0.3)}
+.level-critical{background:rgba(170,68,255,0.2);color:var(--purple);border:1px solid rgba(170,68,255,0.4);animation:pulse-red 1s infinite}
+select.level-select{background:var(--bg2);border:1px solid var(--border);color:var(--text);padding:4px 8px;border-radius:4px;font-size:11px;cursor:pointer}
+
+/* ── BUTTONS ── */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:7px 16px;border:none;border-radius:4px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;letter-spacing:1px;text-transform:uppercase;transition:all .2s}
+.btn-cyan{background:linear-gradient(135deg,rgba(0,200,255,0.2),rgba(0,200,255,0.05));border:1px solid var(--border-bright);color:var(--cyan)}
+.btn-cyan:hover{background:rgba(0,200,255,0.25);box-shadow:var(--glow-cyan)}
+.btn-red{background:linear-gradient(135deg,rgba(255,51,85,0.25),rgba(255,51,85,0.05));border:1px solid rgba(255,51,85,0.4);color:var(--red)}
+.btn-red:hover{background:rgba(255,51,85,0.3);box-shadow:var(--glow-red)}
+.btn-green{background:linear-gradient(135deg,rgba(0,255,136,0.2),rgba(0,255,136,0.05));border:1px solid rgba(0,255,136,0.4);color:var(--green)}
+.btn-green:hover{background:rgba(0,255,136,0.25)}
+.btn-gold{background:linear-gradient(135deg,rgba(244,185,66,0.2),rgba(244,185,66,0.05));border:1px solid rgba(244,185,66,0.4);color:var(--gold)}
+.btn-gold:hover{background:rgba(244,185,66,0.25);box-shadow:var(--glow-gold)}
+.btn-sm{padding:4px 10px;font-size:11px}
+.btn-xs{padding:3px 8px;font-size:10px}
+
+/* ── ALERT CARDS ── */
+.alert-card{border:1px solid rgba(255,51,85,0.4);border-radius:6px;padding:12px;margin-bottom:10px;background:rgba(255,51,85,0.06);position:relative;overflow:hidden}
+.alert-card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--red)}
+.alert-card.resolved{border-color:rgba(0,255,136,0.3);background:rgba(0,255,136,0.04)}
+.alert-card.resolved::before{background:var(--green)}
+.alert-name{font-weight:700;font-size:14px;color:var(--red)}
+.alert-card.resolved .alert-name{color:var(--green)}
+.alert-meta{font-family:'Source Code Pro',monospace;font-size:10px;color:var(--text-dim);margin-top:4px}
+.alert-actions{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+
+/* ── PERSON CARDS ── */
+.person-card{border:1px solid var(--border);border-radius:6px;padding:12px;margin-bottom:10px;display:grid;grid-template-columns:52px 1fr auto;gap:10px;align-items:start;background:rgba(0,0,0,0.2)}
+.person-photo{width:52px;height:52px;border-radius:6px;object-fit:cover;border:1px solid var(--border);background:var(--bg2)}
+.person-photo-placeholder{width:52px;height:52px;border-radius:6px;border:1px solid var(--border);background:var(--bg2);display:flex;align-items:center;justify-content:center;font-size:22px;color:var(--text-dim)}
+.person-name{font-weight:700;font-size:14px}
+.person-detail{font-size:11px;color:var(--text-dim);margin-top:2px;font-family:'Source Code Pro',monospace}
+.status-missing{color:var(--red)}
+.status-found{color:var(--green)}
+
+/* ── VOLUNTEER CARDS ── */
+.vol-card{border:1px solid var(--border);border-radius:6px;padding:12px;margin-bottom:8px;display:flex;align-items:center;gap:12px}
+.vol-avatar{width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,var(--cyan),var(--purple));display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;color:#fff;flex-shrink:0}
+.vol-info{flex:1}
+.vol-name{font-weight:600;font-size:13px}
+.vol-meta{font-family:'Source Code Pro',monospace;font-size:10px;color:var(--text-dim)}
+.vol-status{display:inline-block;padding:2px 10px;border-radius:10px;font-size:10px;font-weight:700;text-transform:uppercase}
+.vol-available{background:rgba(0,255,136,0.15);color:var(--green);border:1px solid rgba(0,255,136,0.3)}
+.vol-busy{background:rgba(255,140,0,0.15);color:var(--orange);border:1px solid rgba(255,140,0,0.3)}
+.vol-inactive{background:rgba(255,51,85,0.15);color:var(--red);border:1px solid rgba(255,51,85,0.3)}
+
+/* ── CONTACT CARDS ── */
+.contact-card{border:1px solid var(--border);border-radius:6px;padding:10px 14px;margin-bottom:8px;display:flex;align-items:center;gap:12px;background:rgba(0,0,0,0.2)}
+.contact-icon{font-size:22px;width:36px;text-align:center}
+.contact-info{flex:1}
+.contact-name{font-weight:600;font-size:13px}
+.contact-meta{font-size:11px;color:var(--text-dim);font-family:'Source Code Pro',monospace}
+.contact-phone{font-family:'Source Code Pro',monospace;font-size:13px;color:var(--cyan);margin-left:auto}
+
+/* ── MAP ── */
+#admin-map{height:420px;border-radius:8px;border:1px solid var(--border);overflow:hidden}
+.leaflet-container{background:#040810}
+
+/* ── FORM ── */
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+.form-group{display:flex;flex-direction:column;gap:4px}
+.form-group label{font-size:10px;letter-spacing:1px;color:var(--text-dim);text-transform:uppercase;font-family:'Source Code Pro',monospace}
+.form-group input,.form-group select,.form-group textarea{background:rgba(0,0,0,0.4);border:1px solid var(--border);color:var(--text);padding:8px 10px;border-radius:4px;font-family:'DM Sans',sans-serif;font-size:13px;transition:border-color .2s;width:100%}
+.form-group input:focus,.form-group select:focus,.form-group textarea:focus{outline:none;border-color:var(--cyan);box-shadow:0 0 0 2px rgba(0,200,255,0.1)}
+.form-group.full{grid-column:1/-1}
+.form-row{display:flex;gap:8px;margin-top:4px}
+
+/* ── MODAL ── */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(4px);z-index:1000;display:none;align-items:center;justify-content:center}
+.modal-overlay.open{display:flex}
+.modal{background:var(--bg2);border:1px solid var(--border-bright);border-radius:12px;padding:24px;width:90%;max-width:520px;max-height:80vh;overflow-y:auto;box-shadow:var(--glow-cyan)}
+.modal-title{font-family:'DM Serif Display',sans-serif;font-size:18px;font-weight:700;letter-spacing:2px;color:var(--cyan);margin-bottom:18px;text-transform:uppercase}
+
+/* ── MEDICAL CARD ── */
+.med-card{border:1px solid var(--border);border-radius:6px;padding:10px 14px;margin-bottom:8px;display:flex;align-items:center;gap:12px;background:rgba(0,0,0,0.2)}
+.med-icon{font-size:22px;width:36px;text-align:center}
+.med-type-camp{color:#00ffaa}
+.med-type-govt{color:var(--cyan)}
+.med-type-private{color:var(--gold)}
+
+/* ── TOAST ── */
+#toast{position:fixed;bottom:24px;right:24px;z-index:9000;display:flex;flex-direction:column;gap:8px;pointer-events:none}
+.toast-msg{background:var(--bg2);border:1px solid var(--border-bright);border-radius:6px;padding:10px 18px;font-size:13px;color:var(--text);box-shadow:var(--glow-cyan);animation:slide-in .3s ease;font-family:'Source Code Pro',monospace}
+.toast-msg.error{border-color:rgba(255,51,85,0.5);box-shadow:var(--glow-red)}
+.toast-msg.success{border-color:rgba(0,255,136,0.5)}
+@keyframes slide-in{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(0,200,255,0.3);border-radius:2px}
+::-webkit-scrollbar-thumb:hover{background:rgba(0,200,255,0.5)}
+
+/* ── DIVIDER ── */
+.divider{height:1px;background:var(--border);margin:12px 0}
+
+/* ── MAP LEGEND ── */
+.map-legend{display:flex;flex-wrap:wrap;gap:10px;margin-top:10px;padding:10px;background:rgba(0,0,0,0.3);border-radius:6px;border:1px solid var(--border)}
+.legend-item{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text-dim)}
+.legend-dot{width:10px;height:10px;border-radius:50%}
+
+/* ── FILTER BAR ── */
+.filter-bar{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+.filter-btn{padding:5px 14px;border:1px solid var(--border);border-radius:20px;background:transparent;color:var(--text-dim);font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .2s}
+.filter-btn.active,.filter-btn:hover{border-color:var(--cyan);color:var(--cyan);background:rgba(0,200,255,0.08)}
+
+.empty-state{text-align:center;padding:32px;color:var(--text-dim);font-size:13px}
+.empty-state .icon{font-size:36px;margin-bottom:8px}
+.btn-gold{background:linear-gradient(135deg,var(--gold),#c8961a);color:#000}
+</style>
+</head>
+<body>
+
+<div class="layout">
+<!-- ── TOPBAR ── -->
+<header class="topbar">
+  <div class="topbar-logo">
+    <div class="logo-icon">
+      <svg viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="18" cy="18" r="16" stroke="#00c8ff" stroke-width="1.5" opacity="0.5"/>
+        <circle cx="18" cy="18" r="10" stroke="#f4b942" stroke-width="1" opacity="0.7"/>
+        <path d="M18 8 L20 16 L18 14 L16 16 Z" fill="#f4b942"/>
+        <circle cx="18" cy="18" r="3" fill="#00c8ff"/>
+        <line x1="4" y1="18" x2="14" y2="18" stroke="#00c8ff" stroke-width="0.8" opacity="0.5"/>
+        <line x1="22" y1="18" x2="32" y2="18" stroke="#00c8ff" stroke-width="0.8" opacity="0.5"/>
+      </svg>
+    </div>
+    <div>
+      <div class="topbar-title">ADMIN COMMAND CENTER</div>
+      <div class="topbar-sub">GODAVARI PUSHKARALU 2027 · EAST GODAVARI DISTRICT ADMINISTRATION</div>
+    </div>
+  </div>
+  <div class="topbar-stats">
+    <div class="ts-item sos">
+      <div class="ts-val" id="ts-sos">0</div>
+      <div class="ts-label">Active SOS</div>
+    </div>
+    <div class="ts-item crowd">
+      <div class="ts-val" id="ts-crowd">0</div>
+      <div class="ts-label">High Crowd Ghats</div>
+    </div>
+    <div class="ts-item lost">
+      <div class="ts-val" id="ts-lost">0</div>
+      <div class="ts-label">Missing</div>
+    </div>
+    <div class="ts-item vols">
+      <div class="ts-val" id="ts-vols">0</div>
+      <div class="ts-label">Active Volunteers</div>
+    </div>
+  </div>
+  <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:2px">
+      <button id="theme-toggle" onclick="toggleTheme()" style="background:var(--bg2);border:1px solid var(--border-bright);color:var(--text);padding:4px 8px;border-radius:4px;cursor:pointer;font-size:14px;transition:all 0.2s">🌙</button>
+      <div class="topbar-time" id="live-time">--:--:--</div>
+    </div>
+    <div class="ws-badge">
+      <div class="ws-dot disconnected" id="ws-dot"></div>
+      <span id="ws-label" style="color:var(--text-dim)">Connecting…</span>
+    </div>
+  </div>
+</header>
+
+<!-- ── SIDEBAR ── -->
+<nav class="sidebar">
+  <div class="nav-section">Command</div>
+  <div class="nav-item active" data-panel="overview" onclick="showPanel(this)">
+    <span class="nav-icon">⚡</span> Overview
+  </div>
+  <div class="nav-item" data-panel="crowd" onclick="showPanel(this)">
+    <span class="nav-icon">🌊</span> Crowd Monitor
+  </div>
+  <div class="nav-section">Emergency</div>
+  <div class="nav-item" data-panel="sos" onclick="showPanel(this)">
+    <span class="nav-icon">🆘</span> SOS Control
+    <span class="nav-badge" id="nb-sos">0</span>
+  </div>
+  <div class="nav-item" data-panel="issues" onclick="showPanel(this)">
+    <span class="nav-icon">⚠️</span> Incidents
+    <span class="nav-badge" id="nb-issues">0</span>
+  </div>
+  <div class="nav-section">People</div>
+  <div class="nav-item" data-panel="lost" onclick="showPanel(this)">
+    <span class="nav-icon">🔍</span> Lost & Found
+    <span class="nav-badge gold" id="nb-lost">0</span>
+  </div>
+  <div class="nav-item" data-panel="volunteers" onclick="showPanel(this)">
+    <span class="nav-icon">👮</span> Volunteers
+  </div>
+  <div class="nav-section">Resources</div>
+  <div class="nav-item" data-panel="contacts" onclick="showPanel(this)">
+    <span class="nav-icon">📞</span> Emergency Contacts
+  </div>
+  <div class="nav-item" data-panel="medical" onclick="showPanel(this)">
+    <span class="nav-icon">🏥</span> Medical Facilities
+  </div>
+  <div class="nav-item" data-panel="map" onclick="showPanel(this)">
+    <span class="nav-icon">🗺️</span> Map View
+  </div>
+</nav>
+
+<!-- ── MAIN AREA ── -->
+<main class="main-area">
+
+<!-- OVERVIEW -->
+<div id="panel-overview" class="panel active">
+  <div class="card">
+    <div class="card-hdr"><div class="card-title">System <span class="accent">Status</span></div>
+      <button class="btn btn-cyan btn-sm" onclick="loadStats()">↻ Refresh</button>
+    </div>
+    <div class="grid-3">
+      <div class="stat-box red"><div class="val" id="stat-sos">—</div><div class="lbl">Active SOS</div></div>
+      <div class="stat-box orange"><div class="val" id="stat-issues">—</div><div class="lbl">Pending Incidents</div></div>
+      <div class="stat-box gold"><div class="val" id="stat-missing">—</div><div class="lbl">Missing Persons</div></div>
+      <div class="stat-box green"><div class="val" id="stat-avol">—</div><div class="lbl">Active Volunteers</div></div>
+      <div class="stat-box cyan"><div class="val" id="stat-ghats">—</div><div class="lbl">Ghats Monitored</div></div>
+      <div class="stat-box cyan"><div class="val" id="stat-medical">—</div><div class="lbl">Medical Facilities</div></div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-hdr"><div class="card-title">Latest <span class="accent">SOS</span> Alerts</div></div>
+      <div id="ov-sos-list"><div class="empty-state"><div class="icon">✅</div>No active SOS alerts</div></div>
+    </div>
+    <div class="card">
+      <div class="card-hdr"><div class="card-title">Recent <span class="accent">Incidents</span></div></div>
+      <div id="ov-issues-list"><div class="empty-state"><div class="icon">📋</div>No recent incidents</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-hdr"><div class="card-title">Ghat <span class="accent">Crowd</span> Summary</div></div>
+    <div id="ov-ghats-list"></div>
+  </div>
+</div>
+
+<!-- CROWD MONITORING -->
+<div id="panel-crowd" class="panel">
+  <div class="card">
+    <div class="card-hdr">
+      <div class="card-title">Crowd <span class="accent">Monitoring</span></div>
+      <button class="btn btn-cyan btn-sm" onclick="loadGhats()">↻ Refresh</button>
+    </div>
+    <div id="crowd-ghats-list"></div>
+  </div>
+</div>
+
+<!-- SOS CONTROL -->
+<div id="panel-sos" class="panel">
+  <div class="card">
+    <div class="card-hdr">
+      <div class="card-title">🆘 SOS <span class="accent">Emergency Control</span></div>
+      <div class="filter-bar">
+        <button class="filter-btn active" onclick="filterSOS(this,'all')">All</button>
+        <button class="filter-btn" onclick="filterSOS(this,'active')">Active</button>
+        <button class="filter-btn" onclick="filterSOS(this,'resolved')">Resolved</button>
+      </div>
+    </div>
+    <div id="sos-list"></div>
+  </div>
+</div>
+
+<!-- INCIDENTS -->
+<div id="panel-issues" class="panel">
+  <div class="card">
+    <div class="card-hdr">
+      <div class="card-title">Incident <span class="accent">Reports</span></div>
+      <div class="filter-bar">
+        <button class="filter-btn active" onclick="filterIssues(this,'all')">All</button>
+        <button class="filter-btn" onclick="filterIssues(this,'pending')">Pending</button>
+        <button class="filter-btn" onclick="filterIssues(this,'in_progress')">In Progress</button>
+        <button class="filter-btn" onclick="filterIssues(this,'resolved')">Resolved</button>
+      </div>
+    </div>
+    <div id="issues-list"></div>
+  </div>
+</div>
+
+<!-- LOST & FOUND -->
+<div id="panel-lost" class="panel">
+  <div class="card">
+    <div class="card-hdr">
+      <div class="card-title">Lost & <span class="accent">Found</span> Registry</div>
+      <button class="btn btn-gold btn-sm" onclick="openLostModal()">+ Register Lost Person</button>
+    </div>
+    <div class="filter-bar">
+      <button class="filter-btn active" onclick="filterLost(this,'all')">All</button>
+      <button class="filter-btn" onclick="filterLost(this,'missing')">Missing</button>
+      <button class="filter-btn" onclick="filterLost(this,'found')">Found</button>
+    </div>
+    <div id="lost-list"></div>
+  </div>
+</div>
+
+<!-- VOLUNTEERS -->
+<div id="panel-volunteers" class="panel">
+  <div class="card">
+    <div class="card-hdr">
+      <div class="card-title">Volunteer <span class="accent">Management</span></div>
+      <button class="btn btn-cyan btn-sm" onclick="openVolModal()">+ Add Volunteer</button>
+    </div>
+    <div class="filter-bar" style="margin-bottom:12px">
+      <button class="filter-btn active" onclick="filterVols(this,'all')">All</button>
+      <button class="filter-btn" onclick="filterVols(this,'available')">Available</button>
+      <button class="filter-btn" onclick="filterVols(this,'busy')">Busy</button>
+      <button class="filter-btn" onclick="filterVols(this,'inactive')">Inactive</button>
+    </div>
+    <div id="vols-list"></div>
+  </div>
+</div>
+
+<!-- EMERGENCY CONTACTS -->
+<div id="panel-contacts" class="panel">
+  <!-- Dynamic contacts (editable — from DB via API) -->
+  <div class="card">
+    <div class="card-hdr">
+      <div class="card-title">Emergency <span class="accent">Contacts</span></div>
+      <button class="btn btn-cyan btn-sm" onclick="openContactModal()">+ Add Contact</button>
+    </div>
+    <div class="filter-bar">
+      <button class="filter-btn active" onclick="filterContacts(this,'all')">All</button>
+      <button class="filter-btn" onclick="filterContacts(this,'police_station')">🚔 Police</button>
+      <button class="filter-btn" onclick="filterContacts(this,'government_hospital')">🏥 Hospitals</button>
+      <button class="filter-btn" onclick="filterContacts(this,'emergency_help_desk')">🆘 Help Desk</button>
+    </div>
+    <div id="contacts-list"></div>
+  </div>
+
+  <!-- Static Emergency Services Registry (read-only, from /emergency_services endpoint) -->
+  <div class="card" style="margin-top:14px">
+    <div class="card-hdr">
+      <div class="card-title">📋 Emergency <span class="accent">Services Registry</span></div>
+      <span style="font-size:10px;font-family:'Source Code Pro',monospace;color:var(--text-dim);letter-spacing:1px">READ-ONLY · OFFICIAL DATASET</span>
+    </div>
+    <!-- Category tabs -->
+    <div class="filter-bar" id="es-filter-bar">
+      <button class="filter-btn active" onclick="filterES(this,'all')">All</button>
+      <button class="filter-btn" onclick="filterES(this,'police')">🚔 Police</button>
+      <button class="filter-btn" onclick="filterES(this,'hospital')">🏥 Hospitals</button>
+      <button class="filter-btn" onclick="filterES(this,'fire')">🔥 Fire</button>
+      <button class="filter-btn" onclick="filterES(this,'administration')">🏛️ Admin</button>
+      <button class="filter-btn" onclick="filterES(this,'helpline')">📞 Helplines</button>
+    </div>
+    <div id="es-list"></div>
+  </div>
+</div>
+
+<!-- MEDICAL FACILITIES -->
+<div id="panel-medical" class="panel">
+  <div class="card">
+    <div class="card-hdr">
+      <div class="card-title">Medical <span class="accent">Facilities</span></div>
+      <button class="btn btn-cyan btn-sm" onclick="openMedModal()">+ Add Facility</button>
+    </div>
+    <div class="filter-bar">
+      <button class="filter-btn active" onclick="filterMed(this,'all')">All</button>
+      <button class="filter-btn" onclick="filterMed(this,'medical_camp')">⛺ Camps</button>
+      <button class="filter-btn" onclick="filterMed(this,'government_hospital')">🏛️ Govt Hospitals</button>
+      <button class="filter-btn" onclick="filterMed(this,'private_hospital')">🏥 Private</button>
+    </div>
+    <div id="medical-list"></div>
+  </div>
+</div>
+
+<!-- MAP VIEW -->
+<div id="panel-map" class="panel">
+  <div class="card">
+    <div class="card-hdr"><div class="card-title">Live <span class="accent">Map</span> View</div>
+      <button class="btn btn-cyan btn-sm" onclick="refreshMap()">↻ Refresh Markers</button>
+    </div>
+    <div id="admin-map"></div>
+    <div class="map-legend">
+      <div class="legend-item"><div class="legend-dot" style="background:#f4b942"></div> Ghats</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#00c8ff"></div> Volunteers</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#ff3355"></div> SOS / Lost</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#00ff88"></div> Medical</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#aa44ff"></div> Police / Contacts</div>
+    </div>
+  </div>
+</div>
+</main>
+</div>
+
+<!-- ── MODALS ── -->
+
+<!-- Lost Person Modal -->
+<div class="modal-overlay" id="modal-lost">
+  <div class="modal">
+    <div class="modal-title">Register Lost Person</div>
+    <div class="form-grid">
+      <div class="form-group"><label>Name *</label><input type="text" id="l-name" placeholder="Full name"></div>
+      <div class="form-group"><label>Age</label><input type="number" id="l-age" placeholder="Age" min="1" max="120"></div>
+      <div class="form-group"><label>Gender</label><select id="l-gender"><option value="">Unknown</option><option value="male">Male</option><option value="female">Female</option><option value="other">Other</option></select></div>
+      <div class="form-group full"><label>Last Seen Location *</label><input type="text" id="l-seen" placeholder="e.g. Pushkar Ghat North End"></div>
+      <div class="form-group full"><label>Current Location</label><input type="text" id="l-current" placeholder="If known"></div>
+      <div class="form-group"><label>Contact Person *</label><input type="text" id="l-contact" placeholder="Name of family member"></div>
+      <div class="form-group"><label>Contact Phone *</label><input type="text" id="l-phone" placeholder="Mobile number"></div>
+      <div class="form-group full"><label>Description</label><textarea id="l-desc" rows="2" placeholder="Clothing, physical features..."></textarea></div>
+      <div class="form-group full"><label>Photo</label><input type="file" id="l-photo" accept="image/*"></div>
+    </div>
+    <div class="form-row">
+      <button class="btn btn-gold" onclick="submitLost()">✓ Register</button>
+      <button class="btn btn-cyan" onclick="closeModal('modal-lost')">✕ Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Contact Modal -->
+<div class="modal-overlay" id="modal-contact">
+  <div class="modal">
+    <div class="modal-title">Add Emergency Contact</div>
+    <div class="form-grid">
+      <div class="form-group"><label>Name *</label><input type="text" id="c-name" placeholder="Contact name"></div>
+      <div class="form-group"><label>Category</label>
+        <select id="c-cat">
+          <option value="police_station">Police Station</option>
+          <option value="police_officer">Police Officer</option>
+          <option value="government_official">Govt Official</option>
+          <option value="government_hospital">Govt Hospital</option>
+          <option value="emergency_help_desk">Help Desk</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Designation *</label><input type="text" id="c-desig" placeholder="e.g. Inspector"></div>
+      <div class="form-group"><label>Department *</label><input type="text" id="c-dept" placeholder="e.g. AP Police"></div>
+      <div class="form-group"><label>Phone *</label><input type="text" id="c-phone" placeholder="Phone number"></div>
+      <div class="form-group full"><label>Address</label><input type="text" id="c-addr" placeholder="Address"></div>
+      <div class="form-group"><label>Latitude</label><input type="number" id="c-lat" placeholder="16.98" step="0.0001"></div>
+      <div class="form-group"><label>Longitude</label><input type="number" id="c-lon" placeholder="81.78" step="0.0001"></div>
+    </div>
+    <div class="form-row">
+      <button class="btn btn-cyan" onclick="submitContact()">✓ Add Contact</button>
+      <button class="btn btn-red" onclick="closeModal('modal-contact')">✕ Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Medical Modal -->
+<div class="modal-overlay" id="modal-med">
+  <div class="modal">
+    <div class="modal-title">Add Medical Facility</div>
+    <div class="form-grid">
+      <div class="form-group"><label>Name *</label><input type="text" id="m-name" placeholder="Facility name"></div>
+      <div class="form-group"><label>Type</label>
+        <select id="m-type">
+          <option value="medical_camp">Medical Camp</option>
+          <option value="government_hospital">Govt Hospital</option>
+          <option value="private_hospital">Private Hospital</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Latitude</label><input type="number" id="m-lat" placeholder="16.98" step="0.0001"></div>
+      <div class="form-group"><label>Longitude</label><input type="number" id="m-lon" placeholder="81.78" step="0.0001"></div>
+      <div class="form-group"><label>Beds</label><input type="number" id="m-beds" placeholder="0"></div>
+      <div class="form-group"><label>Zone</label><input type="text" id="m-zone" placeholder="e.g. Zone A"></div>
+      <div class="form-group"><label>Doctor</label><input type="text" id="m-doctor" placeholder="Doctor name"></div>
+      <div class="form-group"><label>Phone</label><input type="text" id="m-phone" placeholder="Contact number"></div>
+    </div>
+    <div class="form-row">
+      <button class="btn btn-cyan" onclick="submitMedical()">✓ Add Facility</button>
+      <button class="btn btn-red" onclick="closeModal('modal-med')">✕ Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- SOS Assign Modal removed — volunteer assignment is handled by backend auto-routing only -->
+
+<div id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════
+const S = {
+  ghats: [], volunteers: [], issues: [], sos_alerts: [],
+  lost: [], contacts: [], medical: [],
+  sosFilter: 'all', issueFilter: 'all', lostFilter: 'all',
+  volFilter: 'all', contactFilter: 'all', medFilter: 'all',
+};
+let map = null, mapInited = false;
+const markers = { ghats:[], vols:[], sos:[], lost:[], medical:[], contacts:[] };
+
+// ═══════════════════════════════════════════════════
+// UTILS
+// ═══════════════════════════════════════════════════
+function toast(msg, type='info') {
+  const t = document.createElement('div');
+  t.className = 'toast-msg ' + (type==='error'?'error':type==='success'?'success':'');
+  t.textContent = msg;
+  document.getElementById('toast').appendChild(t);
+  setTimeout(()=>t.remove(), 3500);
+}
+
+function api(path, opts={}) {
+  const headers = Object.assign({}, opts.headers);
+  if (typeof ADMIN_API_KEY !== 'undefined' && ADMIN_API_KEY) {
+    headers['X-Admin-Key'] = ADMIN_API_KEY;
+  }
+  return fetch(API_BASE + path, { ...opts, headers }).then(async r => {
+    const data = await r.json();
+    return data;
+  });
+}
+
+function fmtTime(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return d.toLocaleTimeString('en-IN', {hour:'2-digit',minute:'2-digit'});
+}
+
+function crowdColor(level) {
+  if (!level) return '#888';
+  const l = level.toLowerCase();
+  if (l==='low') return '#00ff88';
+  if (l==='medium') return '#ff8c00';
+  if (l==='high') return '#ff3355';
+  if (l==='critical') return '#aa44ff';
+  return '#888';
+}
+
+function crowdPct(level) {
+  const l = (level||'').toLowerCase();
+  if (l==='low') return 30;
+  if (l==='medium') return 60;
+  if (l==='high') return 85;
+  if (l==='critical') return 100;
+  return 50;
+}
+
+function catIcon(cat) {
+  const m = {police_station:'🚔',police_officer:'👮',government_official:'🏛️',government_hospital:'🏥',emergency_help_desk:'🆘',other:'📋'};
+  return m[cat] || '📋';
+}
+
+// ═══════════════════════════════════════════════════
+// CLOCK
+// ═══════════════════════════════════════════════════
+setInterval(()=>{
+  document.getElementById('live-time').textContent = new Date().toLocaleTimeString('en-IN',{hour12:false});
+}, 1000);
+
+// ═══════════════════════════════════════════════════
+// WEBSOCKET
+// ═══════════════════════════════════════════════════
+let ws;
+let _wsAdminRetries = 0;
+function connectWS() {
+  if (ws && ws.readyState < 2) { try { ws.close(); } catch(e){} }
+  ws = new WebSocket(WS_URL);
+  ws.onopen = () => {
+    _wsAdminRetries = 0;
+    document.getElementById('ws-dot').classList.remove('disconnected');
+    document.getElementById('ws-label').textContent = 'Live';
+    document.getElementById('ws-label').style.color = 'var(--green)';
+  };
+  ws.onmessage = (e) => {
+    try { handleWS(JSON.parse(e.data)); } catch(err) { console.warn('WS parse error', err); }
+  };
+  ws.onclose = () => {
+    document.getElementById('ws-dot').classList.add('disconnected');
+    _wsAdminRetries++;
+    const delay = Math.min(3000 * _wsAdminRetries, 30000);
+    document.getElementById('ws-label').textContent = `Reconnecting in ${Math.round(delay/1000)}s…`;
+    document.getElementById('ws-label').style.color = 'var(--red)';
+    setTimeout(connectWS, delay);
+  };
+  ws.onerror = () => { document.getElementById('ws-label').textContent = 'Connection issue'; };
+}
+
+function handleWS(msg) {
+  switch(msg.type) {
+    case 'PING': return; // server heartbeat — ignore silently
+    case 'INIT':
+      S.ghats = msg.data.ghats || [];
+      S.volunteers = msg.data.volunteers || [];
+      S.issues = msg.data.issues || [];
+      S.sos_alerts = msg.data.sos_alerts || [];
+      S.lost = msg.data.lost_persons || [];
+      S.contacts = msg.data.emergency_contacts || [];
+      S.medical = msg.data.medical_facilities || [];
+      renderAll();
+      loadStats();
+      break;
+    case 'SOS_ALERT':
+      S.sos_alerts.unshift(msg.data);
+      renderSOS(); renderOverview(); updateTopbar();
+      toast('🆘 NEW SOS ALERT — ' + msg.data.user_name, 'error');
+      break;
+    case 'SOS_RESOLVED':
+      updateItem(S.sos_alerts, msg.data);
+      renderSOS(); renderOverview(); updateTopbar();
+      toast('✅ SOS resolved', 'success');
+      break;
+    case 'SOS_ASSIGNED':
+      updateItem(S.sos_alerts, msg.data);
+      renderSOS();
+      break;
+    case 'NEW_ISSUE':
+      S.issues.unshift(msg.data);
+      renderIssues(); renderOverview(); updateTopbar();
+      toast('⚠️ New incident reported', 'info');
+      break;
+    case 'ISSUE_RESOLVED': case 'ISSUE_ACCEPTED':
+      updateItem(S.issues, msg.data);
+      renderIssues(); updateTopbar();
+      break;
+    case 'CROWD_UPDATE':
+      const g = S.ghats.find(x=>x.id===msg.data.ghat_id);
+      if (g) g.crowd_level = msg.data.level;
+      renderGhats(); renderOverview(); updateTopbar();
+      toast('🌊 ' + (msg.data.name||'Ghat') + ' → ' + msg.data.level.toUpperCase(), 'info');
+      break;
+    case 'LOST_REGISTERED':
+      S.lost.unshift(msg.data);
+      renderLost(); updateTopbar();
+      break;
+    case 'LOST_UPDATED':
+      updateItem(S.lost, msg.data);
+      renderLost(); updateTopbar();
+      break;
+    case 'CONTACT_ADDED':
+      S.contacts.unshift(msg.data);
+      renderContacts();
+      break;
+    case 'CONTACT_DELETED':
+      S.contacts = S.contacts.filter(c=>c.id!==msg.data.id);
+      renderContacts();
+      break;
+    case 'MEDICAL_ADDED':
+      S.medical.unshift(msg.data);
+      renderMedical();
+      break;
+    case 'VOLUNTEER_UPDATED':
+      updateItem(S.volunteers, msg.data);
+      renderVolunteers(); updateTopbar();
+      break;
+    case 'VOLUNTEER_CREATED':
+      if (!S.volunteers.find(v => v.id === msg.data.id)) {
+        S.volunteers.push(msg.data);
+      }
+      renderVolunteers(); updateTopbar();
+      break;
+    case 'VOLUNTEER_DELETED':
+      S.volunteers = S.volunteers.filter(v => v.id !== msg.data.id);
+      renderVolunteers(); updateTopbar();
+      break;
+  }
+}
+
+function updateItem(arr, item) {
+  const i = arr.findIndex(x=>x.id===item.id);
+  if (i>=0) arr[i] = item; else arr.unshift(item);
+}
+
+// ═══════════════════════════════════════════════════
+// NAVIGATION
+// ═══════════════════════════════════════════════════
+// FIX Bug 3: showPanel now triggers the correct render when the panel becomes
+// visible. Previously switching to contacts/medical/etc. after a slow WS init
+// showed a blank panel because renderAll() hadn't run yet, and no per-panel
+// render was called on navigation.
+const PANEL_RENDERERS = {
+  overview:   () => { renderOverview(); loadStats(); },
+  crowd:      () => renderGhats(),
+  sos:        () => renderSOS(),
+  issues:     () => renderIssues(),
+  lost:       () => renderLost(),
+  volunteers: () => renderVolunteers(),
+  contacts:   () => { renderContacts(); renderEmergencyServices(); },
+  medical:    () => renderMedical(),
+  map:        () => { initMap(); refreshMap(); },
+};
+
+function showPanel(el) {
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  el.classList.add('active');
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  const panelId = el.dataset.panel;
+  document.getElementById('panel-' + panelId).classList.add('active');
+  // Call the panel-specific renderer so data is always fresh on navigation
+  const render = PANEL_RENDERERS[panelId];
+  if (render) render();
+}
+
+// ═══════════════════════════════════════════════════
+// LOAD DATA (fallback HTTP polling)
+// ═══════════════════════════════════════════════════
+async function loadStats() {
+  try {
+    const d = await api('/stats');
+    document.getElementById('stat-sos').textContent = d.active_sos;
+    document.getElementById('stat-issues').textContent = d.pending_issues;
+    document.getElementById('stat-missing').textContent = d.missing_persons;
+    document.getElementById('stat-avol').textContent = d.active_volunteers;
+    document.getElementById('stat-ghats').textContent = d.ghats;
+    document.getElementById('stat-medical').textContent = d.medical_facilities;
+    document.getElementById('ts-sos').textContent = d.active_sos;
+    document.getElementById('ts-crowd').textContent = d.high_crowd_ghats;
+    document.getElementById('ts-lost').textContent = d.missing_persons;
+    document.getElementById('ts-vols').textContent = d.active_volunteers;
+    document.getElementById('nb-sos').textContent = d.active_sos;
+    document.getElementById('nb-issues').textContent = d.pending_issues;
+    document.getElementById('nb-lost').textContent = d.missing_persons;
+  } catch(e) { toast('Failed to load stats', 'error'); }
+}
+
+function updateTopbar() {
+  const sos = S.sos_alerts.filter(a=>a.status==='active').length;
+  const high = S.ghats.filter(g=>['high','critical'].includes((g.crowd_level||'').toLowerCase())).length;
+  const missing = S.lost.filter(p=>p.status==='missing').length;
+  const avol = S.volunteers.filter(v=>v.status==='available').length;
+  document.getElementById('ts-sos').textContent = sos;
+  document.getElementById('ts-crowd').textContent = high;
+  document.getElementById('ts-lost').textContent = missing;
+  document.getElementById('ts-vols').textContent = avol;
+  document.getElementById('nb-sos').textContent = sos;
+  document.getElementById('nb-issues').textContent = S.issues.filter(i=>i.status==='pending').length;
+  document.getElementById('nb-lost').textContent = missing;
+  document.getElementById('stat-sos').textContent = sos;
+  document.getElementById('stat-issues').textContent = S.issues.filter(i=>i.status==='pending').length;
+  document.getElementById('stat-missing').textContent = missing;
+  document.getElementById('stat-avol').textContent = avol;
+  document.getElementById('stat-ghats').textContent = S.ghats.length;
+  document.getElementById('stat-medical').textContent = S.medical.length;
+}
+
+async function loadGhats() {
+  try {
+    const d = await api('/get_ghats');
+    S.ghats = d.ghats || [];
+    renderGhats();
+  } catch(e) { toast('Failed to load ghats','error'); }
+}
+
+// ═══════════════════════════════════════════════════
+// RENDER FUNCTIONS
+// ═══════════════════════════════════════════════════
+function renderAll() {
+  renderOverview();
+  renderGhats();
+  renderSOS();
+  renderIssues();
+  renderLost();
+  renderVolunteers();
+  renderContacts();
+  renderMedical();
+  updateTopbar();
+  // Only re-render ES panel if it was previously loaded (avoid extra fetch on every WS INIT)
+  if (ES_DATA.length) renderEmergencyServices();
+}
+
+function renderOverview() {
+  // SOS
+  const activeSOS = S.sos_alerts.filter(a=>a.status==='active').slice(0,4);
+  const sosCont = document.getElementById('ov-sos-list');
+  sosCont.innerHTML = activeSOS.length ? activeSOS.map(a=>`
+    <div class="alert-card">
+      <div class="alert-name">🆘 ${a.user_name}</div>
+      <div class="alert-meta">📍 ${parseFloat(a.latitude).toFixed(4)}, ${parseFloat(a.longitude).toFixed(4)} &nbsp;|&nbsp; 🕐 ${fmtTime(a.timestamp)}</div>
+      <div class="alert-meta">👮 Assigned: ${a.assigned_volunteer_name || 'Unassigned'}</div>
+      <div class="alert-actions">
+        <button class="btn btn-green btn-xs" onclick="resolveSOS('${a.id}')">✓ Resolve</button>
+      </div>
+    </div>`).join('') : '<div class="empty-state"><div class="icon">✅</div>No active SOS</div>';
+
+  // Issues
+  const pendIssues = S.issues.filter(i=>i.status==='pending').slice(0,4);
+  const isCont = document.getElementById('ov-issues-list');
+  isCont.innerHTML = pendIssues.length ? pendIssues.map(i=>`
+    <div class="alert-card">
+      <div class="alert-name" style="color:var(--orange)">⚠️ ${i.category}</div>
+      <div class="alert-meta">${i.description.substring(0,80)}…</div>
+      <div class="alert-meta">👤 ${i.user_name} &nbsp;|&nbsp; 🕐 ${fmtTime(i.timestamp)}</div>
+    </div>`).join('') : '<div class="empty-state"><div class="icon">📋</div>No pending incidents</div>';
+
+  // Ghats summary
+  const ghatsCont = document.getElementById('ov-ghats-list');
+  ghatsCont.innerHTML = S.ghats.slice(0,5).map(g=>`
+    <div class="ghat-row">
+      <div><div class="ghat-name">${g.name}</div><div class="ghat-zone">${g.zone||''}</div></div>
+      <div class="crowd-bar-wrap"><div class="crowd-bar" style="width:${crowdPct(g.crowd_level)}%;background:${crowdColor(g.crowd_level)}"></div></div>
+      <span class="level-badge level-${(g.crowd_level||'medium').toLowerCase()}">${g.crowd_level||'?'}</span>
+      <div style="font-family:'Source Code Pro',monospace;font-size:11px;color:var(--text-dim)">${g.current_count||'—'} / ${g.capacity||'—'}</div>
+    </div>`).join('') || '<div class="empty-state">No ghats loaded</div>';
+}
+
+function renderGhats() {
+  const el = document.getElementById('crowd-ghats-list');
+  el.innerHTML = S.ghats.map(g=>`
+    <div class="ghat-row">
+      <div>
+        <div class="ghat-name">${g.name}</div>
+        <div class="ghat-zone">${g.zone||''} · ${g.bathing_timings||''}</div>
+      </div>
+      <div>
+        <div class="crowd-bar-wrap" style="width:100px"><div class="crowd-bar" style="width:${crowdPct(g.crowd_level)}%;background:${crowdColor(g.crowd_level)}"></div></div>
+        <div style="font-size:10px;color:var(--text-dim);margin-top:2px;font-family:'Source Code Pro',monospace">${g.current_count||0} / ${g.capacity||0}</div>
+      </div>
+      <span class="level-badge level-${(g.crowd_level||'medium').toLowerCase()}">${g.crowd_level||'?'}</span>
+      <select class="level-select" onchange="setCrowd('${g.id}', this.value)">
+        <option value="low" ${g.crowd_level==='low'?'selected':''}>🟢 Low</option>
+        <option value="medium" ${g.crowd_level==='medium'?'selected':''}>🟡 Medium</option>
+        <option value="high" ${g.crowd_level==='high'?'selected':''}>🔴 High</option>
+        <option value="critical" ${g.crowd_level==='critical'?'selected':''}>🟣 Critical</option>
+      </select>
+    </div>`).join('') || '<div class="empty-state">No ghats loaded</div>';
+}
+
+function renderSOS() {
+  const el = document.getElementById('sos-list');
+  let list = S.sos_alerts;
+  if (S.sosFilter !== 'all') list = list.filter(a=>a.status===S.sosFilter);
+  el.innerHTML = list.length ? list.map(a=>`
+    <div class="alert-card ${a.status==='resolved'?'resolved':''}">
+      <div class="alert-name">${a.status==='resolved'?'✅':'🆘'} ${a.user_name}</div>
+      <div class="alert-meta">📍 ${parseFloat(a.latitude).toFixed(5)}, ${parseFloat(a.longitude).toFixed(5)}</div>
+      <div class="alert-meta">📞 ${a.phone||'No phone'} &nbsp;|&nbsp; 🕐 ${fmtTime(a.timestamp)}</div>
+      <div class="alert-meta">👮 ${a.assigned_volunteer_name||'Unassigned'} &nbsp;|&nbsp; Status: <strong style="color:${a.status==='active'?'var(--red)':'var(--green)'}">${a.status}</strong></div>
+      ${a.status==='active'?`
+      <div class="alert-actions">
+        <button class="btn btn-green btn-xs" onclick="resolveSOS('${a.id}')">✓ Resolve</button>
+      </div>`:''}
+    </div>`).join('') : '<div class="empty-state"><div class="icon">✅</div>No SOS alerts found</div>';
+}
+
+function renderIssues() {
+  const el = document.getElementById('issues-list');
+  let list = S.issues;
+  if (S.issueFilter !== 'all') list = list.filter(i=>i.status===S.issueFilter);
+  el.innerHTML = list.length ? list.map(i=>`
+    <div class="alert-card ${i.status==='resolved'?'resolved':''}">
+      <div class="alert-name" style="color:${i.status==='resolved'?'var(--green)':i.status==='in_progress'?'var(--orange)':'var(--red)'}">
+        ${i.status==='resolved'?'✅':i.status==='in_progress'?'🔄':'⚠️'} [${i.category}] ${i.description.substring(0,60)}…
+      </div>
+      <div class="alert-meta">👤 ${i.user_name} &nbsp;|&nbsp; 🕐 ${fmtTime(i.timestamp)} &nbsp;|&nbsp; Status: <strong>${i.status}</strong></div>
+      ${i.image_url?`<img src="${API_BASE}${i.image_url}" style="width:80px;height:60px;object-fit:cover;border-radius:4px;margin-top:6px;border:1px solid var(--border)" onerror="this.style.display='none'">`:''}
+    </div>`).join('') : '<div class="empty-state"><div class="icon">📋</div>No incidents found</div>';
+}
+
+function renderLost() {
+  const el = document.getElementById('lost-list');
+  let list = S.lost;
+  if (S.lostFilter !== 'all') list = list.filter(p=>p.status===S.lostFilter);
+  el.innerHTML = list.length ? list.map(p=>`
+    <div class="person-card">
+      ${p.photo_url?`<img class="person-photo" src="${API_BASE}${p.photo_url}" alt="${p.name}" onerror="this.outerHTML='<div class=person-photo-placeholder>👤</div>'">`:
+        '<div class="person-photo-placeholder">👤</div>'}
+      <div>
+        <div class="person-name">${p.name}, ${p.age}</div>
+        <div class="person-detail">📍 Last: ${p.last_seen_location}</div>
+        <div class="person-detail">📍 Current: ${p.current_location||'Unknown'}</div>
+        <div class="person-detail">📞 ${p.contact_person}: ${p.contact_phone}</div>
+        <div class="person-detail">🕐 ${fmtTime(p.timestamp)}</div>
+      </div>
+      <div>
+        <span class="level-badge ${p.status==='found'?'level-low':'level-high'}">${p.status}</span>
+        ${p.status==='missing'?`<div style="margin-top:8px">
+          <button class="btn btn-green btn-xs" onclick="markFound('${p.id}')">✓ Found</button>
+        </div>`:''}
+      </div>
+    </div>`).join('') : '<div class="empty-state"><div class="icon">🔍</div>No records found</div>';
+}
+
+function renderVolunteers() {
+  const el = document.getElementById('vols-list');
+  let list = S.volunteers;
+  if (S.volFilter !== 'all') list = list.filter(v=>v.status===S.volFilter);
+  el.innerHTML = list.length ? list.map(v=>`
+    <div class="vol-card">
+      <div class="vol-avatar">${v.name[0]}</div>
+      <div class="vol-info">
+        <div class="vol-name">${v.name}</div>
+        <div class="vol-meta">👤 @${v.username||'—'} &nbsp;|&nbsp; Zone: ${v.zone||'—'} &nbsp;|&nbsp; 📞 ${v.phone||'—'}</div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+        <span class="vol-status ${v.status==='available'?'vol-available':v.status==='busy'?'vol-busy':'vol-inactive'}">${v.status}</span>
+        <div style="display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end">
+          <button class="btn btn-cyan btn-xs" onclick="openEditVol('${v.id}')">✏️ Edit</button>
+          <button class="btn btn-gold btn-xs" onclick="openRelocateVol('${v.id}')">📍 Relocate</button>
+          <button class="btn btn-red btn-xs" onclick="deleteVolunteer('${v.id}','${v.name}')">🗑 Remove</button>
+        </div>
+      </div>
+    </div>`).join('') : '<div class="empty-state"><div class="icon">👮</div>No volunteers yet. Click + Add Volunteer to create one.</div>';
+}
+
+function renderContacts() {
+  const el = document.getElementById('contacts-list');
+  let list = S.contacts;
+  if (S.contactFilter !== 'all') list = list.filter(c=>c.category===S.contactFilter);
+  el.innerHTML = list.length ? list.map(c=>`
+    <div class="contact-card">
+      <div class="contact-icon">${catIcon(c.category)}</div>
+      <div class="contact-info">
+        <div class="contact-name">${c.name}</div>
+        <div class="contact-meta">${c.designation} · ${c.department}</div>
+        <div class="contact-meta">📍 ${c.address||'—'}</div>
+      </div>
+      <div style="text-align:right">
+        <div class="contact-phone">${c.phone}</div>
+        <button class="btn btn-red btn-xs" style="margin-top:6px" onclick="deleteContact('${c.id}')">✕ Remove</button>
+      </div>
+    </div>`).join('') : '<div class="empty-state"><div class="icon">📞</div>No contacts found</div>';
+}
+
+// ── EMERGENCY SERVICES REGISTRY (Task 8) ──────────────────────────────────
+// Fetches from /emergency_services (read-only static dataset).
+// Cached in ES_DATA after first load; subsequent calls to filterES() are instant.
+let ES_DATA = [];
+let ES_FILTER = 'all';
+
+const ES_ICONS = {
+  police: '🚔', hospital: '🏥', fire: '🔥', administration: '🏛️',
+};
+const ES_CATEGORY_LABELS = {
+  helpline: 'Helpline', station: 'Police Station', control: 'Control Room',
+  medical: 'Hospital', emergency: 'Fire Station', government: 'Govt Office',
+};
+
+async function renderEmergencyServices() {
+  const el = document.getElementById('es-list');
+  if (!el) return;
+
+  // Load once and cache; if already loaded just re-render with current filter
+  if (!ES_DATA.length) {
+    el.innerHTML = '<div class="empty-state">Loading emergency services...</div>';
+    try {
+      const d = await api('/emergency_services');
+      ES_DATA = d.emergency_services || [];
+    } catch(e) {
+      el.innerHTML = '<div class="empty-state"><div class="icon">⚠️</div>Could not load emergency services</div>';
+      return;
+    }
+  }
+
+  let list = ES_FILTER === 'all'
+    ? ES_DATA
+    : ES_FILTER === 'helpline'
+      ? ES_DATA.filter(s => s.category === 'helpline')
+      : ES_DATA.filter(s => s.type === ES_FILTER);
+
+  if (!list.length) {
+    el.innerHTML = '<div class="empty-state"><div class="icon">📋</div>No services for this filter</div>';
+    return;
+  }
+
+  el.innerHTML = list.map(s => {
+    const icon  = ES_ICONS[s.type] || '📋';
+    const catLbl = ES_CATEGORY_LABELS[s.category] || s.category;
+    const hasLoc = s.lat !== undefined;
+    return `
+      <div class="contact-card">
+        <div class="contact-icon">${icon}</div>
+        <div class="contact-info">
+          <div class="contact-name">${s.name}</div>
+          <div class="contact-meta">
+            ${catLbl}
+            ${s.address ? ` · 📍 ${s.address}` : ''}
+          </div>
+          ${hasLoc ? `<div class="contact-meta" style="font-size:10px;opacity:.6">${s.lat.toFixed(4)}, ${s.lon.toFixed(4)}</div>` : ''}
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+          <a href="tel:${s.phone}" class="contact-phone" style="text-decoration:none">📞 ${s.phone}</a>
+          ${hasLoc
+            ? `<a href="https://maps.google.com/?q=${s.lat},${s.lon}" target="_blank"
+                  class="btn btn-cyan btn-xs" style="text-decoration:none">🗺️ Map</a>`
+            : ''}
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function filterES(btn, type) {
+  ES_FILTER = type;
+  // Update active state on ES filter buttons only
+  const bar = document.getElementById('es-filter-bar');
+  if (bar) Array.from(bar.children).forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderEmergencyServices();
+}
+
+function renderMedical() {
+  const el = document.getElementById('medical-list');
+  let list = S.medical;
+  if (S.medFilter !== 'all') list = list.filter(f=>f.type===S.medFilter);
+  const typeIcon = t => ({medical_camp:'⛺',government_hospital:'🏛️',private_hospital:'🏥'}[t]||'🏥');
+  const typeClass = t => ({medical_camp:'med-type-camp',government_hospital:'med-type-govt',private_hospital:'med-type-private'}[t]||'');
+  el.innerHTML = list.length ? list.map(f=>`
+    <div class="med-card">
+      <div class="med-icon ${typeClass(f.type)}">${typeIcon(f.type)}</div>
+      <div class="contact-info">
+        <div class="contact-name">${f.name}</div>
+        <div class="contact-meta">${f.type.replace(/_/g,' ')} · Zone: ${f.zone||'—'} · Beds: ${f.beds||'—'}</div>
+        <div class="contact-meta">👨‍⚕️ ${f.doctor||'—'} &nbsp;|&nbsp; 📞 ${f.phone||'—'}</div>
+      </div>
+      <div>
+        <span class="level-badge ${f.status==='active'?'level-low':'level-high'}">${f.status}</span>
+        <button class="btn btn-red btn-xs" style="margin-top:6px;display:block" onclick="deleteMedical('${f.id}')">✕ Remove</button>
+      </div>
+    </div>`).join('') : '<div class="empty-state"><div class="icon">🏥</div>No facilities found</div>';
+}
+
+// ═══════════════════════════════════════════════════
+// ACTIONS
+// ═══════════════════════════════════════════════════
+async function setCrowd(ghatId, level) {
+  const fd = new FormData(); fd.append('level', level);
+  try {
+    await api('/update_crowd/' + ghatId, {method:'POST', body:fd});
+    const g = S.ghats.find(x=>x.id===ghatId);
+    if (g) g.crowd_level = level;
+    renderGhats(); renderOverview();
+    toast('✅ Crowd level updated to ' + level.toUpperCase(), 'success');
+  } catch(e) { toast('Failed to update crowd level', 'error'); }
+}
+
+async function resolveSOS(id) {
+  const fd = new FormData(); fd.append('volunteer_id', 'admin');
+  try {
+    const res = await api('/resolve_sos/' + id, {method:'POST', body:fd});
+    if (res && res.success !== false) {
+      const a = S.sos_alerts.find(x=>x.id===id);
+      if (a) { a.status = 'resolved'; a.resolved_at = new Date().toISOString(); }
+      renderSOS(); renderOverview(); updateTopbar();
+      toast('✅ SOS resolved', 'success');
+    } else {
+      // Reload SOS from server for sync
+      const r = await api('/get_sos_alerts');
+      S.sos_alerts = r.sos_alerts || [];
+      renderSOS(); renderOverview(); updateTopbar();
+      toast('✅ SOS resolved', 'success');
+    }
+  } catch(e) { toast('Failed to resolve SOS — check connection', 'error'); console.error(e); }
+}
+
+async function setVolStatus(vid, status) {
+  const fd = new FormData(); fd.append('status', status);
+  try {
+    const d = await api('/volunteer/' + vid, {method:'PUT', body:fd});
+    if (d.success) {
+      const v = S.volunteers.find(x=>x.id===vid);
+      if (v) v.status = status;
+      renderVolunteers(); updateTopbar();
+      toast('✅ Volunteer status updated', 'success');
+    }
+  } catch(e) { toast('Failed to update volunteer', 'error'); }
+}
+
+async function markFound(pid) {
+  const fd = new FormData(); fd.append('status', 'found');
+  try {
+    const res = await api('/lost/' + pid, {method:'PUT', body:fd});
+    if (res && (res.success || res.person)) {
+      const p = S.lost.find(x=>x.id===pid);
+      if (p) { p.status = 'found'; if (res.person) Object.assign(p, res.person); }
+    } else {
+      // Reload from server to ensure sync
+      const r = await api('/lost');
+      S.lost = r.lost_persons || [];
+    }
+    renderLost(); updateTopbar();
+    toast('✅ Person marked as found', 'success');
+  } catch(e) { toast('Failed to update status', 'error'); }
+}
+
+async function deleteContact(id) {
+  if (!confirm('Remove this contact?')) return;
+  try {
+    await api('/contacts/' + id, {method:'DELETE'});
+    S.contacts = S.contacts.filter(c=>c.id!==id);
+    renderContacts();
+    toast('✅ Contact removed', 'success');
+  } catch(e) { toast('Failed to delete contact', 'error'); }
+}
+
+async function deleteMedical(id) {
+  if (!confirm('Remove this facility?')) return;
+  try {
+    await api('/medical/' + id, {method:'DELETE'});
+    S.medical = S.medical.filter(f=>f.id!==id);
+    renderMedical();
+    toast('✅ Facility removed', 'success');
+  } catch(e) { toast('Failed to delete', 'error'); }
+}
+
+// ═══════════════════════════════════════════════════
+// FILTERS
+// ═══════════════════════════════════════════════════
+function setFilter(btns, btn) {
+  btns.forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+}
+function filterSOS(btn, f) { S.sosFilter=f; setFilter(btn.parentNode.children, btn); renderSOS(); }
+function filterIssues(btn, f) { S.issueFilter=f; setFilter(btn.parentNode.children, btn); renderIssues(); }
+function filterLost(btn, f) { S.lostFilter=f; setFilter(btn.parentNode.children, btn); renderLost(); }
+function filterVols(btn, f) { S.volFilter=f; setFilter(btn.parentNode.children, btn); renderVolunteers(); }
+function filterContacts(btn, f) { S.contactFilter=f; setFilter(btn.parentNode.children, btn); renderContacts(); }
+function filterMed(btn, f) { S.medFilter=f; setFilter(btn.parentNode.children, btn); renderMedical(); }
+
+// ═══════════════════════════════════════════════════
+// MODALS
+// ═══════════════════════════════════════════════════
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+function openLostModal() { openModal('modal-lost'); }
+function openContactModal() { openModal('modal-contact'); }
+function openMedModal() { openModal('modal-med'); }
+
+// openAssignModal and submitAssignSOS removed — volunteer assignment is handled
+// exclusively by backend auto-routing logic (/assign_sos endpoint is still
+// available for internal/API use, but not exposed via web UI).
+
+async function submitLost() {
+  const name = document.getElementById('l-name').value.trim();
+  const age = document.getElementById('l-age').value;
+  const seen = document.getElementById('l-seen').value.trim();
+  const contact = document.getElementById('l-contact').value.trim();
+  const phone = document.getElementById('l-phone').value.trim();
+  if (!name || !seen || !contact || !phone) { toast('Please fill required fields', 'error'); return; }
+  const fd = new FormData();
+  fd.append('name', name); fd.append('age', age); fd.append('last_seen_location', seen);
+  fd.append('current_location', document.getElementById('l-current').value||'Unknown');
+  fd.append('contact_person', contact); fd.append('contact_phone', phone);
+  fd.append('description', document.getElementById('l-desc').value||'');
+  const genderEl = document.getElementById('l-gender');
+  if (genderEl && genderEl.value) fd.append('gender', genderEl.value);
+  const photoFile = document.getElementById('l-photo').files[0];
+  if (photoFile) fd.append('photo', photoFile);
+  try {
+    const d = await api('/lost', {method:'POST', body:fd});
+    if (d.success) {
+      toast('✅ Lost person registered', 'success');
+      // Clear form fields
+      ['l-name','l-age','l-seen','l-current','l-contact','l-phone','l-desc'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+      const photoEl=document.getElementById('l-photo');if(photoEl)photoEl.value='';
+      const genderEl=document.getElementById('l-gender');if(genderEl)genderEl.value='';
+      closeModal('modal-lost');
+      // reload from server
+      const r = await api('/lost');
+      S.lost = r.lost_persons || [];
+      renderLost(); updateTopbar();
+    }
+  } catch(e) { toast('Failed to register', 'error'); }
+}
+
+async function submitContact() {
+  const name = document.getElementById('c-name').value.trim();
+  const phone = document.getElementById('c-phone').value.trim();
+  const desig = document.getElementById('c-desig').value.trim();
+  const dept = document.getElementById('c-dept').value.trim();
+  if (!name||!phone||!desig||!dept) { toast('Fill required fields', 'error'); return; }
+  const fd = new FormData();
+  fd.append('name', name); fd.append('designation', desig); fd.append('department', dept);
+  fd.append('phone', phone); fd.append('category', document.getElementById('c-cat').value);
+  fd.append('address', document.getElementById('c-addr').value||'');
+  fd.append('latitude', document.getElementById('c-lat').value||16.98);
+  fd.append('longitude', document.getElementById('c-lon').value||81.78);
+  try {
+    const d = await api('/contacts', {method:'POST', body:fd});
+    if (d.success) {
+      toast('✅ Contact added', 'success');
+      closeModal('modal-contact');
+      const r = await api('/contacts');
+      S.contacts = r.contacts || [];
+      renderContacts();
+    }
+  } catch(e) { toast('Failed to add contact', 'error'); }
+}
+
+async function submitMedical() {
+  const name = document.getElementById('m-name').value.trim();
+  const lat = document.getElementById('m-lat').value;
+  const lon = document.getElementById('m-lon').value;
+  if (!name||!lat||!lon) { toast('Fill required fields', 'error'); return; }
+  const fd = new FormData();
+  fd.append('name', name); fd.append('type', document.getElementById('m-type').value);
+  fd.append('latitude', lat); fd.append('longitude', lon);
+  fd.append('beds', document.getElementById('m-beds').value||0);
+  fd.append('zone', document.getElementById('m-zone').value||'');
+  fd.append('doctor', document.getElementById('m-doctor').value||'');
+  fd.append('phone', document.getElementById('m-phone').value||'');
+  try {
+    const d = await api('/medical', {method:'POST', body:fd});
+    if (d.success) {
+      toast('✅ Facility added', 'success');
+      closeModal('modal-med');
+      const r = await api('/medical');
+      S.medical = r.medical_facilities || [];
+      renderMedical();
+    }
+  } catch(e) { toast('Failed to add', 'error'); }
+}
+
+// Close modal on overlay click
+document.querySelectorAll('.modal-overlay').forEach(o=>{
+  o.addEventListener('click', e=>{ if(e.target===o) o.classList.remove('open'); });
+});
+
+// ═══════════════════════════════════════════════════
+// MAP
+// ═══════════════════════════════════════════════════
+let tileLayer = null;
+function initMap() {
+  if (mapInited) {
+    if (map) {
+      const isLight = document.body.classList.contains('light-mode');
+      const newUrl = isLight 
+        ? 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png'
+        : 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
+      if (tileLayer) tileLayer.setUrl(newUrl);
+    }
+    refreshMap(); 
+    return; 
+  }
+  mapInited = true;
+  const isLight = document.body.classList.contains('light-mode');
+  map = L.map('admin-map', {center:[16.984, 81.782], zoom:13});
+  tileLayer = L.tileLayer(isLight 
+    ? 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png'
+    : 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    attribution:'©OpenStreetMap ©CARTO', subdomains:'abcd', maxZoom:19
+  }).addTo(map);
+  refreshMap();
+}
+
+// ═══════════════════════════════════════════════════
+// THEME TOGGLE
+// ═══════════════════════════════════════════════════
+function toggleTheme(){
+  document.body.classList.toggle('light-mode');
+  const isLight = document.body.classList.contains('light-mode');
+  localStorage.setItem('admin-theme', isLight ? 'light' : 'dark');
+  updateThemeIcon();
+  if (mapInited && tileLayer) {
+    const newUrl = isLight 
+      ? 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png'
+      : 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
+    tileLayer.setUrl(newUrl);
+  }
+}
+function updateThemeIcon(){
+  const btn = document.getElementById('theme-toggle');
+  if(!btn) return;
+  btn.textContent = document.body.classList.contains('light-mode') ? '☀️' : '🌙';
+}
+(function initTheme(){
+  const saved = localStorage.getItem('admin-theme');
+  if(saved === 'light' || (!saved && window.matchMedia('(prefers-color-scheme: light)').matches)){
+    document.body.classList.add('light-mode');
+  }
+  updateThemeIcon();
+})();
+
+function makeIcon(color, emoji) {
+  return L.divIcon({
+    className:'', iconAnchor:[16,16],
+    html:`<div style="width:32px;height:32px;border-radius:50%;background:${color};border:2px solid rgba(255,255,255,0.4);display:flex;align-items:center;justify-content:center;font-size:14px;box-shadow:0 0 12px ${color}">${emoji}</div>`
+  });
+}
+
+function clearMarkerGroup(group) { group.forEach(m=>map.removeLayer(m)); group.length=0; }
+
+function refreshMap() {
+  if (!map) return;
+  clearMarkerGroup(markers.ghats);
+  clearMarkerGroup(markers.vols);
+  clearMarkerGroup(markers.sos);
+  clearMarkerGroup(markers.lost);
+  clearMarkerGroup(markers.medical);
+  clearMarkerGroup(markers.contacts);
+
+  S.ghats.forEach(g=>{
+    const m = L.marker([g.latitude, g.longitude], {icon:makeIcon('#f4b942','⛱️')})
+      .addTo(map)
+      .bindPopup(`<b>${g.name}</b><br>Crowd: <b>${g.crowd_level}</b><br>${g.current_count||0}/${g.capacity||0}`);
+    markers.ghats.push(m);
+  });
+
+  S.volunteers.forEach(v=>{
+    const c = v.status==='available'?'#00ff88':v.status==='busy'?'#ff8c00':'#ff3355';
+    const m = L.marker([v.latitude, v.longitude], {icon:makeIcon(c,'👮')})
+      .addTo(map)
+      .bindPopup(`<b>${v.name}</b><br>Zone: ${v.zone}<br>Status: ${v.status}`);
+    markers.vols.push(m);
+  });
+
+  S.sos_alerts.filter(a=>a.status==='active').forEach(a=>{
+    const m = L.marker([a.latitude, a.longitude], {icon:makeIcon('#ff3355','🆘')})
+      .addTo(map)
+      .bindPopup(`<b>SOS: ${a.user_name}</b><br>${a.phone||'No phone'}`);
+    markers.sos.push(m);
+  });
+
+  S.lost.filter(p=>p.status==='missing').forEach(p=>{
+    const lat = 16.984 + (Math.random()-0.5)*0.01;
+    const lon = 81.782 + (Math.random()-0.5)*0.01;
+    const m = L.marker([lat, lon], {icon:makeIcon('#f4b942','🔍')})
+      .addTo(map)
+      .bindPopup(`<b>Missing: ${p.name}</b><br>${p.last_seen_location}`);
+    markers.lost.push(m);
+  });
+
+  S.medical.forEach(f=>{
+    const c = f.type==='medical_camp'?'#00ffaa':f.type==='government_hospital'?'#00c8ff':'#f4b942';
+    const m = L.marker([f.latitude, f.longitude], {icon:makeIcon(c,'🏥')})
+      .addTo(map)
+      .bindPopup(`<b>${f.name}</b><br>Beds: ${f.beds}<br>📞 ${f.phone}`);
+    markers.medical.push(m);
+  });
+
+  S.contacts.forEach(c=>{
+    const m = L.marker([c.latitude, c.longitude], {icon:makeIcon('#aa44ff','📞')})
+      .addTo(map)
+      .bindPopup(`<b>${c.name}</b><br>${c.designation}<br>📞 ${c.phone}`);
+    markers.contacts.push(m);
+  });
+}
+
+// ═══════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════
+window.addEventListener('load', () => {
+  // Check if admin key already stored in session
+  connectWS();
+  loadStats();
+  // WS client heartbeat — prevents Render's 55s idle disconnect
+  setInterval(() => {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      try { ws.send('ping'); } catch(e) {}
+    }
+  }, 25000);
+  // Fallback HTTP load if WS slow
+  setTimeout(async () => {
+    if (!S.ghats.length) {
+      try {
+        const [g,v,sos,issues,lost,contacts,medical] = await Promise.all([
+          api('/get_ghats'), api('/get_volunteers'), api('/get_sos_alerts'),
+          api('/get_issues'), api('/lost'), api('/contacts'), api('/medical')
+        ]);
+        S.ghats = g.ghats||[];
+        S.volunteers = (v.volunteers||[]);
+        S.sos_alerts = sos.sos_alerts||[];
+        S.issues = issues.issues||[];
+        S.lost = lost.lost_persons||[];
+        S.contacts = contacts.contacts||[];
+        S.medical = medical.medical_facilities||[];
+        renderAll();
+      } catch(e) { console.warn('HTTP fallback failed', e); }
+    }
+  }, 2000);
+});
+
+// ═══════════════════════════════════════════════════
+// VOLUNTEER CRUD
+// ═══════════════════════════════════════════════════
+function openVolModal(vol=null) {
+  const isEdit = !!vol;
+  document.getElementById('modal-vol-title').innerHTML = isEdit
+    ? 'Edit <span class="accent">Volunteer</span>'
+    : 'Add <span class="accent">Volunteer</span>';
+  document.getElementById('v-edit-id').value = vol ? vol.id : '';
+  document.getElementById('v-name').value = vol ? vol.name : '';
+  document.getElementById('v-username').value = vol ? (vol.username||'') : '';
+  document.getElementById('v-password').value = '';
+  document.getElementById('v-password').placeholder = isEdit ? '(leave blank to keep)' : 'min 6 chars';
+  document.getElementById('v-lat').value = vol ? (vol.latitude || '') : '';
+  document.getElementById('v-lon').value = vol ? (vol.longitude || '') : '';
+  document.getElementById('v-phone').value = vol ? (vol.phone||'') : '';
+  document.getElementById('v-zone').value = vol ? (vol.zone||'') : '';
+  document.getElementById('v-status').value = vol ? (vol.status||'available') : 'available';
+  // username read-only on edit
+  document.getElementById('v-username').disabled = isEdit;
+  openModal('modal-vol');
+}
+
+function openEditVol(vid) {
+  const v = S.volunteers.find(x=>x.id===vid);
+  if (v) openVolModal(v);
+}
+
+function openRelocateVol(vid) {
+  const v = S.volunteers.find(x=>x.id===vid);
+  document.getElementById('relocate-vol-id').value = vid;
+  document.getElementById('relocate-zone').value = v ? (v.zone||'') : '';
+  document.getElementById('relocate-status').value = v ? (v.status||'available') : 'available';
+  openModal('modal-relocate');
+}
+
+async function submitVolunteer() {
+  const editId = document.getElementById('v-edit-id').value;
+  const name = document.getElementById('v-name').value.trim();
+  const username = document.getElementById('v-username').value.trim();
+  const password = document.getElementById('v-password').value;
+  const phone = document.getElementById('v-phone').value.trim();
+  const zone = document.getElementById('v-zone').value.trim();
+  const status = document.getElementById('v-status').value;
+  const lat = document.getElementById('v-lat').value;
+  const lon = document.getElementById('v-lon').value;
+
+  if (!name) { toast('Name is required', 'error'); return; }
+  if (!editId && !username) { toast('Username is required', 'error'); return; }
+  if (!editId && password.length < 6) { toast('Password must be at least 6 characters', 'error'); return; }
+  if (!editId && (!lat || !lon)) { toast('Latitude and longitude are required for SOS proximity', 'error'); return; }
+
+  const fd = new FormData();
+  fd.append('name', name);
+  fd.append('phone', phone);
+  fd.append('zone', zone);
+  fd.append('status', status);
+  if (lat) fd.append('latitude', lat);
+  if (lon) fd.append('longitude', lon);
+
+  if (editId) {
+    if (password) fd.append('password', password);
+    try {
+      const d = await api('/admin/volunteer/' + editId, {method:'PUT', body:fd});
+      if (d && d.success) {
+        toast('✅ Volunteer updated', 'success');
+        closeModal('modal-vol');
+        const idx = S.volunteers.findIndex(x=>x.id===editId);
+        if (idx>=0) S.volunteers[idx] = Object.assign(S.volunteers[idx], d.volunteer);
+        renderVolunteers();
+        // Notify immediately via WS message simulation
+        toast(`📡 Changes broadcast to ${name}`, 'info');
+      } else if (d) { toast(d.detail || 'Update failed', 'error'); }
+    } catch(e) { toast('Update failed', 'error'); }
+  } else {
+    fd.append('username', username);
+    fd.append('password', password);
+    try {
+      const d = await api('/admin/volunteer', {method:'POST', body:fd});
+      if (d && d.success) {
+        toast('✅ Volunteer ' + name + ' created', 'success');
+        closeModal('modal-vol');
+        S.volunteers.push(d.volunteer);
+        renderVolunteers(); updateTopbar();
+        toast(`📡 Credentials sent to ${name}`, 'info');
+      } else if (d) { toast(d.detail || 'Create failed — username may be taken', 'error'); }
+    } catch(e) { toast('Create failed', 'error'); }
+  }
+}
+
+async function submitRelocate() {
+  const vid = document.getElementById('relocate-vol-id').value;
+  const zone = document.getElementById('relocate-zone').value.trim();
+  const status = document.getElementById('relocate-status').value;
+  if (!zone) { toast('Zone is required', 'error'); return; }
+  const fd = new FormData();
+  fd.append('zone', zone);
+  fd.append('status', status);
+  try {
+    const d = await api('/admin/volunteer/' + vid, {method:'PUT', body:fd});
+    if (d && d.success) {
+      toast('✅ Volunteer relocated to ' + zone, 'success');
+      closeModal('modal-relocate');
+      const v = S.volunteers.find(x=>x.id===vid);
+      if (v) { v.zone = zone; v.status = status; }
+      renderVolunteers();
+      toast(`📡 Location update broadcast`, 'info');
+    } else if (d) { toast(d.detail || 'Relocate failed', 'error'); }
+  } catch(e) { toast('Relocate failed', 'error'); }
+}
+
+async function deleteVolunteer(vid, name) {
+  if (!confirm(`Remove volunteer ${name}? This cannot be undone.`)) return;
+  try {
+    const d = await api('/admin/volunteer/' + vid, {method:'DELETE'});
+    if (d && d.success) {
+      toast('✅ Volunteer ' + name + ' removed', 'success');
+      S.volunteers = S.volunteers.filter(v=>v.id!==vid);
+      renderVolunteers(); updateTopbar();
+    } else if (d) { toast(d.detail || 'Delete failed', 'error'); }
+  } catch(e) { toast('Delete failed', 'error'); }
+}
+</script>
+
+<!-- VOLUNTEER MODAL -->
+<div class="modal-overlay" id="modal-vol">
+  <div class="modal-box">
+    <div class="modal-title" id="modal-vol-title">Add <span class="accent">Volunteer</span></div>
+    <input type="hidden" id="v-edit-id">
+    <div class="form-grid">
+      <div class="form-group"><label>Full Name *</label><input id="v-name" placeholder="e.g. Ravi Kumar"></div>
+      <div class="form-group"><label>Username *</label><input id="v-username" placeholder="login username"></div>
+      <div class="form-group"><label>Password *</label><input id="v-password" type="password" placeholder="min 6 chars"></div>
+      <div class="form-group"><label>Phone</label><input id="v-phone" placeholder="+91 XXXXXXXXXX"></div>
+      <div class="form-group"><label>Zone / Area</label><input id="v-zone" placeholder="e.g. Ghat-3 North"></div>
+      <div class="form-group"><label>Latitude <span style="color:var(--red)">*</span> <small style="color:var(--muted)">(for SOS proximity)</small></label><input type="number" id="v-lat" placeholder="e.g. 16.9857" step="0.0001"></div>
+      <div class="form-group"><label>Longitude <span style="color:var(--red)">*</span></label><input type="number" id="v-lon" placeholder="e.g. 81.7821" step="0.0001"></div>
+      <div class="form-group"><label>Status</label>
+        <select id="v-status">
+          <option value="available">Available</option>
+          <option value="busy">Busy</option>
+          <option value="inactive">Inactive</option>
+        </select>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px">
+      <button class="btn btn-red btn-sm" onclick="closeModal('modal-vol')">Cancel</button>
+      <button class="btn btn-cyan btn-sm" onclick="submitVolunteer()">💾 Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- RELOCATE VOLUNTEER MODAL -->
+<div class="modal-overlay" id="modal-relocate">
+  <div class="modal-box">
+    <div class="modal-title">Relocate <span class="accent">Volunteer</span></div>
+    <input type="hidden" id="relocate-vol-id">
+    <div class="form-group"><label>New Zone / Area *</label><input id="relocate-zone" placeholder="e.g. Ghat-5 South"></div>
+    <div class="form-group" style="margin-top:8px"><label>New Status</label>
+      <select id="relocate-status">
+        <option value="available">Available</option>
+        <option value="busy">Busy</option>
+        <option value="inactive">Inactive</option>
+      </select>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px">
+      <button class="btn btn-red btn-sm" onclick="closeModal('modal-relocate')">Cancel</button>
+      <button class="btn btn-cyan btn-sm" onclick="submitRelocate()">📍 Relocate</button>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

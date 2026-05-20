@@ -1,0 +1,30 @@
+# ── Godavari Pushkaralu 2027 — Render.com Deployment  (v5)
+# Deploy with: https://dashboard.render.com/select-repo
+
+services:
+  - type: web
+    name: pushkaralu-api
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT --workers 1
+    envVars:
+      - key: ENABLE_REDIS
+        value: "true"
+      - key: REDIS_URL
+        fromService:
+          name: pushkaralu-redis
+          type: redis
+          property: connectionString
+      - key: CROWD_BROADCAST_INTERVAL
+        value: "2.5"
+      - key: INSTANCE_ID
+        value: render-api-1
+      - key: SCRAPERBOT_URL
+        sync: false
+    healthCheckPath: /health
+    autoDeploy: true
+
+  - type: redis
+    name: pushkaralu-redis
+    plan: starter
+    maxmemoryPolicy: allkeys-lru
