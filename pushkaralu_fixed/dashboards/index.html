@@ -965,8 +965,16 @@ function handleWS(msg) {
   switch(msg.type) {
     case 'PING': return; // server heartbeat — ignore silently
     case 'INIT':
+      // MERGE incoming data rather than replacing — prevents INIT on reconnect
+      // from wiping locally-known resolved items. Backend INIT only sends active
+      // SOS, so we keep any existing resolved ones we already have in memory.
       allIssues = msg.data.issues || [];
-      allSOS = msg.data.sos_alerts || [];
+      // Merge SOS: keep existing resolved items, add/update active ones from server
+      const incomingSOS = msg.data.sos_alerts || [];
+      const incomingIds = new Set(incomingSOS.map(a => a.id));
+      // Keep resolved items from local array that server didn't send (they're resolved so server omits them)
+      const keepResolved = allSOS.filter(a => a.status === 'resolved' && !incomingIds.has(a.id));
+      allSOS = [...incomingSOS, ...keepResolved];
       allLost = msg.data.lost_persons || [];
       if (msg.data.ghats && msg.data.ghats.length) allGhats = msg.data.ghats;
       renderAll(); updateStats(); updateLostBadge();
@@ -994,6 +1002,7 @@ function handleWS(msg) {
     case 'SOS_RESOLVED': {
       const si = allSOS.findIndex(s => s.id === msg.data.id);
       if (si >= 0) allSOS[si] = msg.data;
+      else allSOS.unshift(msg.data); // add if not present
       renderSOS(); updateBadges();
       if (mapInitialized) renderSOSMarkers(allSOS);
       break;
@@ -1001,7 +1010,10 @@ function handleWS(msg) {
     case 'CROWD_UPDATE': {
       const gi = allGhats ? allGhats.findIndex(g => g.id === msg.data.ghat_id) : -1;
       if (gi >= 0) allGhats[gi].crowd_level = msg.data.level;
-      toast('🌊 Crowd Updated', `${msg.data.name || 'Ghat'} → ${msg.data.level.toUpperCase()}`, 't-issue');
+      // Only toast for HIGH/CRITICAL crowd — not every ghat update (too noisy)
+      if (msg.data.level === 'high' || msg.data.level === 'critical') {
+        toast('🌊 Crowd Alert', `${msg.data.name || 'Ghat'} → ${msg.data.level.toUpperCase()}`, 't-issue');
+      }
       break;
     }
     case 'LOST_REGISTERED':
