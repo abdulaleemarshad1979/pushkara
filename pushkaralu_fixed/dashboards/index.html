@@ -18,13 +18,26 @@
 <meta name="twitter:description" content="Real-time volunteer coordination, crowd management, and emergency response for Godavari Pushkaralu 2027.">
 <link rel="canonical" href="https://pushkara.vercel.app/">
 <title>Volunteer Command Centre — Godavari Pushkaralu 2027 | AP Government</title>
-<script src="config.js"></script>
-<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+Telugu&family=DM+Serif+Display&family=DM+Sans:wght@400;500;600;700&family=Source+Code+Pro:wght@500&display=swap" rel="stylesheet">
-<!-- Leaflet.js — Free map, no API key required -->
-<link rel="preconnect" href="https://unpkg.com">
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script>
+const API_BASE     = 'https://pushkara.onrender.com';
+const WS_URL       = 'wss://pushkara.onrender.com/ws/volunteer';
+const ADMIN_WS_URL = 'wss://pushkara.onrender.com/ws/volunteer';
+const ADMIN_API_KEY= '64de5b5ae7863eee64aa9a2c7e54455d2b74e46e7b7536fb15807b95210f203c';
+</script>
+<!-- Core UI fonts non-render-blocking -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@400;500;600;700&display=swap&font-display=swap" onload="this.onload=null;this.rel='stylesheet'">
+<noscript><link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"></noscript>
+<!-- Telugu + monospace loaded lazily after page is interactive -->
+<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Noto+Serif+Telugu&family=Source+Code+Pro:wght@500&display=swap&font-display=swap" onload="this.onload=null;this.rel='stylesheet'">
+<noscript><link href="https://fonts.googleapis.com/css2?family=Noto+Serif+Telugu&family=Source+Code+Pro:wght@500&display=swap" rel="stylesheet"></noscript>
+<!-- Leaflet CSS loaded lazily — JS injected only when Map tab is opened -->
+<style id="leaflet-css-placeholder"></style>
 <style>
+/* System font fallbacks while Google Fonts loads — prevents invisible text */
+h1,h2,h3,h4,.title-main,.sec-title,.login-gov-header h1,.login-box-header h2{font-family:'DM Serif Display',Georgia,serif}
+body,.dash-tab,.btn-logout,.action-btn,.btn-login,.form-label,.filter-chip,.map-toggle-btn,.nav-item{font-family:'DM Sans',system-ui,-apple-system,sans-serif}
 :root {
   --navy: #003087;
   --navy-dark: #001E5A;
@@ -41,7 +54,7 @@
   --border: 1px solid #D0D5DD;
   --gray-100: #F8F9FA;
   --gray-200: #E9ECEF;
-  --gray-400: #868E96;
+  --gray-400: #5C6370;
   --gray-600: #495057;
   --gray-800: #212529;
   --danger: #C0392B;
@@ -372,8 +385,8 @@ code, pre, .cred-row, .form-control, .ws-badge {
 }
 .sos-card.active-sos { animation: sos-alert 2s ease-in-out 3; }
 @keyframes sos-alert {
-  0%,100% { border-left-color: var(--danger); box-shadow: var(--shadow-sm); }
-  50% { border-left-color: var(--danger); box-shadow: 0 0 0 3px rgba(192,57,43,0.25), var(--shadow); }
+  0%,100% { outline: 3px solid transparent; }
+  50% { outline: 3px solid rgba(192,57,43,0.35); }
 }
 .sos-card::before {
   content: 'SOS';
@@ -1657,6 +1670,22 @@ function refreshMap() {
   toast('🗺️ Map Refreshed', 'All layers reloaded.', '');
 }
 
+// ─── LEAFLET LAZY LOADER ──────────────────────────────────────────────────────
+let leafletLoaded = false;
+function loadLeaflet(cb) {
+  if (leafletLoaded) { cb(); return; }
+  // Inject CSS
+  const css = document.createElement('link');
+  css.rel = 'stylesheet'; css.crossOrigin = '';
+  css.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+  document.head.appendChild(css);
+  // Inject JS
+  const js = document.createElement('script');
+  js.crossOrigin = ''; js.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+  js.onload = () => { leafletLoaded = true; cb(); };
+  document.head.appendChild(js);
+}
+
 // ─── NAVIGATION ───────────────────────────────────────────────────────────────
 function switchSection(sec) {
   document.querySelectorAll('.dash-section').forEach(s => s.classList.remove('active'));
@@ -1666,16 +1695,17 @@ function switchSection(sec) {
   const idx = secs.indexOf(sec);
   if (idx >= 0) document.querySelectorAll('.dash-tab')[idx].classList.add('active');
   if (sec === 'map') {
-    // Two-step: first let CSS display:block take effect, then init/resize map
     requestAnimationFrame(() => {
       setTimeout(() => {
-        if (!mapInitialized) {
-          initMap();
-        } else {
-          leafletMap.invalidateSize(true); // force full size recalc
-          loadMapData();
-        }
-        renderMapIssues();
+        loadLeaflet(() => {
+          if (!mapInitialized) {
+            initMap();
+          } else {
+            leafletMap.invalidateSize(true);
+            loadMapData();
+          }
+          renderMapIssues();
+        });
       }, 100);
     });
   }
