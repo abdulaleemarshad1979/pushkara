@@ -19,7 +19,12 @@
 <meta name="twitter:description" content="Official pilgrim portal for Godavari Pushkaralu 2027. Live ghat status, emergency SOS, transport tracking, and facilities.">
 <link rel="canonical" href="https://pushkara.vercel.app/user">
 <title>Godavari Pushkaralu 2027 — Pilgrim Portal</title>
-<script src="config.js"></script>
+<script>
+const API_BASE     = 'https://pushkara.onrender.com';
+const WS_URL       = 'wss://pushkara.onrender.com/ws/volunteer';
+const ADMIN_WS_URL = 'wss://pushkara.onrender.com/ws/volunteer';
+const ADMIN_API_KEY= '64de5b5ae7863eee64aa9a2c7e54455d2b74e46e7b7536fb15807b95210f203c';
+</script>
 <!-- Preconnect for faster font load -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1007,12 +1012,12 @@ html,body{max-width:100%;overflow-x:hidden}
   <!-- HELPLINES -->
   <div class="sh"><div class="st">📞 <span class="t" data-k="helplines">Emergency Helplines</span></div></div>
   <div class="hl-grid">
-    <a href="tel:108" class="hlc"><div class="hi">🚑</div><div class="hn">108</div><div class="hlbl t" data-k="hl_amb">Ambulance</div></a>
-    <a href="tel:100" class="hlc"><div class="hi">👮</div><div class="hn">100</div><div class="hlbl t" data-k="hl_pol">Police</div></a>
-    <a href="tel:101" class="hlc"><div class="hi">🔥</div><div class="hn">101</div><div class="hlbl t" data-k="hl_fire">Fire</div></a>
-    <a href="tel:18004250066" class="hlc"><div class="hi">📞</div><div class="hn" style="font-size:.8rem">1800-425-0066</div><div class="hlbl t" data-k="hl_push">Pushkaralu Helpline</div></a>
-    <a href="tel:1916" class="hlc"><div class="hi">🆘</div><div class="hn">1916</div><div class="hlbl t" data-k="hl_ndrf">NDRF Control</div></a>
-    <a href="tel:08832461234" class="hlc"><div class="hi">🏥</div><div class="hn" style="font-size:.8rem">0883-2461234</div><div class="hlbl t" data-k="hl_rjy">RJY Medical Camp</div></a>
+    <a href="tel:108" class="hlc" aria-label="Call Ambulance: 108"><div class="hi">🚑</div><div class="hn">108</div><div class="hlbl t" data-k="hl_amb">Ambulance</div></a>
+    <a href="tel:100" class="hlc" aria-label="Call Police: 100"><div class="hi">👮</div><div class="hn">100</div><div class="hlbl t" data-k="hl_pol">Police</div></a>
+    <a href="tel:101" class="hlc" aria-label="Call Fire service: 101"><div class="hi">🔥</div><div class="hn">101</div><div class="hlbl t" data-k="hl_fire">Fire</div></a>
+    <a href="tel:18004250066" class="hlc" aria-label="Call Pushkaralu Helpline: 1800-425-0066"><div class="hi">📞</div><div class="hn" style="font-size:.8rem">1800-425-0066</div><div class="hlbl t" data-k="hl_push">Pushkaralu Helpline</div></a>
+    <a href="tel:1916" class="hlc" aria-label="Call NDRF Control: 1916"><div class="hi">🆘</div><div class="hn">1916</div><div class="hlbl t" data-k="hl_ndrf">NDRF Control</div></a>
+    <a href="tel:08832461234" class="hlc" aria-label="Call Rajahmundry Medical Camp: 0883-2461234"><div class="hi">🏥</div><div class="hn" style="font-size:.8rem">0883-2461234</div><div class="hlbl t" data-k="hl_rjy">RJY Medical Camp</div></a>
   </div>
 
   <!-- LIVE GHAT STATUS (mini) -->
@@ -1397,19 +1402,19 @@ html,body{max-width:100%;overflow-x:hidden}
   <div style="background:var(--danger-bg);border:1px solid rgba(192,57,43,.18);border-left:4px solid var(--danger);border-radius:var(--r2);padding:16px 18px;margin-bottom:20px">
     <div style="font-weight:700;font-size:13px;color:var(--danger);margin-bottom:12px;letter-spacing:.3px">⚡ One-Tap Emergency Calls</div>
     <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px">
-      <a href="tel:108" style="display:flex;align-items:center;gap:10px;background:var(--ok);color:white;padding:13px 16px;border-radius:var(--r);text-decoration:none;font-weight:700;font-size:14px;box-shadow:0 2px 8px rgba(11,107,48,.3)">
+      <a href="tel:108" aria-label="Emergency call: Ambulance 108" style="display:flex;align-items:center;gap:10px;background:var(--ok);color:white;padding:13px 16px;border-radius:var(--r);text-decoration:none;font-weight:700;font-size:14px;box-shadow:0 2px 8px rgba(11,107,48,.3)">
         <span style="font-size:1.5rem">🚑</span><div><div>Ambulance</div><div style="font-family:'Source Code Pro',monospace;font-size:1.1rem">108</div></div>
       </a>
-      <a href="tel:100" style="display:flex;align-items:center;gap:10px;background:var(--navy);color:white;padding:13px 16px;border-radius:var(--r);text-decoration:none;font-weight:700;font-size:14px;box-shadow:0 2px 8px rgba(11,46,110,.3)">
+      <a href="tel:100" aria-label="Emergency call: Police 100" style="display:flex;align-items:center;gap:10px;background:var(--navy);color:white;padding:13px 16px;border-radius:var(--r);text-decoration:none;font-weight:700;font-size:14px;box-shadow:0 2px 8px rgba(11,46,110,.3)">
         <span style="font-size:1.5rem">👮</span><div><div>Police</div><div style="font-family:'Source Code Pro',monospace;font-size:1.1rem">100</div></div>
       </a>
-      <a href="tel:101" style="display:flex;align-items:center;gap:10px;background:#B91C1C;color:white;padding:13px 16px;border-radius:var(--r);text-decoration:none;font-weight:700;font-size:14px;box-shadow:0 2px 8px rgba(185,28,28,.3)">
+      <a href="tel:101" aria-label="Emergency call: Fire 101" style="display:flex;align-items:center;gap:10px;background:#B91C1C;color:white;padding:13px 16px;border-radius:var(--r);text-decoration:none;font-weight:700;font-size:14px;box-shadow:0 2px 8px rgba(185,28,28,.3)">
         <span style="font-size:1.5rem">🔥</span><div><div>Fire</div><div style="font-family:'Source Code Pro',monospace;font-size:1.1rem">101</div></div>
       </a>
-      <a href="tel:112" style="display:flex;align-items:center;gap:10px;background:#7C3AED;color:white;padding:13px 16px;border-radius:var(--r);text-decoration:none;font-weight:700;font-size:14px;box-shadow:0 2px 8px rgba(124,58,237,.3)">
+      <a href="tel:112" aria-label="Emergency call: National Emergency 112" style="display:flex;align-items:center;gap:10px;background:#7C3AED;color:white;padding:13px 16px;border-radius:var(--r);text-decoration:none;font-weight:700;font-size:14px;box-shadow:0 2px 8px rgba(124,58,237,.3)">
         <span style="font-size:1.5rem">🆘</span><div><div>National Emergency</div><div style="font-family:'Source Code Pro',monospace;font-size:1.1rem">112</div></div>
       </a>
-      <a href="tel:18004250066" style="display:flex;align-items:center;gap:10px;background:var(--saffron);color:white;padding:13px 16px;border-radius:var(--r);text-decoration:none;font-weight:700;font-size:13px;grid-column:1/-1;box-shadow:0 2px 8px rgba(232,96,10,.3)">
+      <a href="tel:18004250066" aria-label="Emergency call: Pushkaralu Festival Helpline 1800-425-0066" style="display:flex;align-items:center;gap:10px;background:var(--saffron);color:white;padding:13px 16px;border-radius:var(--r);text-decoration:none;font-weight:700;font-size:13px;grid-column:1/-1;box-shadow:0 2px 8px rgba(232,96,10,.3)">
         <span style="font-size:1.5rem">📞</span><div><div>Pushkaralu Festival Helpline (Toll Free)</div><div style="font-family:'Source Code Pro',monospace;font-size:1rem">1800-425-0066</div></div>
       </a>
     </div>
@@ -1491,7 +1496,7 @@ html,body{max-width:100%;overflow-x:hidden}
         border-radius:20px;padding:6px 14px;font-family:'Source Code Pro',monospace;
         font-size:10px;color:rgba(253,252,251,.45);text-transform:uppercase;letter-spacing:.15em;white-space:nowrap;">
         <span style="width:7px;height:7px;border-radius:50%;background:#22c55e;
-          box-shadow:0 0 6px #22c55e;animation:tg-pulse 2s ease infinite;"></span>
+          animation:tg-pulse 2s ease infinite;"></span>
         System Operational
       </div>
     </div>
@@ -2584,7 +2589,7 @@ function filterEmSvc(type, btn){
     const s=document.createElement('style');
     s.id='tg-style';
     s.textContent=`
-      @keyframes tg-pulse{0%,100%{box-shadow:0 0 6px #22c55e}50%{box-shadow:0 0 12px #22c55e,0 0 20px rgba(34,197,94,.3)}}
+      @keyframes tg-pulse{0%,100%{opacity:1}50%{opacity:.7}}
       @keyframes tg-spin{to{transform:rotate(360deg)}}
       @keyframes tg-fadeup{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
       .tg-card{
