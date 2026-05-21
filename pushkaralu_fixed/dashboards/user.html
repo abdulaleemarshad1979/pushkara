@@ -363,10 +363,94 @@ textarea.fc-input{resize:vertical;min-height:82px}
 html,body{max-width:100%;overflow-x:hidden}
 *{box-sizing:border-box}
 
+/* ═══ HAMBURGER DRAWER ════════════════════════════════════════════ */
+.ham-btn {
+  display: none; /* desktop: hidden */
+  flex-direction: column; justify-content: center; align-items: center;
+  gap: 5px; width: 38px; height: 38px; padding: 6px;
+  background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.2);
+  border-radius: 8px; cursor: pointer; flex-shrink: 0;
+  transition: background .15s;
+}
+.ham-btn:hover { background: rgba(255,255,255,.22); }
+.ham-bar {
+  display: block; width: 20px; height: 2px;
+  background: white; border-radius: 2px;
+  transition: transform .25s ease, opacity .25s ease;
+}
+/* Animated X when open */
+.ham-btn.open .ham-bar:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+.ham-btn.open .ham-bar:nth-child(2) { opacity: 0; transform: scaleX(0); }
+.ham-btn.open .ham-bar:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
+.ham-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,.5); z-index: 998;
+  backdrop-filter: blur(2px);
+}
+.ham-overlay.open { display: block; }
+
+.ham-drawer {
+  position: fixed; top: 0; right: -100%; width: min(320px, 88vw);
+  height: 100dvh; background: var(--navy3);
+  z-index: 999; display: flex; flex-direction: column;
+  transition: right .28s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: -4px 0 32px rgba(0,0,0,.4);
+  overflow-y: auto; overscroll-behavior: contain;
+}
+.ham-drawer.open { right: 0; }
+
+.ham-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 18px 16px 14px; border-bottom: 1px solid rgba(255,255,255,.1);
+  flex-shrink: 0;
+}
+.ham-brand { display: flex; align-items: center; gap: 12px; }
+.ham-close {
+  background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.15);
+  color: white; width: 32px; height: 32px; border-radius: 50%;
+  font-size: 14px; cursor: pointer; display: flex; align-items: center;
+  justify-content: center; flex-shrink: 0; transition: background .15s;
+}
+.ham-close:hover { background: rgba(255,255,255,.25); }
+
+.ham-tricolor {
+  height: 3px; flex-shrink: 0;
+  background: linear-gradient(90deg, var(--saffron) 33%, white 33%, white 66%, var(--green) 66%);
+}
+
+.ham-nav {
+  flex: 1; padding: 10px 0; display: flex; flex-direction: column;
+}
+.ham-item {
+  display: flex; align-items: center; gap: 14px;
+  padding: 14px 20px; background: none; border: none;
+  color: rgba(255,255,255,.75); cursor: pointer; text-align: left;
+  font-family: "DM Sans", sans-serif; font-size: 15px; font-weight: 500;
+  transition: background .15s, color .15s; border-left: 3px solid transparent;
+}
+.ham-item:hover { background: rgba(255,255,255,.08); color: white; }
+.ham-item.ham-active {
+  background: rgba(255,255,255,.1); color: white;
+  border-left-color: var(--saffron);
+}
+.ham-icon { font-size: 20px; flex-shrink: 0; width: 26px; text-align: center; }
+.ham-label { font-size: 15px; }
+.ham-danger { color: #FF7675 !important; font-weight: 700; }
+.ham-item:has(.ham-danger) { border-left-color: var(--danger); }
+
+.ham-footer {
+  padding: 16px; border-top: 1px solid rgba(255,255,255,.1);
+  flex-shrink: 0;
+}
+.ham-lang { display: flex; gap: 8px; }
+
 /* ═══ MOBILE RESPONSIVE ═══════════════════════════════════════════ */
 @media (max-width: 600px) {
   /* ── Header ── */
   .hdr-main { padding: 8px 10px; gap: 6px; }
+  .ham-btn { display: flex; } /* show hamburger on mobile */
+  .lang-sw { display: none; } /* moved to drawer */
   .brand-logo { width: 36px; height: 36px; font-size: 18px; flex-shrink: 0; }
   .brand-name { font-size: 0.88rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 130px; }
   .brand-te { font-size: 0.68rem; }
@@ -508,6 +592,11 @@ html,body{max-width:100%;overflow-x:hidden}
         <button class="lb" onclick="setLang('hi')">हि</button>
       </div>
       <button id="theme-toggle" class="theme-btn" onclick="toggleTheme()" title="Toggle Dark Mode">🌙</button>
+      <button class="ham-btn" id="ham-btn" onclick="toggleHam()" aria-label="Menu" aria-expanded="false">
+        <span class="ham-bar"></span>
+        <span class="ham-bar"></span>
+        <span class="ham-bar"></span>
+      </button>
     </div>
   </div>
   <!-- MARQUEE -->
@@ -534,6 +623,44 @@ html,body{max-width:100%;overflow-x:hidden}
     </div>
   </nav>
 </header>
+
+<!-- ══ HAMBURGER DRAWER (mobile only) ══════════════════════════════ -->
+<div id="ham-overlay" class="ham-overlay" onclick="closeHam()"></div>
+<div id="ham-drawer" class="ham-drawer" role="dialog" aria-modal="true" aria-label="Navigation Menu">
+  <div class="ham-head">
+    <div class="ham-brand">
+      <span style="font-size:28px">🪔</span>
+      <div>
+        <div style="font-weight:700;font-size:1rem;color:white">Godavari Pushkaralu</div>
+        <div style="font-size:11px;color:rgba(255,255,255,.55);margin-top:1px">2027 · Govt of Andhra Pradesh</div>
+      </div>
+    </div>
+    <button class="ham-close" onclick="closeHam()" aria-label="Close menu">✕</button>
+  </div>
+  <div class="ham-tricolor"></div>
+  <nav class="ham-nav">
+    <button class="ham-item ham-active" onclick="hamGoSec('home')">    <span class="ham-icon">🏠</span><span class="ham-label">Home</span></button>
+    <button class="ham-item" onclick="hamGoSec('ghats')">             <span class="ham-icon">🌊</span><span class="ham-label">Ghats &amp; Schedule</span></button>
+    <button class="ham-item" onclick="hamGoSec('fac')">               <span class="ham-icon">🏥</span><span class="ham-label">Facilities</span></button>
+    <button class="ham-item" onclick="hamGoSec('transport')">         <span class="ham-icon">🚌</span><span class="ham-label">Transport</span></button>
+    <button class="ham-item" onclick="hamGoSec('report')">            <span class="ham-icon">📋</span><span class="ham-label">Report Issue</span></button>
+    <button class="ham-item" onclick="hamGoSec('sos')">               <span class="ham-icon">🆘</span><span class="ham-label ham-danger">Emergency SOS</span></button>
+    <button class="ham-item" onclick="hamGoSec('emergency')">         <span class="ham-icon">🚨</span><span class="ham-label">Emergency Contacts</span></button>
+    <button class="ham-item" onclick="hamGoSec('lost')">              <span class="ham-icon">🔍</span><span class="ham-label">Lost &amp; Found</span></button>
+    <button class="ham-item" onclick="hamGoSec('tourgo')">            <span class="ham-icon">🗺️</span><span class="ham-label">TourGo Explorer</span></button>
+    <button class="ham-item" onclick="hamGoSec('about')">             <span class="ham-icon">ℹ️</span><span class="ham-label">About</span></button>
+  </nav>
+  <div class="ham-footer">
+    <div class="ham-lang">
+      <button class="lb on" onclick="setLang('en');closeHam()">EN</button>
+      <button class="lb" onclick="setLang('te');closeHam()">తె</button>
+      <button class="lb" onclick="setLang('hi');closeHam()">हि</button>
+    </div>
+    <div style="font-size:10px;color:rgba(255,255,255,.35);margin-top:10px;text-align:center">
+      📞 Helpline: 1800-425-0066 (Toll Free)
+    </div>
+  </div>
+</div>
 
 <!-- PAGE -->
 <div class="page">
@@ -1258,6 +1385,42 @@ function closeOverlay(){const o=document.getElementById('loc-overlay');o.style.o
 // data was already prefetched by loadStats(). Previously the lazy guard
 // `if(!allGhats.length)loadGhats()` meant that if loadStats() had already
 // filled the array the render function was never called for that section.
+// ── HAMBURGER MENU ────────────────────────────────────────────────
+function toggleHam() {
+  const drawer = document.getElementById('ham-drawer');
+  const overlay = document.getElementById('ham-overlay');
+  const btn = document.getElementById('ham-btn');
+  const isOpen = drawer.classList.contains('open');
+  if (isOpen) { closeHam(); } else {
+    drawer.classList.add('open');
+    overlay.classList.add('open');
+    btn.classList.add('open');
+    btn.setAttribute('aria-expanded','true');
+    document.body.style.overflow = 'hidden'; // prevent bg scroll
+  }
+}
+function closeHam() {
+  const drawer = document.getElementById('ham-drawer');
+  const overlay = document.getElementById('ham-overlay');
+  const btn = document.getElementById('ham-btn');
+  drawer.classList.remove('open');
+  overlay.classList.remove('open');
+  btn.classList.remove('open');
+  btn.setAttribute('aria-expanded','false');
+  document.body.style.overflow = '';
+}
+function hamGoSec(id) {
+  // Update active state in drawer
+  document.querySelectorAll('.ham-item').forEach(i => i.classList.remove('ham-active'));
+  const ids = ['home','ghats','fac','transport','report','sos','emergency','lost','tourgo','about'];
+  const idx = ids.indexOf(id);
+  if (idx >= 0) document.querySelectorAll('.ham-item')[idx].classList.add('ham-active');
+  goSec(id);
+  closeHam();
+}
+// Close drawer on Escape key
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeHam(); });
+
 function goSec(id){
   document.querySelectorAll('.sec').forEach(s=>s.classList.remove('on'));
   document.querySelectorAll('.nt').forEach(t=>t.classList.remove('on'));
