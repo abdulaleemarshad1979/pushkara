@@ -1185,7 +1185,7 @@ async def websocket_volunteer(websocket: WebSocket):
     try:
         await websocket.send_json({"type": "INIT", "data": {
             "issues":             DB["issues"],
-            "sos_alerts":         [a for a in DB["sos_alerts"] if a["status"] == "active"],
+            "sos_alerts":         DB["sos_alerts"],  # send ALL statuses so admin dashboard shows resolved items too
             "ghats":              DB["ghats"],
             "lost_persons":       DB["lost_persons"],
             "emergency_contacts": DB["emergency_contacts"],
