@@ -782,7 +782,13 @@ function handleWS(msg) {
       S.ghats = msg.data.ghats || [];
       S.volunteers = msg.data.volunteers || [];
       S.issues = msg.data.issues || [];
-      S.sos_alerts = msg.data.sos_alerts || [];
+      // MERGE SOS: backend INIT only sends active alerts — keep existing resolved ones
+      {
+        const incoming = msg.data.sos_alerts || [];
+        const incomingIds = new Set(incoming.map(a => a.id));
+        const keepResolved = S.sos_alerts.filter(a => a.status === 'resolved' && !incomingIds.has(a.id));
+        S.sos_alerts = [...incoming, ...keepResolved];
+      }
       S.lost = msg.data.lost_persons || [];
       S.contacts = msg.data.emergency_contacts || [];
       S.medical = msg.data.medical_facilities || [];
@@ -816,7 +822,10 @@ function handleWS(msg) {
       const g = S.ghats.find(x=>x.id===msg.data.ghat_id);
       if (g) g.crowd_level = msg.data.level;
       renderGhats(); renderOverview(); updateTopbar();
-      toast('🌊 ' + (msg.data.name||'Ghat') + ' → ' + msg.data.level.toUpperCase(), 'info');
+      // Only toast for HIGH/CRITICAL — not every ghat update (too noisy)
+      if (msg.data.level === 'high' || msg.data.level === 'critical') {
+        toast('🌊 ' + (msg.data.name||'Ghat') + ' → ' + msg.data.level.toUpperCase(), 'info');
+      }
       break;
     case 'LOST_REGISTERED':
       S.lost.unshift(msg.data);
