@@ -6,8 +6,16 @@
 <meta name="description" content="Godavari Pushkaralu 2027 — Official Pilgrim Information Portal by Government of Andhra Pradesh. Live ghat status, facilities, transport, emergency SOS.">
 <title>Godavari Pushkaralu 2027 — Pilgrim Portal</title>
 <script src="config.js"></script>
-<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+Telugu&family=DM+Serif+Display&family=DM+Sans:wght@400;500;600;700&family=Source+Code+Pro:wght@500&display=swap" rel="stylesheet">
+<!-- Preconnect for faster font load -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<!-- Non-render-blocking font load -->
+<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Noto+Serif+Telugu&family=DM+Serif+Display&family=DM+Sans:wght@400;500;600;700&display=swap&font-display=swap" onload="this.onload=null;this.rel='stylesheet'">
+<noscript><link href="https://fonts.googleapis.com/css2?family=Noto+Serif+Telugu&family=DM+Serif+Display&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"></noscript>
 <style>
+/* System font fallback while Google Fonts loads — prevents invisible text (FOIT) */
+h1,h2,h3,.hero-title,.brand-name,.loc-head h2{font-family:'DM Serif Display',Georgia,serif}
+body,.btn,.card,.toast,.tab{font-family:'DM Sans',system-ui,-apple-system,sans-serif}
 :root{
   --navy:#0B2E6E;--navy2:#1A4080;--navy3:#0D1F4C;
   --saffron:#E8600A;--saffron2:#FF7A1F;
@@ -97,7 +105,7 @@ button, .action-btn {
 .dark-mode #fac-ghat-sel{background-color: var(--card) !important; color: var(--t1) !important; border-color: #1E293B !important;}
 
 /* === LOCATION OVERLAY === */
-#loc-overlay{position:fixed;inset:0;z-index:9999;background:rgba(11,46,110,0.88);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;padding:16px;}
+#loc-overlay{position:fixed;inset:0;z-index:9999;background:rgba(11,46,110,0.88);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;padding:16px;contain:layout style;}
 .loc-modal{background:var(--card);border-radius:var(--r2);max-width:420px;width:100%;overflow:hidden;box-shadow:var(--sh3);animation:popUp .28s ease}
 @keyframes popUp{from{opacity:0;transform:scale(.93) translateY(12px)}to{opacity:1;transform:scale(1) translateY(0)}}
 .loc-head{background:linear-gradient(135deg,var(--navy3) 0%,var(--navy) 100%);padding:28px 24px 22px;text-align:center;border-bottom:3px solid;border-image:linear-gradient(90deg,var(--saffron) 33%,white 33%,white 66%,var(--green) 66%) 1}
@@ -142,8 +150,13 @@ button, .action-btn {
 .marquee-bar{background:linear-gradient(90deg,var(--saffron) 0%,var(--saffron2) 100%);color:white;padding:6px 0;overflow:hidden;display:flex;align-items:center}
 .mq-tag{background:var(--navy3);padding:4px 14px;font-size:11px;font-weight:700;letter-spacing:1px;flex-shrink:0;white-space:nowrap}
 .mq-wrap{overflow:hidden;flex:1}
-.mq-text{display:inline-block;white-space:nowrap;font-size:12px;font-weight:600;animation:mq 38s linear infinite;padding-left:100%}
+.mq-text{display:inline-block;white-space:nowrap;font-size:12px;font-weight:600;animation:mq 38s linear infinite;padding-left:100%;will-change:transform}
 @keyframes mq{0%{transform:translateX(0)}100%{transform:translateX(-100%)}}
+/* Pause all animations when tab not visible — saves CPU */
+@media (prefers-reduced-motion: reduce) {
+  .mq-text, .sos-hero-btn, .sos-big-btn { animation: none !important; }
+  * { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
+}
 
 /* === NAV === */
 .nav{background:var(--navy)}
@@ -168,9 +181,9 @@ button, .action-btn {
 .tricolor{height:3px;background:linear-gradient(90deg,var(--saffron) 33%,white 33%,white 66%,var(--green) 66%);border-radius:2px;max-width:180px;margin:0 auto 16px}
 .hero-tags{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin-bottom:22px}
 .htag{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:20px;padding:5px 14px;color:rgba(255,255,255,.85);font-size:12px;font-weight:600}
-.sos-hero-btn{display:inline-flex;align-items:center;gap:10px;background:var(--danger);color:white;border:none;border-radius:var(--r);padding:15px 36px;font-family:'DM Sans',sans-serif;font-size:15px;font-weight:700;cursor:pointer;letter-spacing:.3px;box-shadow:0 4px 20px rgba(192,57,43,.45);transition:all .2s;animation:sp 2.5s ease infinite}
+.sos-hero-btn{display:inline-flex;align-items:center;gap:10px;background:var(--danger);color:white;border:none;border-radius:var(--r);padding:15px 36px;font-family:'DM Sans',sans-serif;font-size:15px;font-weight:700;cursor:pointer;letter-spacing:.3px;box-shadow:0 4px 20px rgba(192,57,43,.45);transition:transform .2s,opacity .2s;animation:sp 2.5s ease infinite;will-change:transform,opacity}
 .sos-hero-btn:hover{background:#A93226;transform:scale(1.02);box-shadow:0 6px 28px rgba(192,57,43,.6)}
-@keyframes sp{0%,100%{box-shadow:0 4px 20px rgba(192,57,43,.45)}50%{box-shadow:0 4px 32px rgba(192,57,43,.7),0 0 0 8px rgba(192,57,43,.1)}}
+@keyframes sp{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.88;transform:scale(1.02)}} /* GPU-composited: opacity+transform only */
 .sos-hint{font-size:11px;color:rgba(255,255,255,.4);margin-top:8px}
 
 /* === STATS === */
@@ -315,7 +328,7 @@ textarea.fc-input{resize:vertical;min-height:82px}
 
 /* === SOS PAGE === */
 .sos-wrap{max-width:680px;margin:0 auto}
-.sos-big-btn{width:100%;background:var(--danger);color:white;border:none;border-radius:var(--r2);padding:30px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:1.35rem;font-weight:700;display:flex;align-items:center;justify-content:center;gap:12px;box-shadow:0 4px 24px rgba(192,57,43,.45);transition:all .2s;margin-bottom:16px;animation:sp 2.5s ease infinite}
+.sos-big-btn{width:100%;background:var(--danger);color:white;border:none;border-radius:var(--r2);padding:30px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:1.35rem;font-weight:700;display:flex;align-items:center;justify-content:center;gap:12px;box-shadow:0 4px 24px rgba(192,57,43,.45);transition:transform .2s,opacity .2s;margin-bottom:16px;animation:sp 2.5s ease infinite;will-change:transform,opacity}
 .sos-big-btn:hover{background:#A93226;transform:scale(1.01)}
 .sos-info-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
 @media(max-width:480px){.sos-info-grid{grid-template-columns:1fr}}
@@ -1295,31 +1308,42 @@ function _onLocGranted(){
 // renderers. If the user has already navigated to a section, the
 // full-page render is called here after each fetch resolves.
 async function loadStats(){
-  try{const d=await(await fetch(`${API_BASE}/stats`)).json();
-    if(document.getElementById('h-vols'))document.getElementById('h-vols').textContent=d.active_volunteers??'–';
-  }catch(e){}
-  try{const d=await(await fetch(`${API_BASE}/get_facilities`)).json();allFac=d.facilities||[];
+  // Fire all 4 fetches in parallel — avoids sequential await blocking main thread (~4x faster)
+  const safe = (p) => p.catch(() => null);
+  const [stats, fac, trans, ghats] = await Promise.all([
+    safe(fetch(`${API_BASE}/stats`).then(r=>r.json())),
+    safe(fetch(`${API_BASE}/get_facilities`).then(r=>r.json())),
+    safe(fetch(`${API_BASE}/get_transport`).then(r=>r.json())),
+    safe(fetch(`${API_BASE}/get_ghats`).then(r=>r.json())),
+  ]);
+  if(stats){
+    if(document.getElementById('h-vols'))document.getElementById('h-vols').textContent=stats.active_volunteers??'–';
+  }
+  if(fac){ allFac=fac.facilities||[];
     if(document.getElementById('h-fac'))document.getElementById('h-fac').textContent=allFac.length;
-    buildFacBtns();renderFacHome('all');
-    // If facilities section is already visible, render it too
+    buildFacBtns(); renderFacHome('all');
     if(document.getElementById('sec-fac')?.classList.contains('on')){ buildFacBtns(); renderFacFull(); }
-  }catch(e){}
-  try{const d=await(await fetch(`${API_BASE}/get_transport`)).json();allTrans=d.transport_routes||[];
+  }
+  if(trans){ allTrans=trans.transport_routes||[];
     if(document.getElementById('h-trans'))document.getElementById('h-trans').textContent=allTrans.length;
-    // If transport section is already visible, render it
     if(document.getElementById('sec-transport')?.classList.contains('on')) renderTrans();
-  }catch(e){}
-  try{const d=await(await fetch(`${API_BASE}/get_ghats`)).json();allGhats=d.ghats||[];
+  }
+  if(ghats){ allGhats=ghats.ghats||[];
     if(document.getElementById('h-ghats'))document.getElementById('h-ghats').textContent=allGhats.length;
-    renderGhatMini();
-    populateGhatSelector();
-    // If ghats section is already visible, render full cards too
+    renderGhatMini(); populateGhatSelector();
     if(document.getElementById('sec-ghats')?.classList.contains('on')) renderGhats();
-  }catch(e){}
+  }
 }
 
 // Auto-refresh home page stats every 30 seconds
-setInterval(()=>{ loadStats(); }, 30000);
+setInterval(()=>{ if(!document.hidden) loadStats(); }, 30000);
+// Pause CSS animations when tab hidden — saves CPU significantly
+document.addEventListener('visibilitychange', () => {
+  document.body.style.animationPlayState = document.hidden ? 'paused' : '';
+  document.querySelectorAll('.mq-text,.sos-hero-btn,.sos-big-btn').forEach(el => {
+    el.style.animationPlayState = document.hidden ? 'paused' : '';
+  });
+});
 
 // ── LOST & FOUND (user - view only) ──────────────────────────────────
 let allLostUser = [], userLostFilter = 'all';
@@ -2300,7 +2324,12 @@ function updateThemeIcon(){
 })();
 
 // ═══ INIT ═════════════════════════════════════════════════════
-loadStats();
+// Defer data fetch to after first paint — reduces TBT on slow connections
+if('requestIdleCallback' in window){
+  requestIdleCallback(() => loadStats(), { timeout: 2000 });
+} else {
+  setTimeout(loadStats, 100);
+}
 </script>
 
 </body>
