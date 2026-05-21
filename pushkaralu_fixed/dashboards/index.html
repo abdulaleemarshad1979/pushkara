@@ -668,6 +668,7 @@ code, pre, .cred-row, .form-control, .ws-badge {
         <button class="dash-tab" onclick="switchSection('sos')">🆘 SOS Alerts <span class="count-badge" id="sos-badge">0</span></button>
         <button class="dash-tab" onclick="switchSection('issues')">📋 Issues <span class="count-badge" id="issues-badge" style="background:var(--info)">0</span></button>
         <button class="dash-tab" onclick="switchSection('lost')">🔍 Lost & Found <span class="count-badge" id="lost-badge" style="background:var(--gold)">0</span></button>
+        <button class="dash-tab" onclick="switchSection('map')">🗺️ Map</button>
       </div>
     </div>
   </div>
@@ -769,6 +770,12 @@ code, pre, .cred-row, .form-control, .ws-badge {
     </div>
 
 
+    <!-- ══ MAP SECTION ══ -->
+    <div id="sec-map" class="dash-section">
+      <div class="sec-header">
+        <div class="sec-title">🗺️ Live Map — Rajahmundry Ghats</div>
+        <button class="btn-refresh" onclick="refreshMap()">⟳ Refresh</button>
+      </div>
       <!-- Layer toggles -->
       <div class="map-controls">
         <span style="font-size:11px;font-weight:700;color:var(--gray-400);text-transform:uppercase;letter-spacing:.5px">Layers:</span>
@@ -800,6 +807,7 @@ code, pre, .cred-row, .form-control, .ws-badge {
         <div id="map-issues-list"></div>
       </div>
     </div>
+    </div><!-- /sec-map -->
 
   </div><!-- /dash-content -->
 
@@ -1260,10 +1268,13 @@ async function resolveSOS(id) {
     const d = await (await authFetch(`${API_BASE}/resolve_sos/${id}`, { method: 'POST', body: fd })).json();
     if (d.success) {
       toast('✅ SOS Resolved', 'Emergency marked resolved.', 't-success');
-      // Sync fresh data from server quietly in background
+      // Merge fresh data — don't replace (server may only return active items)
       const fresh = await fetch(`${API_BASE}/get_sos_alerts`);
       const freshData = await fresh.json();
-      allSOS = freshData.sos_alerts || [];
+      const incoming = freshData.sos_alerts || [];
+      const incomingIds = new Set(incoming.map(x => x.id));
+      // Keep local resolved items not yet in server response, update the rest
+      allSOS = [...incoming, ...allSOS.filter(x => !incomingIds.has(x.id))];
       renderSOS(); updateBadges(); updateStats();
     } else {
       // Revert optimistic update on failure
@@ -1623,15 +1634,18 @@ function switchSection(sec) {
   const idx = secs.indexOf(sec);
   if (idx >= 0) document.querySelectorAll('.dash-tab')[idx].classList.add('active');
   if (sec === 'map') {
-    setTimeout(() => {
-      initMap();
-      if (mapInitialized) {
-        leafletMap.invalidateSize();
-        renderIssueMarkers(allIssues);
-        renderSOSMarkers(allSOS);
-      }
-    }, 50);
-    renderMapIssues();
+    // Two-step: first let CSS display:block take effect, then init/resize map
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        if (!mapInitialized) {
+          initMap();
+        } else {
+          leafletMap.invalidateSize(true); // force full size recalc
+          loadMapData();
+        }
+        renderMapIssues();
+      }, 100);
+    });
   }
   if (sec === 'overview') renderActivity();
   if (sec === 'lost') loadLost();
