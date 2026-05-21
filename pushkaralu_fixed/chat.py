@@ -4,6 +4,7 @@ import hashlib
 import json
 import logging
 import os
+import re
 import time
 from typing import Optional
 
@@ -40,6 +41,98 @@ def _cache_set(key: str, value: str) -> None:
     _cache[key] = (value, time.time())
 
 
+# ── OFF-TOPIC PRE-FILTER ──────────────────────────────────────────────────────
+# These words/phrases are ALLOWED — they relate to Pushkaralu
+_ALLOWED_KEYWORDS = {
+    # festival core
+    "pushkar", "pushkara", "godavari", "ghat", "ganga", "bathing", "ritual",
+    "pooja", "puja", "snan", "holy", "sacred", "dip", "pilgrimage", "pilgrim",
+    "festival", "mela", "utsav", "2027", "rajahmundry", "rajamahendravaram",
+    # transport
+    "train", "bus", "auto", "taxi", "cab", "parking", "route", "station",
+    "apsrtc", "irctc", "railway", "transport", "travel", "reach", "how to go",
+    "journey", "schedule", "timing", "departure", "arrival",
+    # facilities & safety
+    "toilet", "washroom", "restroom", "food", "water", "medical", "camp",
+    "ambulance", "hospital", "doctor", "first aid", "luggage", "cloak",
+    "wheelchair", "disabled", "crowd", "safe", "safety", "lost", "found",
+    "missing", "child", "police", "help", "emergency", "sos", "helpline",
+    "hotel", "accommodation", "stay", "lodge", "dharamshala",
+    # Telugu / Hindi terms
+    "స్నానం", "ఘాట్", "పూజ", "పుష్కర", "గోదావరి", "రాజమహేంద్రవరం",
+    "స్నान", "घाट", "पूजा", "पुष्कर", "गोदावरी",
+    # greetings / meta
+    "hello", "hi", "namaste", "namaskar", "నమస్కారం", "నమస్తే",
+    "helo", "hey", "thank", "thanks", "ok", "okay", "yes", "no",
+    "what", "which", "where", "when", "how", "who", "list",
+    "tell me", "show me", "give me", "can you", "please",
+}
+
+# Topics that are clearly off-topic — checked ONLY if no allowed keyword matched
+_BLOCKED_PATTERNS = [
+    r"\bcricket\b", r"\bsachin\b", r"\bvirat\b", r"\bipl\b",
+    r"\brecipe\b", r"\bcook\b", r"\bchicken\b", r"\bbiriyani\b",
+    r"\bpolitics\b", r"\belection\b", r"\bminister\b", r"\bgovernment\b",
+    r"\bweather\b",                        # weather elsewhere; festival weather is ok
+    r"\bgoogle\b", r"\bbing\b", r"\bgpt\b", r"\bchatgpt\b", r"\bai tool\b",
+    r"\bstock\b", r"\bshare price\b", r"\bcrypto\b", r"\bbitcoin\b",
+    r"\bmovie\b", r"\bfilm\b", r"\bsong\b", r"\blyric\b",
+    r"\bjoke\b", r"\bfunny\b",
+    r"\bexam\b", r"\bsyllabus\b", r"\bcollege\b", r"\buniversity\b",
+    r"\bjob\b", r"\bsalary\b", r"\bresume\b", r"\binterview\b",
+]
+_BLOCKED_RE = re.compile("|".join(_BLOCKED_PATTERNS), re.IGNORECASE)
+
+_REFUSAL = (
+    "I can only help with Godavari Pushkaralu 2027. "
+    "Please ask about ghats, transport, facilities, poojas, or emergencies. "
+    "— TourGO Pushkara AI 🕊"
+)
+_REFUSAL_TE = (
+    "నేను కేవలం గోదావరి పుష్కరాలు 2027 గురించి మాత్రమే సహాయం చేయగలను. "
+    "దయచేసి ఘాట్లు, రవాణా, సౌకర్యాలు, పూజలు లేదా అత్యవసర పరిస్థితుల గురించి అడగండి. "
+    "— TourGO Pushkara AI 🕊"
+)
+_REFUSAL_HI = (
+    "मैं केवल गोदावरी पुष्करालु 2027 के बारे में सहायता कर सकता हूँ। "
+    "कृपया घाट, परिवहन, सुविधाएँ, पूजा या आपात स्थिति के बारे में पूछें। "
+    "— TourGO Pushkara AI 🕊"
+)
+
+
+def _is_off_topic(msg: str) -> bool:
+    """Return True if the message is clearly off-topic."""
+    lower = msg.lower()
+    # If any allowed keyword appears → let it through
+    for kw in _ALLOWED_KEYWORDS:
+        if kw in lower:
+            return False
+    # No allowed keyword found — check blocked patterns
+    return bool(_BLOCKED_RE.search(msg))
+
+
+def _detect_lang(msg: str) -> str:
+    """Very rough language detect: te / hi / en."""
+    # Telugu Unicode block: 0C00–0C7F
+    if re.search(r"[\u0C00-\u0C7F]", msg):
+        return "te"
+    # Devanagari: 0900–097F
+    if re.search(r"[\u0900-\u097F]", msg):
+        return "hi"
+    return "en"
+
+
+def _refusal_for_lang(msg: str) -> str:
+    lang = _detect_lang(msg)
+    if lang == "te":
+        return _REFUSAL_TE
+    if lang == "hi":
+        return _REFUSAL_HI
+    return _REFUSAL
+
+
+# ── SYSTEM PROMPT ─────────────────────────────────────────────────────────────
+
 def _build_system_prompt(db: dict) -> str:
     ghats      = db.get("ghats", [])
     transport  = db.get("transport_routes", [])
@@ -48,9 +141,8 @@ def _build_system_prompt(db: dict) -> str:
     facilities = db.get("facilities", [])
     poojas     = db.get("poojas", [])
     hotels     = db.get("hotels", [])
-    police     = db.get("police_stations", [])
 
-    # ── GHATS — full detail ───────────────────────────────────────────────────
+    # GHATS
     ghat_lines = []
     for g in ghats:
         crowd = g.get("crowd_level", "unknown")
@@ -62,35 +154,37 @@ def _build_system_prompt(db: dict) -> str:
         facs = ", ".join(g.get("facilities", []))
         ghat_lines.append(
             f"  • {g['name']} ({g.get('telugu_name','')}) | Zone:{g.get('zone')} | "
-            f"{crowd_emoji} {crowd.upper()} crowd ({cur:,}/{cap:,} = {pct}%) | "
-            f"Timings: {g.get('bathing_timings')} | "
-            f"Near: {g.get('nearest_landmark','')} | "
-            f"Special dates: {special or 'none'} | Facilities: {facs}"
+            f"{crowd_emoji} {crowd.upper()} ({cur:,}/{cap:,} = {pct}%) | "
+            f"Timings: {g.get('bathing_timings')} | Near: {g.get('nearest_landmark','')} | "
+            f"Special: {special or 'none'} | Facilities: {facs}"
         )
-    ghats_block = "\n".join(ghat_lines) if ghat_lines else "  Data loading..."
+    ghats_block = "\n".join(ghat_lines) or "  Data loading..."
 
-    # ── TRANSPORT — trains and buses separately ───────────────────────────────
+    # TRANSPORT
     trains = [t for t in transport if t.get("type") == "train"]
     buses  = [t for t in transport if t.get("type") == "bus"]
     special_trains = [t for t in trains if t.get("special_pushkaralu")]
 
     train_lines = []
-    for t in trains[:50]:  # first 50 trains in prompt
+    for t in trains[:50]:
         arr = t.get("arrival_rjy", "")
         dep = t.get("departure_rjy", "")
-        timing = f"arr {arr}" if arr else ""
-        timing += f" / dep {dep}" if dep else ""
-        orig = "🟢 STARTS at RJY" if t.get("originates_rjy") else ""
-        term = "🔴 ENDS at RJY" if t.get("terminates_rjy") else ""
-        special = "✨ PUSHKARALU SPECIAL" if t.get("special_pushkaralu") else ""
+        timing = (f"arr {arr}" if arr else "") + (f" / dep {dep}" if dep else "")
+        tags = " ".join(filter(None, [
+            "🟢 STARTS at RJY" if t.get("originates_rjy") else "",
+            "🔴 ENDS at RJY"   if t.get("terminates_rjy") else "",
+            "✨ PUSHKARALU SPECIAL" if t.get("special_pushkaralu") else "",
+        ]))
         train_lines.append(
             f"  • {t.get('train_number','')} {t.get('train_name','')} | "
-            f"{t.get('from','')} → {t.get('to','')} | "
-            f"{timing} {orig}{term} {special}".strip()
+            f"{t.get('from','')} → {t.get('to','')} | {timing} {tags}".strip()
         )
-    trains_block = f"Total {len(trains)} trains via Rajahmundry.\nSpecial Pushkaralu trains: " + \
-        ", ".join(f"{t.get('train_number')} {t.get('train_name','')}" for t in special_trains) + \
-        "\nSample listing:\n" + "\n".join(train_lines)
+    sp_names = ", ".join(f"{t.get('train_number')} {t.get('train_name','')}" for t in special_trains)
+    trains_block = (
+        f"Total {len(trains)} trains via Rajahmundry.\n"
+        f"Special Pushkaralu trains: {sp_names or 'none'}\nSample:\n" +
+        "\n".join(train_lines)
+    )
 
     bus_lines = []
     for b in buses:
@@ -103,9 +197,9 @@ def _build_system_prompt(db: dict) -> str:
             f"  • {b.get('route_number','')} | {b.get('from','')} → {b.get('to','')} | "
             f"{time_str} {freq} | {b.get('operator','')} {special} | Stops: {stops}"
         )
-    buses_block = f"Total {len(buses)} APSRTC bus routes.\n" + "\n".join(bus_lines)
+    buses_block = f"Total {len(buses)} APSRTC routes.\n" + "\n".join(bus_lines)
 
-    # ── FACILITIES ────────────────────────────────────────────────────────────
+    # FACILITIES
     fac_by_type: dict = {}
     for f in facilities:
         t = f.get("type", "other")
@@ -118,70 +212,54 @@ def _build_system_prompt(db: dict) -> str:
         for item in items[:5]:
             fac_block += f"    - {item}\n"
 
-    # ── POOJAS ────────────────────────────────────────────────────────────────
-    pooja_lines = []
-    for p in poojas:
-        pooja_lines.append(
-            f"  • {p.get('name','')} ({p.get('telugu_name','')}) — {p.get('description','')[:120]}"
-        )
-    poojas_block = "\n".join(pooja_lines) if pooja_lines else "  Data loading..."
+    # POOJAS
+    pooja_lines = [
+        f"  • {p.get('name','')} ({p.get('telugu_name','')}) — {p.get('description','')[:120]}"
+        for p in poojas
+    ]
+    poojas_block = "\n".join(pooja_lines) or "  Data loading..."
 
-    # ── HOTELS ────────────────────────────────────────────────────────────────
+    # HOTELS
     hotel_lines = [
         f"  • {h.get('name')} | {h.get('type')} | {h.get('location')} | Area: {h.get('area')}"
         for h in hotels
     ]
-    hotels_block = "\n".join(hotel_lines) if hotel_lines else "  Data loading..."
+    hotels_block = "\n".join(hotel_lines) or "  Data loading..."
 
-    # ── HOSPITALS ─────────────────────────────────────────────────────────────
-    seen_hospitals = set()
+    # HOSPITALS
+    seen = set()
     hospital_lines = []
     for h in hospitals:
         key = h.get("name", "") + h.get("location", "")
-        if key not in seen_hospitals:
-            seen_hospitals.add(key)
+        if key not in seen:
+            seen.add(key)
             hospital_lines.append(
-                f"  • {h.get('location','')} — {h.get('name','')} | Dr. {h.get('doctor','')} | ☎ {h.get('contact','')}"
+                f"  • {h.get('location','')} — {h.get('name','')} | "
+                f"Dr. {h.get('doctor','')} | ☎ {h.get('contact','')}"
             )
-    hospitals_block = "\n".join(hospital_lines[:20]) if hospital_lines else "  Data loading..."
+    hospitals_block = "\n".join(hospital_lines[:20]) or "  Data loading..."
 
-    # ── HELPLINES ─────────────────────────────────────────────────────────────
+    # HELPLINES
     if isinstance(helplines, dict):
         helpline_block = "\n".join(f"  {k}: {v}" for k, v in helplines.items())
     else:
         helpline_block = "  Police: 100 | Ambulance: 108 | Helpline: 1800-425-0066"
 
-    return f"""You are TourGO Pushkara AI — the ONLY official AI assistant for Godavari Pushkaralu 2027.
-Festival: June 26 – July 7, 2027 | Location: Rajahmundry (Rajamahendravaram), East Godavari, Andhra Pradesh
+    return f"""You are TourGO Pushkara AI — the official AI assistant for Godavari Pushkaralu 2027.
+Festival: June 26 – July 7, 2027 | Location: Rajahmundry (Rajamahendravaram), Andhra Pradesh
 
-═══ STRICT SCOPE RULES ═══
-You ONLY answer questions about Godavari Pushkaralu 2027:
-  ✅ Ghats, crowd levels, bathing timings, safety
-  ✅ Transport (trains, buses, autos, parking) to/from Rajahmundry
-  ✅ Facilities (toilets, medical camps, food, water, parking, luggage)
-  ✅ Emergency help, SOS, police, ambulance, helplines
-  ✅ Poojas, rituals, spiritual guidance for the festival
-  ✅ Hotels and accommodation near the festival
-  ✅ Lost & found, pilgrim safety
+SCOPE: Answer ONLY about Godavari Pushkaralu 2027 — ghats, transport, facilities, poojas, hotels, hospitals, emergencies.
+For ANYTHING else respond ONLY: "I can only help with Godavari Pushkaralu 2027. Please ask about ghats, transport, facilities, poojas, or emergencies. — TourGO Pushkara AI 🕊"
 
-If asked ANYTHING outside this scope (cricket, Google, weather elsewhere, general knowledge, tech, politics, recipes, etc.) respond ONLY with:
-"I can only help with Godavari Pushkaralu 2027. Please ask about ghats, transport, facilities, poojas, or emergencies. — TourGO Pushkara AI 🕊"
-(Translate refusal to user's language but do NOT answer the off-topic question.)
+LANGUAGE: Reply entirely in the user's language (Telugu→Telugu, Hindi→Hindi, English→English).
 
-═══ LANGUAGE RULE ═══
-Detect language from user's message. Reply ENTIRELY in that language. Telugu→Telugu. Hindi→Hindi. English→English. Never mix.
+STYLE: Be specific — use actual names, numbers, timings from data below. Keep answers concise.
+For emergencies always include: Police: 100 | Ambulance: 108 | Helpline: 1800-425-0066
+End every on-topic reply with: — TourGO Pushkara AI 🕊
 
-═══ RESPONSE STYLE ═══
-- Be specific — use ACTUAL names, numbers, timings from the data below
-- Keep answers concise and mobile-friendly
-- For emergencies ALWAYS include: Police: 100 | Ambulance: 108 | Helpline: 1800-425-0066
-- End every on-topic response with: — TourGO Pushkara AI 🕊
+════════════ LIVE FESTIVAL DATA ════════════
 
-════════════════════════════════════════════
-LIVE FESTIVAL DATA (use this to answer questions)
-════════════════════════════════════════════
-
-── GHATS (15 total) ──
+── GHATS ({len(ghats)} total) ──
 {ghats_block}
 
 ── TRAINS ({len(trains)} total via Rajahmundry) ──
@@ -192,7 +270,6 @@ LIVE FESTIVAL DATA (use this to answer questions)
 
 ── FACILITIES ──
 {fac_block}
-
 ── POOJAS & RITUALS ──
 {poojas_block}
 
@@ -207,6 +284,8 @@ LIVE FESTIVAL DATA (use this to answer questions)
 """
 
 
+# ── REQUEST / RESPONSE MODELS ─────────────────────────────────────────────────
+
 class ChatMessage(BaseModel):
     role: str
     content: str
@@ -215,6 +294,8 @@ class ChatRequest(BaseModel):
     message: str
     history: list[ChatMessage] = []
 
+
+# ── ENDPOINT ──────────────────────────────────────────────────────────────────
 
 @router.post("/api/chat")
 async def chat(req: ChatRequest, request: Request):
@@ -227,6 +308,12 @@ async def chat(req: ChatRequest, request: Request):
     if not GROQ_API_KEY:
         logger.error("[Chat] GROQ_API_KEY not set")
         raise HTTPException(status_code=503, detail="Chat service not configured. Contact admin.")
+
+    # ── PRE-FILTER: block off-topic before hitting Groq ──────────────────────
+    if _is_off_topic(msg):
+        refusal = _refusal_for_lang(msg)
+        logger.info("[Chat] BLOCKED off-topic | q=%s", msg[:60])
+        return {"reply": refusal, "cached": False, "filtered": True}
 
     # Rate limiting
     client_ip = request.client.host
