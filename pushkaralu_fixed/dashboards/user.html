@@ -347,19 +347,119 @@ textarea.fc-input{resize:vertical;min-height:82px}
 .site-footer{background:var(--navy3);color:rgba(255,255,255,.45);text-align:center;padding:16px;font-size:10px;margin-top:40px;border-top:3px solid;border-image:linear-gradient(90deg,var(--saffron) 33%,white 33%,white 66%,var(--green) 66%) 1}
 ::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-track{background:var(--bg)}::-webkit-scrollbar-thumb{background:#D1D5DB;border-radius:3px}
 
+/* ═══ HAMBURGER MENU ═══════════════════════════════════════════════ */
+.ham-btn {
+  display: none;
+  background: none; border: none; cursor: pointer;
+  flex-direction: column; gap: 5px; padding: 6px;
+  border-radius: var(--r); transition: background .15s;
+}
+.ham-btn:hover { background: var(--bg); }
+.ham-line {
+  width: 22px; height: 2px; background: var(--t1);
+  border-radius: 2px; transition: all .3s cubic-bezier(.4,0,.2,1);
+  display: block;
+}
+.ham-btn.open .ham-line:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+.ham-btn.open .ham-line:nth-child(2) { opacity: 0; transform: scaleX(0); }
+.ham-btn.open .ham-line:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
+/* Drawer overlay */
+.mob-drawer-overlay {
+  display: none;
+  position: fixed; inset: 0; z-index: 500;
+  background: rgba(0,0,0,.45);
+  backdrop-filter: blur(2px);
+  animation: fadeIn .2s ease;
+}
+.mob-drawer-overlay.open { display: block; }
+@keyframes fadeIn { from{opacity:0} to{opacity:1} }
+
+/* Drawer panel */
+.mob-drawer {
+  position: fixed; top: 0; left: 0; bottom: 0;
+  width: 280px; max-width: 85vw;
+  background: var(--card);
+  z-index: 501;
+  transform: translateX(-100%);
+  transition: transform .3s cubic-bezier(.4,0,.2,1);
+  display: flex; flex-direction: column;
+  box-shadow: 4px 0 24px rgba(0,0,0,.18);
+  overflow-y: auto;
+}
+.mob-drawer.open { transform: translateX(0); }
+
+/* Drawer header */
+.mob-drawer-head {
+  background: var(--navy3);
+  padding: 20px 18px 16px;
+  border-bottom: 3px solid;
+  border-image: linear-gradient(90deg,var(--saffron) 33%,white 33%,white 66%,var(--green) 66%) 1;
+  display: flex; align-items: center; gap: 12px;
+  flex-shrink: 0;
+}
+.mob-drawer-logo { font-size: 28px; }
+.mob-drawer-title { color: var(--gold2); font-family:'DM Serif Display',serif; font-size: 1rem; line-height:1.2; }
+.mob-drawer-sub { color: rgba(255,255,255,.5); font-size: 10px; margin-top: 2px; }
+.mob-drawer-close {
+  margin-left: auto; background: rgba(255,255,255,.1); border: none;
+  color: white; width: 28px; height: 28px; border-radius: 50%;
+  cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; transition: background .15s;
+}
+.mob-drawer-close:hover { background: rgba(255,255,255,.25); }
+
+/* Drawer nav items */
+.mob-nav-list { flex: 1; padding: 10px 0; }
+.mob-nav-item {
+  display: flex; align-items: center; gap: 14px;
+  width: 100%; background: none; border: none;
+  padding: 14px 20px; cursor: pointer; text-align: left;
+  font-family: 'DM Sans',sans-serif; font-size: 14px; font-weight: 600;
+  color: var(--t2); transition: all .15s;
+  border-left: 3px solid transparent;
+}
+.mob-nav-item:hover { background: var(--bg); color: var(--navy); border-left-color: var(--saffron); }
+.mob-nav-item.on { background: var(--info-bg); color: var(--navy); border-left-color: var(--saffron); }
+.mob-nav-item.sos-item {
+  color: var(--danger); background: var(--danger-bg);
+  border-left-color: var(--danger); margin: 8px 12px;
+  border-radius: var(--r); border-left-width: 4px; padding: 14px 16px;
+}
+.mob-nav-item.sos-item:hover { background: var(--danger); color: white; }
+.mob-nav-icon { font-size: 18px; width: 24px; text-align: center; flex-shrink: 0; }
+.mob-nav-divider { height: 1px; background: var(--bg); margin: 6px 0; }
+
+/* Drawer footer */
+.mob-drawer-footer {
+  padding: 14px 18px; border-top: var(--border);
+  display: flex; gap: 8px; flex-shrink: 0;
+}
+.mob-drawer-footer .lb { flex: 1; text-align: center; }
+
 /* ═══ MOBILE RESPONSIVE ═══════════════════════════════════════════ */
 @media (max-width: 600px) {
+  /* Show hamburger, hide desktop nav */
+  .ham-btn { display: flex; }
+  .nav { display: none; }
+
+  /* Header */
   .hdr-main { padding: 8px 12px; gap: 8px; }
   .brand-logo { width: 40px; height: 40px; font-size: 20px; }
-  .brand-name { font-size: 0.95rem; }
-  .brand-te { font-size: 0.72rem; }
+  .brand-name { font-size: 0.9rem; }
+  .brand-te { font-size: 0.7rem; }
   .brand-sub { display: none; }
   .hdr-right { gap: 6px; }
   .countdown { padding: 5px 10px; min-width: 60px; }
   .cd-num { font-size: 1.1rem; }
   .cd-lbl { font-size: 8px; }
   .cd-sub { display: none; }
-  .vol-link { padding: 6px 10px; font-size: 11px; }
+  .vol-link { display: none; }
+  .lang-sw { display: none; }
+  .topbar { padding: 4px 12px; font-size: 10px; }
+  .marquee-bar { display: none; }
+
+  /* Content */
   .hero-title { font-size: 1.6rem; }
   .hero-tags { gap: 5px; }
   .htag { font-size: 10px; padding: 4px 10px; }
@@ -367,8 +467,6 @@ textarea.fc-input{resize:vertical;min-height:82px}
   .stats { grid-template-columns: repeat(2, 1fr); }
   .hl-grid { grid-template-columns: repeat(3, 1fr); }
   .page { padding: 14px 12px; }
-  .nt { padding: 10px 12px; font-size: 12px; gap: 4px; }
-  .topbar { padding: 4px 12px; font-size: 10px; }
   .ghat-mini-grid { grid-template-columns: 1fr 1fr; }
   .fac-quick-row { grid-template-columns: repeat(5, 1fr); }
   .fqb { padding: 10px 4px; }
@@ -382,11 +480,18 @@ textarea.fc-input{resize:vertical;min-height:82px}
   .toast { padding: 10px 12px; }
   .loc-row { flex-direction: column; }
   .loc-stat { width: 100%; }
-  .lang-sw { display: none; }
   #tg-header { padding: 20px 16px 18px; }
   .tg-grid { grid-template-columns: 1fr !important; }
   .tg-card { padding: 16px; }
 }
+
+/* Dark mode drawer */
+.dark-mode .mob-drawer { background: #0F172A; }
+.dark-mode .mob-nav-item { color: #94A3B8; }
+.dark-mode .mob-nav-item:hover { background: #1E293B; color: #38BDF8; }
+.dark-mode .mob-nav-item.on { background: rgba(14,165,233,.15); color: #38BDF8; }
+.dark-mode .mob-nav-divider { background: #1E293B; }
+.dark-mode .mob-drawer-footer { border-color: #1E293B; }
 </style>
 </head>
 <body>
