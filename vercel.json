@@ -1,6 +1,8 @@
 {
   "version": 2,
   "rewrites": [
+    { "source": "/sitemap.xml",    "destination": "/pushkaralu_fixed/dashboards/sitemap.xml" },
+    { "source": "/robots.txt",     "destination": "/pushkaralu_fixed/dashboards/robots.txt" },
     { "source": "/admin",          "destination": "/pushkaralu_fixed/dashboards/admin.html" },
     { "source": "/admin.html",     "destination": "/pushkaralu_fixed/dashboards/admin.html" },
     { "source": "/volunteer",      "destination": "/pushkaralu_fixed/dashboards/index.html" },
