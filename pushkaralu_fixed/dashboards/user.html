@@ -556,18 +556,6 @@ html,body{max-width:100%;overflow-x:hidden}
 }
 
 /* ── TourGO Chatbot Widget ── */
- block anywhere inside your existing <style> tag
-       (or keep it here as a separate block — both work)
-    2. Paste the HTML block just before </body>
-    3. Paste the <script> block just before </script> at the bottom
-    
-  THAT'S IT. No npm, no build step, no new dependencies.
-  The widget lazy-loads only after the user clicks the chat button.
-═══════════════════════════════════════════════════════════════════════ -->
-
-
-<!-- ═══ PASTE THIS CSS INTO YOUR EXISTING <style> TAG ═══════════════════ -->
-<style>
 /* ── Chatbot FAB + Panel ─────────────────────────────────────────────── */
 #cb-fab {
   position: fixed;
@@ -860,7 +848,6 @@ html,body{max-width:100%;overflow-x:hidden}
     font-size: 1.35rem;
   }
 }
-
 </style>
 </head>
 <body>
@@ -2873,7 +2860,6 @@ if('requestIdleCallback' in window){
 </script>
 
 
-<!-- TourGO Chatbot Widget -->
 <!-- Chatbot FAB button -->
 <button id="cb-fab" onclick="cbToggle()" aria-label="Open TourGO Pushkara AI" title="TourGO Pushkara AI">
   🪔
@@ -2929,8 +2915,6 @@ if('requestIdleCallback' in window){
   </div>
 
 </div>
-
-
 
 <script>
 // ── Pushkara AI Chatbot ───────────────────────────────────────────────────
