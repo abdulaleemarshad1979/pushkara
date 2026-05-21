@@ -37,7 +37,7 @@ logger = logging.getLogger("pushkaralu.chat")
 # ── Config ────────────────────────────────────────────────────────────────────
 GROQ_API_KEY      = os.getenv("GROQ_API_KEY", "")
 GROQ_API_URL      = "https://api.groq.com/openai/v1/chat/completions"
-GROQ_MODEL        = "llama3-70b-8192"   # better multilingual (Telugu/Hindi/English)
+GROQ_MODEL        = "llama-3.3-70b-versatile"   # better multilingual (Telugu/Hindi/English)
 MAX_HISTORY_TURNS = 10          # keep last 10 user+assistant pairs
 CACHE_TTL_SECONDS = 60          # cache identical questions for 60s
 RATE_LIMIT        = 20          # max requests per IP per minute
