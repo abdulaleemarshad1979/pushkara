@@ -967,21 +967,19 @@ function handleWS(msg) {
   if (!currentVol) return; // safety guard
   switch(msg.type) {
     case 'PING': return; // server heartbeat — ignore silently
-    case 'INIT':
-      // MERGE incoming data rather than replacing — prevents INIT on reconnect
-      // from wiping locally-known resolved items. Backend INIT only sends active
-      // SOS, so we keep any existing resolved ones we already have in memory.
+    case 'INIT': {
+      // Merge by ID — server sends ALL statuses from Postgres on INIT.
+      // On reconnect, prefer server data but keep any local-only items.
       allIssues = msg.data.issues || [];
-      // Merge SOS: keep existing resolved items, add/update active ones from server
       const incomingSOS = msg.data.sos_alerts || [];
       const incomingIds = new Set(incomingSOS.map(a => a.id));
-      // Keep resolved items from local array that server didn't send (they're resolved so server omits them)
-      const keepResolved = allSOS.filter(a => a.status === 'resolved' && !incomingIds.has(a.id));
-      allSOS = [...incomingSOS, ...keepResolved];
+      const localOnly = allSOS.filter(a => !incomingIds.has(a.id));
+      allSOS = [...incomingSOS, ...localOnly];
       allLost = msg.data.lost_persons || [];
       if (msg.data.ghats && msg.data.ghats.length) allGhats = msg.data.ghats;
       renderAll(); updateStats(); updateLostBadge();
       break;
+    }
     case 'NEW_ISSUE':
       msg.data._new = true; allIssues.unshift(msg.data);
       renderIssues(); updateBadges();
@@ -1185,18 +1183,14 @@ async function loadSOS() {
     const resp = await fetch(`${API_BASE}/get_sos_alerts`);
     if (!resp.ok) throw new Error('HTTP ' + resp.status);
     const d = await resp.json();
-    // MERGE instead of replace — prevent periodic loadSOS() from wiping
-    // locally-known resolved items that the backend may not return if it
-    // only stores active ones, or if the DB was restarted.
+    // Always MERGE — never hard-replace. Prevents race condition where HTTP
+    // response arrives before WS INIT and wipes allSOS, and prevents the
+    // 30s interval from wiping items the server doesn't currently return.
     const incoming = d.sos_alerts || [];
-    if (allSOS.length === 0) {
-      allSOS = incoming; // first load — use server data as-is
-    } else {
-      const incomingIds = new Set(incoming.map(a => a.id));
-      // Update existing + add new from server; keep local items not in server response
-      const kept = allSOS.filter(a => !incomingIds.has(a.id));
-      allSOS = [...incoming, ...kept];
-    }
+    const incomingIds = new Set(incoming.map(a => a.id));
+    // Update items already in local array with fresh server data; keep the rest
+    const kept = allSOS.filter(a => !incomingIds.has(a.id));
+    allSOS = [...incoming, ...kept];
     renderSOS(); updateBadges();
   } catch(e) {
     console.error('[SOS] loadSOS failed:', e);
@@ -1302,7 +1296,11 @@ async function resolveSOS(id) {
 
 // ─── RENDER ───────────────────────────────────────────────────────────────────
 function timeAgo(ts) {
-  const s = Math.floor((Date.now() - new Date(ts).getTime()) / 1000);
+  if (!ts) return 'Unknown time';
+  const d = new Date(ts);
+  if (isNaN(d.getTime())) return 'Invalid date';
+  const s = Math.floor((Date.now() - d.getTime()) / 1000);
+  if (s < 0) return 'Just now';   // future timestamp — clock skew or bad seed data
   if (s < 60) return `${s}s ago`;
   if (s < 3600) return `${Math.floor(s/60)}m ago`;
   if (s < 86400) return `${Math.floor(s/3600)}h ago`;
