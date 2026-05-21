@@ -274,6 +274,48 @@ select.level-select{background:var(--bg2);border:1px solid var(--border);color:v
 .empty-state{text-align:center;padding:32px;color:var(--text-dim);font-size:13px}
 .empty-state .icon{font-size:36px;margin-bottom:8px}
 .btn-gold{background:linear-gradient(135deg,var(--gold),#c8961a);color:#000}
+
+/* ═══ MOBILE RESPONSIVE ══════════════════════════════════════════ */
+@media (max-width: 640px) {
+  html,body{overflow:auto}
+  .layout{grid-template-columns:1fr;grid-template-rows:auto auto 1fr;height:auto;min-height:100vh}
+  .topbar{grid-column:1;position:sticky;top:0;z-index:200;padding:8px 12px;flex-wrap:wrap;gap:6px}
+  .topbar-title{font-size:14px;letter-spacing:1px}
+  .topbar-sub{display:none}
+  .topbar-stats{gap:12px}
+  .ts-val{font-size:16px}
+  .ts-label{font-size:8px}
+  .topbar-time{font-size:11px}
+  .sidebar{display:flex;overflow-x:auto;overflow-y:hidden;padding:0;border-right:none;border-bottom:1px solid var(--border);scrollbar-width:none}
+  .sidebar::-webkit-scrollbar{display:none}
+  .nav-section{display:none}
+  .nav-item{padding:10px 14px;border-left:none;border-bottom:3px solid transparent;white-space:nowrap;font-size:12px}
+  .nav-item.active{border-left:none;border-bottom-color:var(--cyan)}
+  .nav-badge{font-size:9px;padding:1px 5px}
+  .main-area{padding:10px}
+  .grid-2{grid-template-columns:1fr}
+  .grid-3{grid-template-columns:1fr 1fr}
+  .card{padding:12px;margin-bottom:10px}
+  .card-title{font-size:13px;letter-spacing:1px}
+  .ghat-row{grid-template-columns:1fr auto;gap:6px}
+  .ghat-row .crowd-bar-wrap{display:none}
+  .btn{padding:6px 12px;font-size:11px}
+  .btn-sm{padding:4px 8px;font-size:10px}
+  .alert-card{padding:10px}
+  .person-card{grid-template-columns:40px 1fr auto;gap:8px}
+  .person-photo,.person-photo-placeholder{width:40px;height:40px;font-size:18px}
+  .vol-card{gap:8px}
+  .filter-bar{gap:5px}
+  .filter-btn{padding:4px 10px;font-size:10px}
+  .stat-box .val{font-size:22px}
+  .modal{padding:16px;max-width:100%}
+  .form-grid{grid-template-columns:1fr}
+  .form-group.full{grid-column:1}
+  #toast{bottom:12px;right:12px;left:12px}
+  .toast-msg{padding:8px 12px;font-size:12px}
+  #admin-map{height:300px}
+  .topbar-stats{order:3;width:100%;justify-content:space-around}
+}
 </style>
 </head>
 <body>
@@ -1181,21 +1223,26 @@ async function setCrowd(ghatId, level) {
 
 async function resolveSOS(id) {
   const fd = new FormData(); fd.append('volunteer_id', 'admin');
+  // Optimistically update local array immediately
+  const a = S.sos_alerts.find(x=>x.id===id);
+  if (a) { a.status = 'resolved'; a.resolved_at = new Date().toISOString(); }
+  renderSOS(); renderOverview(); updateTopbar();
   try {
-    const res = await api('/resolve_sos/' + id, {method:'POST', body:fd});
-    if (res && res.success !== false) {
-      const a = S.sos_alerts.find(x=>x.id===id);
-      if (a) { a.status = 'resolved'; a.resolved_at = new Date().toISOString(); }
+    await api('/resolve_sos/' + id, {method:'POST', body:fd});
+    toast('✅ SOS resolved', 'success');
+    // Quietly sync in background
+    const r = await api('/get_sos_alerts');
+    if (r && r.sos_alerts) {
+      S.sos_alerts = r.sos_alerts;
       renderSOS(); renderOverview(); updateTopbar();
-      toast('✅ SOS resolved', 'success');
-    } else {
-      // Reload SOS from server for sync
-      const r = await api('/get_sos_alerts');
-      S.sos_alerts = r.sos_alerts || [];
-      renderSOS(); renderOverview(); updateTopbar();
-      toast('✅ SOS resolved', 'success');
     }
-  } catch(e) { toast('Failed to resolve SOS — check connection', 'error'); console.error(e); }
+  } catch(e) {
+    // Revert on failure
+    if (a) { a.status = 'active'; delete a.resolved_at; }
+    renderSOS(); renderOverview(); updateTopbar();
+    toast('Failed to resolve SOS — check connection', 'error');
+    console.error(e);
+  }
 }
 
 async function setVolStatus(vid, status) {
@@ -1213,19 +1260,26 @@ async function setVolStatus(vid, status) {
 
 async function markFound(pid) {
   const fd = new FormData(); fd.append('status', 'found');
+  // Optimistically update local array
+  const p = S.lost.find(x=>x.id===pid);
+  if (p) p.status = 'found';
+  renderLost(); updateTopbar();
   try {
-    const res = await api('/lost/' + pid, {method:'PUT', body:fd});
-    if (res && (res.success || res.person)) {
-      const p = S.lost.find(x=>x.id===pid);
-      if (p) { p.status = 'found'; if (res.person) Object.assign(p, res.person); }
-    } else {
-      // Reload from server to ensure sync
-      const r = await api('/lost');
-      S.lost = r.lost_persons || [];
-    }
-    renderLost(); updateTopbar();
+    await api('/lost/' + pid, {method:'PUT', body:fd});
     toast('✅ Person marked as found', 'success');
-  } catch(e) { toast('Failed to update status', 'error'); }
+    // Quietly sync in background
+    const r = await api('/lost');
+    if (r && r.lost_persons) {
+      S.lost = r.lost_persons;
+      renderLost(); updateTopbar();
+    }
+  } catch(e) {
+    // Revert on failure
+    if (p) p.status = 'missing';
+    renderLost(); updateTopbar();
+    toast('Failed to update status', 'error');
+  }
+}
 }
 
 async function deleteContact(id) {
