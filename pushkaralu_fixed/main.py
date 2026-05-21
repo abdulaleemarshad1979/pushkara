@@ -78,10 +78,10 @@ from app.core.pg_store import (
     write_volunteer, delete_volunteer, update_volunteer_fields,
 )
 from app.core.storage import upload_image
+from chat import router as chat_router
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
 logger = logging.getLogger("pushkaralu.main")
-from chat import router as chat_router
 
 # ── Config ────────────────────────────────────────────────────────────────────
 SCRAPERBOT_URL           = os.getenv("SCRAPERBOT_URL", "http://localhost:3000")
@@ -218,6 +218,7 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True,
 app.add_middleware(GZipMiddleware, minimum_size=1024)
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 app.include_router(chat_router)
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # Helpers
 # ═══════════════════════════════════════════════════════════════════════════════
