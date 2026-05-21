@@ -1239,10 +1239,17 @@ async function resolveSOS(id) {
   try {
     await api('/resolve_sos/' + id, {method:'POST', body:fd});
     toast('✅ SOS resolved', 'success');
-    // Quietly sync in background
+    // Quietly sync in background — merge, don't replace (server returns all statuses)
     const r = await api('/get_sos_alerts');
     if (r && r.sos_alerts) {
-      S.sos_alerts = r.sos_alerts;
+      // Merge: update existing entries by id, add any new ones
+      const incoming = r.sos_alerts;
+      const incomingIds = new Set(incoming.map(x=>x.id));
+      // Keep local items not returned by server (edge case), update the rest
+      S.sos_alerts = [
+        ...incoming,
+        ...S.sos_alerts.filter(x=>!incomingIds.has(x.id))
+      ];
       renderSOS(); renderOverview(); updateTopbar();
     }
   } catch(e) {
@@ -1288,7 +1295,6 @@ async function markFound(pid) {
     renderLost(); updateTopbar();
     toast('Failed to update status', 'error');
   }
-}
 }
 
 async function deleteContact(id) {
@@ -1557,25 +1563,27 @@ window.addEventListener('load', () => {
       try { ws.send('ping'); } catch(e) {}
     }
   }, 25000);
-  // Fallback HTTP load if WS slow
+  // HTTP load — runs at 800ms in parallel with WS, ensures admin sees ALL sos statuses
+  // The WS INIT only sends "active" SOS; HTTP fetch gives all (active + resolved) for admin
   setTimeout(async () => {
-    if (!S.ghats.length) {
-      try {
-        const [g,v,sos,issues,lost,contacts,medical] = await Promise.all([
-          api('/get_ghats'), api('/get_volunteers'), api('/get_sos_alerts'),
-          api('/get_issues'), api('/lost'), api('/contacts'), api('/medical')
-        ]);
-        S.ghats = g.ghats||[];
-        S.volunteers = (v.volunteers||[]);
-        S.sos_alerts = sos.sos_alerts||[];
-        S.issues = issues.issues||[];
-        S.lost = lost.lost_persons||[];
-        S.contacts = contacts.contacts||[];
-        S.medical = medical.medical_facilities||[];
-        renderAll();
-      } catch(e) { console.warn('HTTP fallback failed', e); }
-    }
-  }, 2000);
+    try {
+      const [g,v,sos,issues,lost,contacts,medical] = await Promise.all([
+        api('/get_ghats'), api('/get_volunteers'),
+        api('/get_sos_alerts'),   // no status filter → returns ALL sos alerts
+        api('/get_issues'), api('/lost'), api('/contacts'), api('/medical')
+      ]);
+      S.ghats      = g.ghats||[];
+      S.volunteers = v.volunteers||[];
+      const httpSos = sos.sos_alerts||[];
+      const httpIds = new Set(httpSos.map(x=>x.id));
+      S.sos_alerts = [...httpSos, ...S.sos_alerts.filter(x=>!httpIds.has(x.id))];
+      S.issues     = issues.issues||[];
+      S.lost       = lost.lost_persons||[];
+      S.contacts   = contacts.contacts||[];
+      S.medical    = medical.medical_facilities||[];
+      renderAll();
+    } catch(e) { console.warn('HTTP data load failed:', e); }
+  }, 800);
 });
 
 // ═══════════════════════════════════════════════════
