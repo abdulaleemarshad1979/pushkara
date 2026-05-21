@@ -346,6 +346,47 @@ textarea.fc-input{resize:vertical;min-height:82px}
 @keyframes rot{to{transform:rotate(360deg)}}
 .site-footer{background:var(--navy3);color:rgba(255,255,255,.45);text-align:center;padding:16px;font-size:10px;margin-top:40px;border-top:3px solid;border-image:linear-gradient(90deg,var(--saffron) 33%,white 33%,white 66%,var(--green) 66%) 1}
 ::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-track{background:var(--bg)}::-webkit-scrollbar-thumb{background:#D1D5DB;border-radius:3px}
+
+/* ═══ MOBILE RESPONSIVE ═══════════════════════════════════════════ */
+@media (max-width: 600px) {
+  .hdr-main { padding: 8px 12px; gap: 8px; }
+  .brand-logo { width: 40px; height: 40px; font-size: 20px; }
+  .brand-name { font-size: 0.95rem; }
+  .brand-te { font-size: 0.72rem; }
+  .brand-sub { display: none; }
+  .hdr-right { gap: 6px; }
+  .countdown { padding: 5px 10px; min-width: 60px; }
+  .cd-num { font-size: 1.1rem; }
+  .cd-lbl { font-size: 8px; }
+  .cd-sub { display: none; }
+  .vol-link { padding: 6px 10px; font-size: 11px; }
+  .hero-title { font-size: 1.6rem; }
+  .hero-tags { gap: 5px; }
+  .htag { font-size: 10px; padding: 4px 10px; }
+  .sos-hero-btn { padding: 12px 24px; font-size: 13px; }
+  .stats { grid-template-columns: repeat(2, 1fr); }
+  .hl-grid { grid-template-columns: repeat(3, 1fr); }
+  .page { padding: 14px 12px; }
+  .nt { padding: 10px 12px; font-size: 12px; gap: 4px; }
+  .topbar { padding: 4px 12px; font-size: 10px; }
+  .ghat-mini-grid { grid-template-columns: 1fr 1fr; }
+  .fac-quick-row { grid-template-columns: repeat(5, 1fr); }
+  .fqb { padding: 10px 4px; }
+  .fqi { font-size: 1.4rem; }
+  .fql { font-size: 9px; }
+  .ghat-grid { grid-template-columns: 1fr; }
+  .sos-big-btn { font-size: 1.1rem; padding: 22px; }
+  .sos-info-grid { grid-template-columns: 1fr 1fr; }
+  .form-wrap, .sos-wrap { max-width: 100%; }
+  .toast-stack { right: 8px; left: 8px; max-width: 100%; }
+  .toast { padding: 10px 12px; }
+  .loc-row { flex-direction: column; }
+  .loc-stat { width: 100%; }
+  .lang-sw { display: none; }
+  #tg-header { padding: 20px 16px 18px; }
+  .tg-grid { grid-template-columns: 1fr !important; }
+  .tg-card { padding: 16px; }
+}
 </style>
 </head>
 <body>
