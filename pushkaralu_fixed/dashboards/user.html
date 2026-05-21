@@ -46,7 +46,7 @@ body,.btn,.card,.toast,.tab{font-family:'DM Sans','DM Sans Fallback',system-ui,-
   --green:#0B6B30;--green2:#14A34A;
   --bg:#F0F2F5;--card:#FFFFFF;
   --border:1px solid #D8DCE6;
-  --t1:#1A1F2E;--t2:#3D4558;--t3:#6B7280;
+  --t1:#1A1F2E;--t2:#3D4558;--t3:#585F6E;
   --danger:#C0392B;--danger-bg:#FEF2F2;
   --warn:#8B5A00;--warn-bg:#FFFBEB;
   --info:#1558A8;--info-bg:#EFF6FF;
@@ -57,7 +57,7 @@ body,.btn,.card,.toast,.tab{font-family:'DM Sans','DM Sans Fallback',system-ui,-
 .dark-mode{
   --bg:#020617;--card:#0F172A;
   --border:1px solid #1E293B;
-  --t1:#F1F5F9;--t2:#94A3B8;--t3:#64748B;
+  --t1:#F1F5F9;--t2:#94A3B8;--t3:#7A8BA0;
   --navy:#38BDF8;--navy2:#0EA5E9;--navy3:#000000;
   --danger-bg:rgba(239,68,68,0.15);--warn-bg:rgba(245,158,11,0.15);
   --info-bg:rgba(14,165,233,0.15);--ok-bg:rgba(34,197,94,0.15);
@@ -207,7 +207,7 @@ button, .action-btn {
 .sos-hero-btn{display:inline-flex;align-items:center;gap:10px;background:var(--danger);color:white;border:none;border-radius:var(--r);padding:15px 36px;font-family:'DM Sans',sans-serif;font-size:15px;font-weight:700;cursor:pointer;letter-spacing:.3px;box-shadow:0 4px 20px rgba(192,57,43,.45);transition:transform .2s,opacity .2s;animation:sp 2.5s ease infinite;will-change:transform,opacity}
 .sos-hero-btn:hover{background:#A93226;transform:scale(1.02);box-shadow:0 6px 28px rgba(192,57,43,.6)}
 @keyframes sp{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.88;transform:scale(1.02)}} /* GPU-composited: opacity+transform only */
-.sos-hint{font-size:11px;color:rgba(255,255,255,.4);margin-top:8px}
+.sos-hint{font-size:11px;color:rgba(255,255,255,.75);margin-top:8px}
 
 /* === STATS === */
 .stats{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:24px}
@@ -595,8 +595,8 @@ html,body{max-width:100%;overflow-x:hidden}
   animation: none;
 }
 @keyframes cb-pulse {
-  0%,100% { box-shadow: 0 4px 20px rgba(232,96,10,.45); }
-  50%      { box-shadow: 0 4px 30px rgba(232,96,10,.75); }
+  0%,100% { opacity: 1; }
+  50%      { opacity: .82; }
 }
 
 #cb-panel {
@@ -972,7 +972,7 @@ html,body{max-width:100%;overflow-x:hidden}
       <button class="lb" onclick="setLang('te');closeHam()">తె</button>
       <button class="lb" onclick="setLang('hi');closeHam()">हि</button>
     </div>
-    <div style="font-size:10px;color:rgba(255,255,255,.35);margin-top:10px;text-align:center">
+    <div style="font-size:10px;color:rgba(255,255,255,.65);margin-top:10px;text-align:center">
       📞 Helpline: 1800-425-0066 (Toll Free)
     </div>
   </div>
@@ -2891,7 +2891,7 @@ if('requestIdleCallback' in window){
     <div id="cb-header-text">
       <strong>TourGO Pushkara AI</strong>
       <span>Pilgrim Assistant · Godavari 2027</span>
-      <span id="cb-powered" style="font-size:9px;color:rgba(255,255,255,.35);font-family:'DM Sans',sans-serif;letter-spacing:.3px;">Powered by TourGO</span>
+      <span id="cb-powered" style="font-size:9px;color:rgba(255,255,255,.65);font-family:'DM Sans',sans-serif;letter-spacing:.3px;">Powered by TourGO</span>
     </div>
     <button id="cb-close" onclick="cbToggle()" aria-label="Close chat">✕</button>
   </div>
