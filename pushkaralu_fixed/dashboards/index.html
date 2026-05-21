@@ -547,6 +547,44 @@ code, pre, .cred-row, .form-control, .ws-badge {
 
 /* ASSIGNED CHIP */
 .assigned-chip { font-size: 11px; color: var(--info); background: var(--info-bg); padding: 2px 8px; border-radius: 3px; border: 1px solid rgba(21,101,192,0.15); }
+
+/* ═══ MOBILE RESPONSIVE ═══════════════════════════════════════════ */
+@media (max-width: 600px) {
+  .dash-topbar-inner { padding: 8px 12px; gap: 8px; }
+  .brand-emblem { width: 34px; height: 34px; font-size: 18px; }
+  .brand-titles .title-main { font-size: 0.85rem; }
+  .brand-titles .title-sub { display: none; }
+  .ws-badge { display: none; }
+  .dash-right { gap: 6px; }
+  .vol-badge { padding: 4px 8px; }
+  .vol-info-zone { display: none; }
+  .dash-content { padding: 12px 10px; }
+  .stats-row { grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .stat-val { font-size: 1.4rem; }
+  .stat-label { font-size: 9px; }
+  .stat-card { padding: 10px 8px; }
+  .card-actions { gap: 6px; }
+  .action-btn { padding: 7px 10px; font-size: 11px; }
+  .sos-card { padding: 12px; }
+  .sos-card::before { display: none; }
+  .card-top { flex-direction: column; gap: 8px; }
+  .issue-card { padding: 12px; }
+  .card-top { gap: 6px; }
+  .filter-bar { gap: 5px; }
+  .filter-chip { padding: 5px 10px; font-size: 11px; }
+  .sec-header { flex-wrap: wrap; gap: 8px; }
+  #vol-map { height: 320px; }
+  .map-controls { gap: 5px; }
+  .map-toggle-btn { padding: 4px 8px; font-size: 11px; }
+  .login-gov-header h1 { font-size: 1.2rem; }
+  .login-box { max-width: 100%; }
+  .toast-stack { right: 8px; left: 8px; }
+  .toast-item { min-width: unset; max-width: 100%; }
+  .gov-status-bar { flex-wrap: wrap; gap: 4px; padding: 4px 12px; }
+  .dash-nav-inner { padding: 0; }
+  .dash-tab { padding: 10px 14px; font-size: 12px; }
+  .a-href-vol { display: none; }
+}
 </style>
 </head>
 <body>
@@ -617,7 +655,7 @@ code, pre, .cred-row, .form-control, .ws-badge {
         </div>
         <button class="theme-toggle" id="theme-toggle" onclick="toggleTheme()" title="Toggle Dark/Light Mode">🌓</button>
         <button class="btn-logout" onclick="doLogout()">⬅ Logout</button>
-        <a href="user.html" style="background:rgba(255,107,0,0.2);border:1px solid var(--saffron);color:var(--gold-light);padding:6px 12px;border-radius:3px;font-size:12px;font-weight:600;text-decoration:none;" target="_blank">🙏 Pilgrim Portal</a>
+        <a href="user.html" class="a-href-vol" style="background:rgba(255,107,0,0.2);border:1px solid var(--saffron);color:var(--gold-light);padding:6px 12px;border-radius:3px;font-size:12px;font-weight:600;text-decoration:none;" target="_blank">🙏 Pilgrim Portal</a>
       </div>
     </div>
 
@@ -1081,17 +1119,27 @@ async function submitLostPerson() {
 }
 
 async function markPersonFound(id) {
+  // Optimistically update local state
+  const p = allLost.find(x => x.id === id);
+  if (p) p.status = 'found';
+  renderLost(); updateLostBadge();
   const fd = new FormData(); fd.append('status', 'found');
   try {
     const r = await authFetch(`${API_BASE}/lost/${id}`, { method: 'PUT', body: fd });
     const d = await r.json();
     if (d.success) {
-      const p = allLost.find(x => x.id === id);
-      if (p) p.status = 'found';
-      renderLost(); updateLostBadge();
       toast('✅ Found!', 'Person marked as found.', 't-success');
+    } else {
+      // Revert
+      if (p) p.status = 'missing';
+      renderLost(); updateLostBadge();
+      toast('❌ Error', 'Could not update status.', 't-error');
     }
-  } catch(e) { toast('❌ Error', 'Could not update status.', 't-error'); }
+  } catch(e) {
+    if (p) p.status = 'missing';
+    renderLost(); updateLostBadge();
+    toast('❌ Error', 'Could not update status.', 't-error');
+  }
 }
 
 async function updatePersonLocation(id) {
@@ -1116,6 +1164,7 @@ async function loadIssues() {
 
 async function loadSOS() {
   const el = document.getElementById('sos-list');
+  // Only show loading spinner on first load (empty array), not on refreshes
   if (el && !allSOS.length) el.innerHTML = '<div class="empty-state"><div class="empty-icon">⏳</div><p>Loading...</p></div>';
   try {
     const resp = await fetch(`${API_BASE}/get_sos_alerts`);
@@ -1125,8 +1174,8 @@ async function loadSOS() {
     renderSOS(); updateBadges();
   } catch(e) {
     console.error('[SOS] loadSOS failed:', e);
+    // Only show error if we have nothing to display
     if (el && !allSOS.length) el.innerHTML = '<div class="empty-state"><div class="empty-icon">⚠️</div><p>Could not load SOS data. Retrying...</p></div>';
-    // Retry after 5s on failure
     setTimeout(loadSOS, 5000);
   }
 }
@@ -1143,32 +1192,83 @@ async function loadStats() {
 }
 
 async function acceptIssue(id) {
+  // Optimistically update local state
+  const item = allIssues.find(i => i.id === id);
+  if (item) { item.status = 'in_progress'; item.assigned_volunteer = currentVol.name; }
+  myTasks++;
+  document.getElementById('stat-my-tasks').textContent = myTasks;
+  renderIssues(); updateBadges();
   try {
     const fd = new FormData(); fd.append('volunteer_id', currentVol.id);
     const d = await (await authFetch(`${API_BASE}/accept_issue/${id}`, { method: 'POST', body: fd })).json();
     if (d.success) {
-      myTasks++;
-      document.getElementById('stat-my-tasks').textContent = myTasks;
       toast('✅ Task Accepted', 'Issue assigned to you.', 't-success');
-      await loadIssues();
+    } else {
+      // Revert
+      if (item) { item.status = 'pending'; delete item.assigned_volunteer; }
+      myTasks = Math.max(0, myTasks - 1);
+      document.getElementById('stat-my-tasks').textContent = myTasks;
+      renderIssues(); updateBadges();
+      toast('❌ Error', 'Could not accept issue.', 't-error');
     }
-  } catch(e) { toast('❌ Error', 'Could not accept issue.', 't-error'); }
+  } catch(e) {
+    if (item) { item.status = 'pending'; delete item.assigned_volunteer; }
+    myTasks = Math.max(0, myTasks - 1);
+    document.getElementById('stat-my-tasks').textContent = myTasks;
+    renderIssues(); updateBadges();
+    toast('❌ Error', 'Could not accept issue.', 't-error');
+  }
 }
 
 async function resolveIssue(id) {
+  // Optimistically update local state
+  const item = allIssues.find(i => i.id === id);
+  const prevStatus = item ? item.status : null;
+  if (item) { item.status = 'resolved'; item.resolved_at = new Date().toISOString(); }
+  renderIssues(); updateBadges(); updateStats();
   try {
     const fd = new FormData(); fd.append('volunteer_id', currentVol.id);
     const d = await (await authFetch(`${API_BASE}/resolve_issue/${id}`, { method: 'POST', body: fd })).json();
-    if (d.success) { toast('✅ Resolved', 'Issue marked as resolved.', 't-success'); await loadAll(); }
-  } catch(e) { toast('❌ Error', 'Could not resolve issue.', 't-error'); }
+    if (d.success) {
+      toast('✅ Resolved', 'Issue marked as resolved.', 't-success');
+    } else {
+      if (item && prevStatus) { item.status = prevStatus; delete item.resolved_at; }
+      renderIssues(); updateBadges();
+      toast('❌ Error', 'Could not resolve issue.', 't-error');
+    }
+  } catch(e) {
+    if (item && prevStatus) { item.status = prevStatus; delete item.resolved_at; }
+    renderIssues(); updateBadges();
+    toast('❌ Error', 'Could not resolve issue.', 't-error');
+  }
 }
 
 async function resolveSOS(id) {
+  // Optimistically update local array immediately so the list doesn't blank out
+  const item = allSOS.find(s => s.id === id);
+  if (item) { item.status = 'resolved'; item.resolved_at = new Date().toISOString(); }
+  renderSOS(); updateBadges(); updateStats();
   try {
     const fd = new FormData(); fd.append('volunteer_id', currentVol.id);
     const d = await (await authFetch(`${API_BASE}/resolve_sos/${id}`, { method: 'POST', body: fd })).json();
-    if (d.success) { toast('✅ SOS Resolved', 'Emergency marked resolved.', 't-success'); await loadSOS(); await loadStats(); }
-  } catch(e) {}
+    if (d.success) {
+      toast('✅ SOS Resolved', 'Emergency marked resolved.', 't-success');
+      // Sync fresh data from server quietly in background
+      const fresh = await fetch(`${API_BASE}/get_sos_alerts`);
+      const freshData = await fresh.json();
+      allSOS = freshData.sos_alerts || [];
+      renderSOS(); updateBadges(); updateStats();
+    } else {
+      // Revert optimistic update on failure
+      if (item) { item.status = 'active'; delete item.resolved_at; }
+      renderSOS(); updateBadges();
+      toast('❌ Failed', 'Could not resolve SOS. Try again.', 't-error');
+    }
+  } catch(e) {
+    // Revert on network error
+    if (item) { item.status = 'active'; delete item.resolved_at; }
+    renderSOS(); updateBadges();
+  }
 }
 
 // ─── RENDER ───────────────────────────────────────────────────────────────────
