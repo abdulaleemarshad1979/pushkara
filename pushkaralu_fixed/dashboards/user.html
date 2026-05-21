@@ -3037,9 +3037,14 @@ if('requestIdleCallback' in window){
   function _renderQuickReplies() {
     const qr = document.getElementById('cb-quick');
     if (!qr) return;
-    qr.innerHTML = QUICK_REPLIES.map(q =>
-      `<button class="cb-qr" onclick="cbQuickReply(${JSON.stringify(q)})">${q}</button>`
-    ).join('');
+    qr.innerHTML = '';
+    QUICK_REPLIES.forEach(q => {
+      const btn = document.createElement('button');
+      btn.className = 'cb-qr';
+      btn.textContent = q;
+      btn.addEventListener('click', () => window.cbQuickReply(q));
+      qr.appendChild(btn);
+    });
   }
 
   window.cbQuickReply = function(text) {
