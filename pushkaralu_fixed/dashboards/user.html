@@ -25,11 +25,11 @@ const WS_URL       = 'wss://pushkara.onrender.com/ws/volunteer';
 const ADMIN_WS_URL = 'wss://pushkara.onrender.com/ws/volunteer';
 const ADMIN_API_KEY= '64de5b5ae7863eee64aa9a2c7e54455d2b74e46e7b7536fb15807b95210f203c';
 </script>
-<!-- Fonts: preconnect + optional display prevents both FOIT and CLS -->
+<!-- Fonts: truly non-render-blocking via preload swap trick -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@400;500;600;700&display=optional">
-<!-- Telugu deferred — not on critical paint path -->
+<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@400;500;600;700&display=optional" onload="this.onload=null;this.rel='stylesheet'">
+<noscript><link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@400;500;600;700&display=optional" rel="stylesheet"></noscript>
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Noto+Serif+Telugu&display=optional" onload="this.onload=null;this.rel='stylesheet'">
 <noscript><link href="https://fonts.googleapis.com/css2?family=Noto+Serif+Telugu&display=optional" rel="stylesheet"></noscript>
 <style>
