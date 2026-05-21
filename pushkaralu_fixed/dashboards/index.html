@@ -1185,7 +1185,18 @@ async function loadSOS() {
     const resp = await fetch(`${API_BASE}/get_sos_alerts`);
     if (!resp.ok) throw new Error('HTTP ' + resp.status);
     const d = await resp.json();
-    allSOS = d.sos_alerts || [];
+    // MERGE instead of replace — prevent periodic loadSOS() from wiping
+    // locally-known resolved items that the backend may not return if it
+    // only stores active ones, or if the DB was restarted.
+    const incoming = d.sos_alerts || [];
+    if (allSOS.length === 0) {
+      allSOS = incoming; // first load — use server data as-is
+    } else {
+      const incomingIds = new Set(incoming.map(a => a.id));
+      // Update existing + add new from server; keep local items not in server response
+      const kept = allSOS.filter(a => !incomingIds.has(a.id));
+      allSOS = [...incoming, ...kept];
+    }
     renderSOS(); updateBadges();
   } catch(e) {
     console.error('[SOS] loadSOS failed:', e);
@@ -1445,7 +1456,7 @@ function initMap() {
 
   // Centre on Rajahmundry / East Godavari region
   leafletMap = L.map('vol-map', { zoomControl: true, attributionControl: true })
-                .setView([16.835, 81.813], 10);
+                .setView([16.990, 81.760], 11);
 
   updateMapTiles();
 
@@ -1543,34 +1554,44 @@ function renderIssueMarkers(issues) {
 
 function renderSOSMarkers(alerts) {
   mapLayers.sos.clearLayers();
-  const active = alerts.filter(a => a.status === 'active');
-  active.forEach(a => {
-    // SOS uses a pulsing red marker via CSS animation trick with SVG icon
+  // Show ALL alerts — active ones pulse red, resolved ones show as grey
+  // This prevents the map from appearing empty after resolution
+  alerts.forEach(a => {
+    if (!a.latitude || !a.longitude) return;
+    const isActive = a.status === 'active';
     const icon = L.divIcon({
       className: '',
-      html: `<div style="
-        width:20px;height:20px;border-radius:50%;
-        background:#C0392B;border:3px solid white;
-        box-shadow:0 0 0 3px #C0392B,0 0 12px rgba(192,57,43,.6);
-        animation:sos-pulse 1.2s ease-in-out infinite;
-      "></div>
-      <style>@keyframes sos-pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.3)}}</style>`,
-      iconSize: [20, 20], iconAnchor: [10, 10]
+      html: isActive
+        ? `<div style="
+            width:20px;height:20px;border-radius:50%;
+            background:#C0392B;border:3px solid white;
+            box-shadow:0 0 0 3px #C0392B,0 0 12px rgba(192,57,43,.6);
+            animation:sos-pulse 1.2s ease-in-out infinite;
+          "></div>
+          <style>@keyframes sos-pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.3)}}</style>`
+        : `<div style="
+            width:16px;height:16px;border-radius:50%;
+            background:#868E96;border:2px solid white;
+            opacity:0.7;
+          "></div>`,
+      iconSize: isActive ? [20, 20] : [16, 16],
+      iconAnchor: isActive ? [10, 10] : [8, 8]
     });
     const marker = L.marker([a.latitude, a.longitude], { icon });
     marker.bindPopup(`
-      <b>🆘 SOS — ${a.user_name}</b>
+      <b>${isActive ? '🆘' : '✅'} SOS — ${a.user_name}</b>
       <div class="pop-meta">
         📞 ${a.phone || 'No phone'}<br>
         🙋 Volunteer: ${a.assigned_volunteer_name || 'Unassigned'}<br>
-        🕐 ${timeAgo(a.timestamp)}
-        <span class="pop-badge pop-sos">ACTIVE SOS</span>
+        🕐 ${timeAgo(a.timestamp)}<br>
+        <span class="pop-badge ${isActive ? 'pop-sos' : ''}" style="${isActive ? '' : 'background:#868E96;color:white;'}">${isActive ? 'ACTIVE SOS' : 'RESOLVED'}</span>
       </div>
     `, { maxWidth: 220 });
     marker.addTo(mapLayers.sos);
   });
+  const activeCount = alerts.filter(a => a.status === 'active').length;
   const btn = document.getElementById('toggle-sos');
-  if (btn) btn.innerHTML = `<span class="map-dot-sm" style="background:var(--danger)"></span> SOS (${active.length})`;
+  if (btn) btn.innerHTML = `<span class="map-dot-sm" style="background:var(--danger)"></span> SOS (${activeCount}${alerts.length > activeCount ? '+' + (alerts.length - activeCount) + ' resolved' : ''})`;
 }
 
 function renderVolMarkers() {
