@@ -295,7 +295,13 @@ class ChatRequest(BaseModel):
     history: list[ChatMessage] = []
 
 
-# ── ENDPOINT ──────────────────────────────────────────────────────────────────
+# ── ENDPOINTS ─────────────────────────────────────────────────────────────────
+
+@router.get("/api/health")
+async def health():
+    """Lightweight ping — call on page load to wake Render from cold sleep."""
+    return {"status": "ok"}
+
 
 @router.post("/api/chat")
 async def chat(req: ChatRequest, request: Request):
