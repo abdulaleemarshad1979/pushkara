@@ -2859,6 +2859,14 @@ function updateThemeIcon(){
   updateThemeIcon();
 })();
 
+// ═══ BACKEND WARM-UP ══════════════════════════════════════════
+// Pings Render immediately on page load so the backend is warm
+// before the user interacts — eliminates cold-start LCP penalty.
+(function warmBackend(){
+  const endpoints = ['/stats', '/get_ghats'];
+  endpoints.forEach(ep => fetch(API_BASE + ep).catch(() => {}));
+})();
+
 // ═══ INIT ═════════════════════════════════════════════════════
 // Defer data fetch to after first paint — reduces TBT on slow connections
 if('requestIdleCallback' in window){
