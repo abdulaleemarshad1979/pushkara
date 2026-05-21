@@ -25,16 +25,20 @@ const WS_URL       = 'wss://pushkara.onrender.com/ws/volunteer';
 const ADMIN_WS_URL = 'wss://pushkara.onrender.com/ws/volunteer';
 const ADMIN_API_KEY= '64de5b5ae7863eee64aa9a2c7e54455d2b74e46e7b7536fb15807b95210f203c';
 </script>
-<!-- Preconnect for faster font load -->
+<!-- Fonts: preconnect + optional display prevents both FOIT and CLS -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<!-- Non-render-blocking font load -->
-<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Noto+Serif+Telugu&family=DM+Serif+Display&family=DM+Sans:wght@400;500;600;700&display=swap&font-display=swap" onload="this.onload=null;this.rel='stylesheet'">
-<noscript><link href="https://fonts.googleapis.com/css2?family=Noto+Serif+Telugu&family=DM+Serif+Display&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"></noscript>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@400;500;600;700&display=optional">
+<!-- Telugu deferred — not on critical paint path -->
+<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Noto+Serif+Telugu&display=optional" onload="this.onload=null;this.rel='stylesheet'">
+<noscript><link href="https://fonts.googleapis.com/css2?family=Noto+Serif+Telugu&display=optional" rel="stylesheet"></noscript>
 <style>
-/* System font fallback while Google Fonts loads — prevents invisible text (FOIT) */
-h1,h2,h3,.hero-title,.brand-name,.loc-head h2{font-family:'DM Serif Display',Georgia,serif}
-body,.btn,.card,.toast,.tab{font-family:'DM Sans',system-ui,-apple-system,sans-serif}
+/* Size-adjust fallback metrics — eliminates layout shift when web fonts arrive */
+@font-face{font-family:'DM Sans Fallback';src:local('Arial');size-adjust:100%;ascent-override:95%;descent-override:20%;line-gap-override:0%}
+@font-face{font-family:'DM Serif Fallback';src:local('Georgia');size-adjust:98%;ascent-override:90%;descent-override:22%;line-gap-override:0%}
+/* Apply size-adjusted fallbacks — text visible immediately, no reflow on swap */
+h1,h2,h3,.hero-title,.brand-name,.loc-head h2{font-family:'DM Serif Display','DM Serif Fallback',Georgia,serif}
+body,.btn,.card,.toast,.tab{font-family:'DM Sans','DM Sans Fallback',system-ui,-apple-system,sans-serif}
 :root{
   --navy:#0B2E6E;--navy2:#1A4080;--navy3:#0D1F4C;
   --saffron:#E8600A;--saffron2:#FF7A1F;
