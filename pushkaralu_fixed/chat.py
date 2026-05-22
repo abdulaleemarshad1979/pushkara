@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import json
 import logging
@@ -354,31 +355,42 @@ async def chat(req: ChatRequest, request: Request):
             messages.append({"role": h.role, "content": h.content[:400]})
     messages.append({"role": "user", "content": msg})
 
-    # Call Groq
+    # Call Groq  (retry up to 3 attempts on 429 with backoff)
     try:
         _groq_headers = {
             "Authorization": f"Bearer {GROQ_API_KEY}",
             "Content-Type": "application/json",
         }
-        _groq_body = {
-            "model": GROQ_MODEL,
-            "messages": messages,
-            "max_tokens": 400,
-            "temperature": 0.4,
-        }
 
         async with httpx.AsyncClient(timeout=25.0) as client:
-            response = await client.post(GROQ_API_URL, headers=_groq_headers, json=_groq_body)
+            response = None
+            for attempt in range(3):
+                _model = GROQ_MODEL if attempt == 0 else GROQ_MODEL_FALLBACK
+                response = await client.post(
+                    GROQ_API_URL,
+                    headers=_groq_headers,
+                    json={
+                        "model": _model,
+                        "messages": messages,
+                        "max_tokens": 400,
+                        "temperature": 0.4,
+                    },
+                )
+                if response.status_code == 200:
+                    break
+                if response.status_code == 429:
+                    wait = min(float(response.headers.get("retry-after", 2 * (attempt + 1))), 8)
+                    logger.warning("[Chat] 429 rate limit attempt=%d, waiting %.1fs, next model=%s",
+                                   attempt + 1, wait, GROQ_MODEL_FALLBACK)
+                    await asyncio.sleep(wait)
+                    continue
+                break  # other error, stop retrying
 
-            # Rate-limited on primary model → retry immediately with smaller fallback
-            if response.status_code == 429:
-                logger.warning("[Chat] Primary model rate-limited (429), retrying with fallback model")
-                _groq_body["model"] = GROQ_MODEL_FALLBACK
-                response = await client.post(GROQ_API_URL, headers=_groq_headers, json=_groq_body)
-
-        if response.status_code != 200:
-            logger.error("[Chat] Groq error status=%s body=%s", response.status_code, response.text[:300])
-            if response.status_code == 401:
+        if response is None or response.status_code != 200:
+            logger.error("[Chat] Groq error status=%s body=%s",
+                         response.status_code if response else "none",
+                         response.text[:300] if response else "")
+            if response and response.status_code == 401:
                 raise HTTPException(status_code=503, detail="Chat service not configured. Contact admin.")
             raise HTTPException(
                 status_code=502,
