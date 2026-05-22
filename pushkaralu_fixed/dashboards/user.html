@@ -3033,7 +3033,7 @@ if('requestIdleCallback' in window){
     const bubble = document.createElement('div');
     bubble.className = 'cb-bubble';
     // Preserve newlines
-    bubble.innerHTML = _escHtml(text).replace(/\n/g, '<br>');
+    bubble.innerHTML = _linkify(_escHtml(text).replace(/\n/g, '<br>'));
 
     wrap.appendChild(icon);
     wrap.appendChild(bubble);
@@ -3043,6 +3043,16 @@ if('requestIdleCallback' in window){
 
   function _escHtml(s) {
     return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  // Convert plain URLs in escaped HTML text into clickable anchor tags
+  function _linkify(html) {
+    // Matches http(s):// URLs, stops at whitespace or <br>
+    return html.replace(
+      /(https?:\/\/[^\s<>"']+)/g,
+      '<a href="$1" target="_blank" rel="noopener noreferrer" ' +
+      'style="color:#1a73e8;word-break:break-all;font-size:0.85em;">$1</a>'
+    );
   }
 
   function _scrollBottom() {
