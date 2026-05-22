@@ -43,6 +43,56 @@ def _cache_set(key: str, value: str) -> None:
 
 # ── OFF-TOPIC PRE-FILTER ──────────────────────────────────────────────────────
 # These words/phrases are ALLOWED — they relate to Pushkaralu
+# ── LOCATION INTENT DETECTION ─────────────────────────────────────────────────
+_LOCATION_PATTERNS = re.compile(
+    r"\b(where is|location of|directions? to|how to (reach|find|get to)|"
+    r"map of|navigate to|navigate|show me|address of|coordinates? of|"
+    r"ఎక్కడ|స్థానం|దారి|నావిగేట్|"          # Telugu: where, location, route, navigate
+    r"कहाँ है|कहां है|स्थान|दिशा|नेविगेट)\b"   # Hindi: where is, location, direction, navigate
+    r"|\bghat\b.{0,30}\b(where|location|map|find|reach|address)\b"
+    r"|\b(location|map|directions?|navigate)\b.{0,30}\bghat\b",
+    re.IGNORECASE,
+)
+
+def _wants_location(msg: str) -> bool:
+    """Return True if the user is asking for ghat location/directions."""
+    return bool(_LOCATION_PATTERNS.search(msg))
+
+def _google_maps_url(lat: float, lng: float, name: str) -> str:
+    """Generate a Google Maps link that opens navigation to the ghat."""
+    encoded = name.replace(" ", "+")
+    return f"https://www.google.com/maps/search/{encoded}/@{lat},{lng},17z"
+
+def _directions_url(lat: float, lng: float) -> str:
+    """Generate a Google Maps directions link."""
+    return f"https://www.google.com/maps/dir/?api=1&destination={lat},{lng}"
+
+def _build_ghat_location_block(ghats: list) -> str:
+    """Build a formatted block of all ghat names + Google Maps links."""
+    lines = ["Here are all Pushkaralu 2027 ghats with Google Maps links:\n"]
+    for g in ghats:
+        lat = g.get("latitude")
+        lng = g.get("longitude")
+        if not lat or not lng:
+            continue
+        name = g.get("name", "")
+        telugu = g.get("telugu_name", "")
+        zone = g.get("zone", "")
+        crowd = g.get("crowd_level", "low")
+        crowd_emoji = "🔴" if crowd == "critical" else ("🟠" if crowd == "high" else ("🟡" if crowd == "medium" else "🟢"))
+        landmark = g.get("nearest_landmark", "")
+        maps_link = _google_maps_url(lat, lng, name)
+        nav_link = _directions_url(lat, lng)
+        lines.append(
+            f"{crowd_emoji} **{name}** ({telugu}) — {zone}\n"
+            f"   📍 Near: {landmark}\n"
+            f"   🗺 View: {maps_link}\n"
+            f"   🧭 Directions: {nav_link}\n"
+        )
+    lines.append("— TourGO Pushkara AI 🕊")
+    return "\n".join(lines)
+
+
 _ALLOWED_KEYWORDS = {
     # festival core
     "pushkar", "pushkara", "godavari", "ghat", "ganga", "bathing", "ritual",
@@ -61,6 +111,11 @@ _ALLOWED_KEYWORDS = {
     # Telugu / Hindi terms
     "స్నానం", "ఘాట్", "పూజ", "పుష్కర", "గోదావరి", "రాజమహేంద్రవరం",
     "స్నान", "घाट", "पूजा", "पुष्कर", "गोदावरी",
+    # location & navigation
+    "location", "map", "directions", "direction", "navigate", "navigation",
+    "where is", "how to reach", "how to get", "address", "coordinates",
+    "ఎక్కడ", "స్థానం", "దారి", "నావిగేట్",
+    "कहाँ", "कहां", "स्थान", "दिशा", "नेविगेट",
     # greetings / meta
     "hello", "hi", "namaste", "namaskar", "నమస్కారం", "నమస్తే",
     "helo", "hey", "thank", "thanks", "ok", "okay", "yes", "no",
@@ -152,11 +207,16 @@ def _build_system_prompt(db: dict) -> str:
         pct = int(cur / cap * 100) if cap else 0
         special = ", ".join(g.get("special_dates", []))
         facs = ", ".join(g.get("facilities", []))
+        lat = g.get("latitude")
+        lng = g.get("longitude")
+        maps_url = _google_maps_url(lat, lng, g["name"]) if lat and lng else "N/A"
+        nav_url  = _directions_url(lat, lng) if lat and lng else "N/A"
         ghat_lines.append(
             f"  • {g['name']} ({g.get('telugu_name','')}) | Zone:{g.get('zone')} | "
             f"{crowd_emoji} {crowd.upper()} ({cur:,}/{cap:,} = {pct}%) | "
             f"Timings: {g.get('bathing_timings')} | Near: {g.get('nearest_landmark','')} | "
-            f"Special: {special or 'none'} | Facilities: {facs}"
+            f"Special: {special or 'none'} | Facilities: {facs} | "
+            f"📍 Map: {maps_url} | 🧭 Directions: {nav_url}"
         )
     ghats_block = "\n".join(ghat_lines) or "  Data loading..."
 
@@ -254,6 +314,7 @@ For ANYTHING else respond ONLY: "I can only help with Godavari Pushkaralu 2027. 
 LANGUAGE: Reply entirely in the user's language (Telugu→Telugu, Hindi→Hindi, English→English).
 
 STYLE: Be specific — use actual names, numbers, timings from data below. Keep answers concise.
+LOCATION RULE: When a user asks where a ghat is, include the 📍 Map and 🧭 Directions Google Maps links from the ghat data below. Always show both links as clickable URLs.
 For emergencies always include: Police: 100 | Ambulance: 108 | Helpline: 1800-425-0066
 End every on-topic reply with: — TourGO Pushkara AI 🕊
 
@@ -320,6 +381,19 @@ async def chat(req: ChatRequest, request: Request):
         refusal = _refusal_for_lang(msg)
         logger.info("[Chat] BLOCKED off-topic | q=%s", msg[:60])
         return {"reply": refusal, "cached": False, "filtered": True}
+
+    # ── LOCATION FAST-PATH: answer ghat location questions directly ───────────
+    # Returns Google Maps links instantly without calling Groq, saving cost.
+    if _wants_location(msg):
+        try:
+            from main import DB
+            ghats = DB.get("ghats", [])
+        except ImportError:
+            ghats = []
+        if ghats:
+            location_reply = _build_ghat_location_block(ghats)
+            logger.info("[Chat] LOCATION fast-path | q=%s", msg[:60])
+            return {"reply": location_reply, "cached": False, "location": True}
 
     # Rate limiting
     client_ip = request.client.host
