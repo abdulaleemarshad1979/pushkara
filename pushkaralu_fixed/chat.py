@@ -167,7 +167,7 @@ def _build_system_prompt(db: dict) -> str:
     special_trains = [t for t in trains if t.get("special_pushkaralu")]
 
     train_lines = []
-    for t in trains[:50]:
+    for t in trains[:8]:  # trimmed: free tier TPM limit
         arr = t.get("arrival_rjy", "")
         dep = t.get("departure_rjy", "")
         timing = (f"arr {arr}" if arr else "") + (f" / dep {dep}" if dep else "")
@@ -180,15 +180,15 @@ def _build_system_prompt(db: dict) -> str:
             f"  • {t.get('train_number','')} {t.get('train_name','')} | "
             f"{t.get('from','')} → {t.get('to','')} | {timing} {tags}".strip()
         )
-    sp_names = ", ".join(f"{t.get('train_number')} {t.get('train_name','')}" for t in special_trains)
+    sp_names = ", ".join(f"{t.get('train_number')} {t.get('train_name','')}" for t in special_trains[:5])
     trains_block = (
         f"Total {len(trains)} trains via Rajahmundry.\n"
-        f"Special Pushkaralu trains: {sp_names or 'none'}\nSample:\n" +
+        f"Special Pushkaralu trains: {sp_names or 'none'}\nSample (8 of {len(trains)}):\n" +
         "\n".join(train_lines)
     )
 
     bus_lines = []
-    for b in buses:
+    for b in buses[:5]:  # trimmed: free tier TPM limit
         times = b.get("departure_times", [])
         time_str = ", ".join(f"{d['time']} ({d.get('service','')})" for d in times[:3])
         freq = f"every {b.get('frequency_mins')} min" if b.get("frequency_mins") else ""
@@ -210,20 +210,20 @@ def _build_system_prompt(db: dict) -> str:
     fac_block = ""
     for ftype, items in fac_by_type.items():
         fac_block += f"\n  {ftype.upper()} ({len(items)}):\n"
-        for item in items[:5]:
+        for item in items[:2]:  # trimmed: free tier TPM limit
             fac_block += f"    - {item}\n"
 
     # POOJAS
     pooja_lines = [
-        f"  • {p.get('name','')} ({p.get('telugu_name','')}) — {p.get('description','')[:120]}"
-        for p in poojas
+        f"  • {p.get('name','')} ({p.get('telugu_name','')}) — {p.get('description','')[:80]}"
+        for p in poojas[:6]  # trimmed for free-tier TPM limit
     ]
     poojas_block = "\n".join(pooja_lines) or "  Data loading..."
 
     # HOTELS
     hotel_lines = [
         f"  • {h.get('name')} | {h.get('type')} | {h.get('location')} | Area: {h.get('area')}"
-        for h in hotels
+        for h in hotels[:5]  # trimmed for free-tier TPM limit
     ]
     hotels_block = "\n".join(hotel_lines) or "  Data loading..."
 
@@ -238,7 +238,7 @@ def _build_system_prompt(db: dict) -> str:
                 f"  • {h.get('location','')} — {h.get('name','')} | "
                 f"Dr. {h.get('doctor','')} | ☎ {h.get('contact','')}"
             )
-    hospitals_block = "\n".join(hospital_lines[:20]) or "  Data loading..."
+    hospitals_block = "\n".join(hospital_lines[:6]) or "  Data loading..."  # trimmed
 
     # HELPLINES
     if isinstance(helplines, dict):
