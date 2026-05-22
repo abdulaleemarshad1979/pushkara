@@ -23,7 +23,7 @@ services:
         sync: false
       - key: GROQ_API_KEY
         sync: false
-    healthCheckPath: /health
+    healthCheckPath: /ping
     autoDeploy: true
 
   - type: redis
