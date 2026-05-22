@@ -212,11 +212,11 @@ def _build_system_prompt(db: dict) -> str:
         maps_url = _google_maps_url(lat, lng, g["name"]) if lat and lng else "N/A"
         nav_url  = _directions_url(lat, lng) if lat and lng else "N/A"
         ghat_lines.append(
-            f"  • {g['name']} ({g.get('telugu_name','')}) | Zone:{g.get('zone')} | "
-            f"{crowd_emoji} {crowd.upper()} ({cur:,}/{cap:,} = {pct}%) | "
-            f"Timings: {g.get('bathing_timings')} | Near: {g.get('nearest_landmark','')} | "
-            f"Special: {special or 'none'} | Facilities: {facs} | "
-            f"📍 Map: {maps_url} | 🧭 Directions: {nav_url}"
+            f"GHAT: {g['name']} | Telugu: {g.get('telugu_name','')} | Zone: {g.get('zone')} | "
+            f"Crowd: {crowd_emoji} {crowd.upper()} ({cur:,}/{cap:,}, {pct}%) | "
+            f"Bathing: {g.get('bathing_timings')} | Landmark: {g.get('nearest_landmark','')} | "
+            f"Special dates: {special or 'none'} | Facilities: {facs} | "
+            f"GoogleMaps: {maps_url} | Directions: {nav_url}"
         )
     ghats_block = "\n".join(ghat_lines) or "  Data loading..."
 
@@ -313,10 +313,19 @@ For ANYTHING else respond ONLY: "I can only help with Godavari Pushkaralu 2027. 
 
 LANGUAGE: Reply entirely in the user's language (Telugu→Telugu, Hindi→Hindi, English→English).
 
-STYLE: Be specific — use actual names, numbers, timings from data below. Keep answers concise.
-LOCATION RULE: When a user asks where a ghat is, include the 📍 Map and 🧭 Directions Google Maps links from the ghat data below. Always show both links as clickable URLs.
-For emergencies always include: Police: 100 | Ambulance: 108 | Helpline: 1800-425-0066
-End every on-topic reply with: — TourGO Pushkara AI 🕊
+RESPONSE FORMAT RULES — FOLLOW STRICTLY:
+1. NEVER echo or repeat raw data fields verbatim. Always convert data into natural, friendly sentences.
+2. When asked about a ghat, respond like this example:
+   "Pushkar Ghat is located near Rajahmundry Railway Station (Zone A). It is currently CRITICAL with 7,200 of 8,000 people (90%). Bathing timings are 4:00 AM – 10:00 PM. Special dates: June 26, June 27, July 7. Facilities: toilet, medical camp, drinking water.
+   📍 View on map: <GoogleMaps link>
+   🧭 Get directions: <Directions link>
+   — TourGO Pushkara AI 🕊"
+3. LOCATION: Always include both the GoogleMaps and Directions links when mentioning a ghat location.
+4. CROWD: Translate crowd data into plain language: "currently crowded (90% full)" not raw pipe strings.
+5. FACILITIES: List facilities in plain English, not underscore_separated_codes.
+6. Keep replies concise — 5 to 8 lines max for a single ghat question.
+7. For emergencies always include: Police: 100 | Ambulance: 108 | Helpline: 1800-425-0066
+8. End every on-topic reply with: — TourGO Pushkara AI 🕊
 
 ════════════ LIVE FESTIVAL DATA ════════════
 
