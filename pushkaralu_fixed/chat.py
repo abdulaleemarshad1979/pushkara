@@ -16,7 +16,8 @@ logger = logging.getLogger("pushkaralu.chat")
 
 GROQ_API_KEY      = os.getenv("GROQ_API_KEY", "")
 GROQ_API_URL      = "https://api.groq.com/openai/v1/chat/completions"
-GROQ_MODEL        = "llama-3.3-70b-versatile"
+GROQ_MODEL         = "llama-3.3-70b-versatile"
+GROQ_MODEL_FALLBACK = "llama-3.1-8b-instant"   # used when primary hits rate limit (429)
 MAX_HISTORY_TURNS = 10
 CACHE_TTL_SECONDS = 60
 RATE_LIMIT        = 20
@@ -355,23 +356,30 @@ async def chat(req: ChatRequest, request: Request):
 
     # Call Groq
     try:
-        async with httpx.AsyncClient(timeout=20.0) as client:
-            response = await client.post(
-                GROQ_API_URL,
-                headers={
-                    "Authorization": f"Bearer {GROQ_API_KEY}",
-                    "Content-Type": "application/json",
-                },
-                json={
-                    "model": GROQ_MODEL,
-                    "messages": messages,
-                    "max_tokens": 400,
-                    "temperature": 0.4,
-                },
-            )
+        _groq_headers = {
+            "Authorization": f"Bearer {GROQ_API_KEY}",
+            "Content-Type": "application/json",
+        }
+        _groq_body = {
+            "model": GROQ_MODEL,
+            "messages": messages,
+            "max_tokens": 400,
+            "temperature": 0.4,
+        }
+
+        async with httpx.AsyncClient(timeout=25.0) as client:
+            response = await client.post(GROQ_API_URL, headers=_groq_headers, json=_groq_body)
+
+            # Rate-limited on primary model → retry immediately with smaller fallback
+            if response.status_code == 429:
+                logger.warning("[Chat] Primary model rate-limited (429), retrying with fallback model")
+                _groq_body["model"] = GROQ_MODEL_FALLBACK
+                response = await client.post(GROQ_API_URL, headers=_groq_headers, json=_groq_body)
 
         if response.status_code != 200:
-            logger.error("[Chat] Groq error %s: %s", response.status_code, response.text[:300])
+            logger.error("[Chat] Groq error status=%s body=%s", response.status_code, response.text[:300])
+            if response.status_code == 401:
+                raise HTTPException(status_code=503, detail="Chat service not configured. Contact admin.")
             raise HTTPException(
                 status_code=502,
                 detail="AI service temporarily unavailable. Please try again shortly."
