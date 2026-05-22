@@ -42,169 +42,6 @@ def _cache_set(key: str, value: str) -> None:
 
 
 # ── OFF-TOPIC PRE-FILTER ──────────────────────────────────────────────────────
-# These words/phrases are ALLOWED — they relate to Pushkaralu
-# ── LOCATION INTENT DETECTION ─────────────────────────────────────────────────
-_LOCATION_PATTERNS = re.compile(
-    r"\b(where is|location of|directions? to|how to (reach|find|get to)|"
-    r"map of|navigate to|navigate|show me|address of|coordinates? of|"
-    r"ఎక్కడ|స్థానం|దారి|నావిగేట్|"          # Telugu: where, location, route, navigate
-    r"कहाँ है|कहां है|स्थान|दिशा|नेविगेट)\b"   # Hindi: where is, location, direction, navigate
-    r"|\bghat\b.{0,30}\b(where|location|map|find|reach|address)\b"
-    r"|\b(location|map|directions?|navigate)\b.{0,30}\bghat\b",
-    re.IGNORECASE,
-)
-
-def _wants_location(msg: str) -> bool:
-    """Return True if the user is asking for ghat location/directions."""
-    return bool(_LOCATION_PATTERNS.search(msg))
-
-def _google_maps_url(lat: float, lng: float, name: str) -> str:
-    """Generate a Google Maps link that opens navigation to the ghat."""
-    encoded = name.replace(" ", "+")
-    return f"https://www.google.com/maps/search/{encoded}/@{lat},{lng},17z"
-
-def _directions_url(lat: float, lng: float) -> str:
-    """Generate a Google Maps directions link."""
-    return f"https://www.google.com/maps/dir/?api=1&destination={lat},{lng}"
-
-def _build_ghat_location_block(ghats: list) -> str:
-    """Build a numbered list of ALL ghats with Google Maps links."""
-    valid = [g for g in ghats if g.get("latitude") and g.get("longitude")]
-    lines = [f"📍 All {len(valid)} Pushkaralu 2027 Ghats — Locations & Maps:\n"]
-    for i, g in enumerate(valid, 1):
-        lat  = g["latitude"]
-        lng  = g["longitude"]
-        name = g.get("name", "")
-        telugu   = g.get("telugu_name", "")
-        zone     = g.get("zone", "")
-        landmark = g.get("nearest_landmark", "")
-        crowd    = g.get("crowd_level", "low")
-        crowd_emoji = "🔴" if crowd == "critical" else ("🟠" if crowd == "high" else ("🟡" if crowd == "medium" else "🟢"))
-        maps_link = _google_maps_url(lat, lng, name)
-        nav_link  = _directions_url(lat, lng)
-        lines.append(
-            f"{i}. {crowd_emoji} {name} ({telugu})\n"
-            f"   Zone: {zone} | Near: {landmark}\n"
-            f"   🗺 {maps_link}\n"
-            f"   🧭 {nav_link}\n"
-        )
-    lines.append("— TourGO Pushkara AI 🕊")
-    return "\n".join(lines)
-
-
-# ── EMERGENCY FAST-PATH ───────────────────────────────────────────────────────
-_EMERGENCY_PATTERNS = re.compile(
-    r"(emergency|emergencies|sos|helpline|helplines|help.?line|"
-    r"ambulance|police|fire.?(brigade|station|emergency)?|"
-    r"hospital|doctor|medical|first.?aid|"
-    r"contact|number|phone|call|dial|"
-    r"అత్యవసర|సహాయం|పోలీస్|ఆంబులెన్స్|"    # Telugu
-    r"आपातकाल|आपातकालीन|पुलिस|एम्बुलेंस)",   # Hindi
-    re.IGNORECASE,
-)
-
-def _wants_emergency(msg: str) -> bool:
-    return bool(_EMERGENCY_PATTERNS.search(msg))
-
-def _build_emergency_reply(db: dict) -> str:
-    helplines = db.get("helplines", {})
-    lines = [
-        "🆘 *Emergency Numbers — Godavari Pushkaralu 2027*\n",
-        "📞 *Key Helplines:*",
-        "  🚨 National Emergency: *112*",
-        "  👮 Police: *100*",
-        "  🚑 Ambulance: *108*",
-        "  🔥 Fire: *101*",
-        "  🏛 NDRF Control Room: *1916*",
-        "  🎪 Pushkaralu Festival Helpline: *1800-425-0066* (toll free)",
-        "  📋 Collectorate Control Room: *1800-425-3077*",
-        "  ☎ State Call Centre: *1100*",
-    ]
-    if helplines:
-        extra = {k: v for k, v in helplines.items()
-                 if k not in ("police","ambulance","fire","ndrf","pushkaralu_helpline",
-                              "state_call_centre","control_room_collectorate")}
-        if extra:
-            lines.append("\n📋 *Additional:*")
-            for k, v in extra.items():
-                label = k.replace("_", " ").title()
-                lines.append(f"  • {label}: {v}")
-    lines += [
-        "\n⚠️ *In any emergency: call 112 immediately.*",
-        "\n— TourGO Pushkara AI 🕊",
-    ]
-    return "\n".join(lines)
-
-
-def _find_mentioned_ghat(msg: str, ghats: list) -> dict | None:
-    """Return the ghat dict if the message mentions a specific ghat name."""
-    lower = msg.lower().strip()
-    # Try longest match first to avoid partial hits
-    for g in sorted(ghats, key=lambda x: len(x.get("name", "")), reverse=True):
-        name = g.get("name", "").lower()
-        telugu = g.get("telugu_name", "").lower()
-        # Match if the ghat name appears anywhere in the message
-        if name in lower or (telugu and telugu in lower):
-            return g
-    return None
-
-
-def _build_single_ghat_reply(g: dict) -> str:
-    """Build a clean, human-readable reply for one specific ghat."""
-    name      = g.get("name", "")
-    telugu    = g.get("telugu_name", "")
-    zone      = g.get("zone", "")
-    landmark  = g.get("nearest_landmark", "")
-    crowd     = g.get("crowd_level", "low")
-    cur       = g.get("current_count", 0)
-    cap       = g.get("capacity", 1)
-    pct       = int(cur / cap * 100) if cap else 0
-    timings   = g.get("bathing_timings", "")
-    special   = g.get("special_dates", [])
-    facs_raw  = g.get("facilities", [])
-    lat       = g.get("latitude")
-    lng       = g.get("longitude")
-
-    # Human-readable crowd level
-    crowd_map = {
-        "low":      "✅ LOW — comfortable, good time to visit",
-        "medium":   "🟡 MODERATE — manageable crowds",
-        "high":     "🟠 HIGH — very crowded, stay alert",
-        "critical": "🔴 CRITICAL — extremely crowded, consider another ghat",
-    }
-    crowd_text = crowd_map.get(crowd, crowd.upper())
-    crowd_line = f"{crowd_text} ({cur:,} of {cap:,} capacity, {pct}% full)"
-
-    # Clean up facility names (remove underscores)
-    facs = ", ".join(f.replace("_", " ").title() for f in facs_raw) or "Not listed"
-
-    # Special dates
-    special_text = ", ".join(special) if special else "No special dates listed"
-
-    # Maps links
-    maps_url = _google_maps_url(lat, lng, name) if lat and lng else None
-    nav_url  = _directions_url(lat, lng) if lat and lng else None
-
-    lines = [
-        f"🏛 *{name}* ({telugu})",
-        f"📍 Zone: {zone} | Near: {landmark}",
-        f"",
-        f"👥 Crowd: {crowd_line}",
-        f"🕐 Bathing Timings: {timings}",
-        f"🗓 Special Dates: {special_text}",
-        f"🏥 Facilities: {facs}",
-    ]
-    if maps_url:
-        lines += [
-            f"",
-            f"🗺 View on map: {maps_url}",
-            f"🧭 Get directions: {nav_url}",
-        ]
-    lines.append("")
-    lines.append("— TourGO Pushkara AI 🕊")
-    return "\n".join(lines)
-
-
 _ALLOWED_KEYWORDS = {
     # festival core
     "pushkar", "pushkara", "godavari", "ghat", "ganga", "bathing", "ritual",
@@ -220,27 +57,24 @@ _ALLOWED_KEYWORDS = {
     "wheelchair", "disabled", "crowd", "safe", "safety", "lost", "found",
     "missing", "child", "police", "help", "emergency", "sos", "helpline",
     "hotel", "accommodation", "stay", "lodge", "dharamshala",
-    # Telugu / Hindi terms
-    "స్నానం", "ఘాట్", "పూజ", "పుష్కర", "గోదావరి", "రాజమహేంద్రవరం",
-    "స్నान", "घाट", "पूजा", "पुष्कर", "गोदावरी",
-    # location & navigation
+    # location / navigation
     "location", "map", "directions", "direction", "navigate", "navigation",
     "where is", "how to reach", "how to get", "address", "coordinates",
-    "ఎక్కడ", "స్థానం", "దారి", "నావిగేట్",
-    "कहाँ", "कहां", "स्थान", "दिशा", "नेविगेट",
+    # Telugu / Hindi terms
+    "స్నానం", "ఘాట్", "పూజ", "పుష్కర", "గోదావరి", "రాజమహేంద్రవరం",
+    "స్నాన", "घाट", "पूजा", "पुष्कर", "गोदावरी",
     # greetings / meta
     "hello", "hi", "namaste", "namaskar", "నమస్కారం", "నమస్తే",
     "helo", "hey", "thank", "thanks", "ok", "okay", "yes", "no",
-    "what", "which", "where", "when", "how", "who", "list",
+    "what", "which", "where", "when", "how", "who", "list", "all",
     "tell me", "show me", "give me", "can you", "please",
 }
 
-# Topics that are clearly off-topic — checked ONLY if no allowed keyword matched
 _BLOCKED_PATTERNS = [
     r"\bcricket\b", r"\bsachin\b", r"\bvirat\b", r"\bipl\b",
     r"\brecipe\b", r"\bcook\b", r"\bchicken\b", r"\bbiriyani\b",
     r"\bpolitics\b", r"\belection\b", r"\bminister\b", r"\bgovernment\b",
-    r"\bweather\b",                        # weather elsewhere; festival weather is ok
+    r"\bweather\b",
     r"\bgoogle\b", r"\bbing\b", r"\bgpt\b", r"\bchatgpt\b", r"\bai tool\b",
     r"\bstock\b", r"\bshare price\b", r"\bcrypto\b", r"\bbitcoin\b",
     r"\bmovie\b", r"\bfilm\b", r"\bsong\b", r"\blyric\b",
@@ -268,22 +102,16 @@ _REFUSAL_HI = (
 
 
 def _is_off_topic(msg: str) -> bool:
-    """Return True if the message is clearly off-topic."""
     lower = msg.lower()
-    # If any allowed keyword appears → let it through
     for kw in _ALLOWED_KEYWORDS:
         if kw in lower:
             return False
-    # No allowed keyword found — check blocked patterns
     return bool(_BLOCKED_RE.search(msg))
 
 
 def _detect_lang(msg: str) -> str:
-    """Very rough language detect: te / hi / en."""
-    # Telugu Unicode block: 0C00–0C7F
     if re.search(r"[\u0C00-\u0C7F]", msg):
         return "te"
-    # Devanagari: 0900–097F
     if re.search(r"[\u0900-\u097F]", msg):
         return "hi"
     return "en"
@@ -298,6 +126,15 @@ def _refusal_for_lang(msg: str) -> str:
     return _REFUSAL
 
 
+# ── MAPS LINK HELPERS ─────────────────────────────────────────────────────────
+
+def _maps_view(lat: float, lng: float, name: str) -> str:
+    return f"https://www.google.com/maps/search/{name.replace(' ', '+')}/@{lat},{lng},17z"
+
+def _maps_nav(lat: float, lng: float) -> str:
+    return f"https://www.google.com/maps/dir/?api=1&destination={lat},{lng}"
+
+
 # ── SYSTEM PROMPT ─────────────────────────────────────────────────────────────
 
 def _build_system_prompt(db: dict) -> str:
@@ -309,26 +146,26 @@ def _build_system_prompt(db: dict) -> str:
     poojas     = db.get("poojas", [])
     hotels     = db.get("hotels", [])
 
-    # GHATS
+    # GHATS — include Google Maps links for every ghat
     ghat_lines = []
     for g in ghats:
         crowd = g.get("crowd_level", "unknown")
-        crowd_emoji = "🔴" if crowd == "high" else ("🟡" if crowd == "medium" else "🟢")
+        crowd_emoji = "🔴" if crowd == "critical" else ("🟠" if crowd == "high" else ("🟡" if crowd == "medium" else "🟢"))
         cur = g.get("current_count", 0)
         cap = g.get("capacity", 0)
         pct = int(cur / cap * 100) if cap else 0
         special = ", ".join(g.get("special_dates", []))
-        facs = ", ".join(g.get("facilities", []))
+        facs = ", ".join(f.replace("_", " ").title() for f in g.get("facilities", []))
         lat = g.get("latitude")
         lng = g.get("longitude")
-        maps_url = _google_maps_url(lat, lng, g["name"]) if lat and lng else "N/A"
-        nav_url  = _directions_url(lat, lng) if lat and lng else "N/A"
+        maps_view = _maps_view(lat, lng, g["name"]) if lat and lng else "N/A"
+        maps_nav  = _maps_nav(lat, lng) if lat and lng else "N/A"
         ghat_lines.append(
-            f"GHAT: {g['name']} | Telugu: {g.get('telugu_name','')} | Zone: {g.get('zone')} | "
-            f"Crowd: {crowd_emoji} {crowd.upper()} ({cur:,}/{cap:,}, {pct}%) | "
-            f"Bathing: {g.get('bathing_timings')} | Landmark: {g.get('nearest_landmark','')} | "
-            f"Special dates: {special or 'none'} | Facilities: {facs} | "
-            f"GoogleMaps: {maps_url} | Directions: {nav_url}"
+            f"  • {g['name']} ({g.get('telugu_name','')}) | Zone: {g.get('zone')} | "
+            f"{crowd_emoji} {crowd.upper()} ({cur:,}/{cap:,} = {pct}%) | "
+            f"Bathing: {g.get('bathing_timings')} | Near: {g.get('nearest_landmark','')} | "
+            f"Special: {special or 'none'} | Facilities: {facs} | "
+            f"📍 Map: {maps_view} | 🧭 Directions: {maps_nav}"
         )
     ghats_block = "\n".join(ghat_lines) or "  Data loading..."
 
@@ -421,29 +258,29 @@ def _build_system_prompt(db: dict) -> str:
 Festival: June 26 – July 7, 2027 | Location: Rajahmundry (Rajamahendravaram), Andhra Pradesh
 
 SCOPE: Answer ONLY about Godavari Pushkaralu 2027 — ghats, transport, facilities, poojas, hotels, hospitals, emergencies.
-For ANYTHING else respond ONLY: "I can only help with Godavari Pushkaralu 2027. Please ask about ghats, transport, facilities, poojas, or emergencies. — TourGO Pushkara AI 🕊"
+For ANYTHING else respond ONLY: "I can only help with Godavari Pushkaralu 2027. — TourGO Pushkara AI 🕊"
 
 LANGUAGE: Reply entirely in the user's language (Telugu→Telugu, Hindi→Hindi, English→English).
 
-RESPONSE FORMAT RULES — FOLLOW STRICTLY:
-1. NEVER echo raw data pipe strings. Always write natural, friendly sentences.
-2. FACILITIES: always convert underscore_names to plain English (medical_camp → Medical Camp).
-3. CROWD: use plain language — "very crowded (90% full)" not "CRITICAL (7200/8000)".
-4. MAPS LINKS: Every ghat has a GoogleMaps and Directions link in the data. ALWAYS include both when mentioning any ghat.
-5. SINGLE GHAT question — reply format:
-   🏛 [Name] ([Telugu name])
-   📍 [Zone] | Near: [Landmark]
-   👥 Crowd: [plain English crowd status]
+RESPONSE RULES — follow strictly:
+1. NEVER echo raw data strings verbatim. Write natural, friendly sentences.
+2. FACILITIES: convert underscore_names to plain English (medical_camp → Medical Camp).
+3. CROWD: use plain language — "very crowded (90% full)" not raw pipe strings.
+4. MAPS: every ghat in the data below has a 📍 Map link and 🧭 Directions link. ALWAYS include both when mentioning any ghat.
+5. SINGLE GHAT — reply format:
+   🏛 Name (Telugu name)
+   📍 Zone: ... | Near: ...
+   👥 Crowd: [plain English]
    🕐 Bathing: [timings]
-   🗓 Special dates: [dates or "none"]
+   🗓 Special dates: [dates]
    🏥 Facilities: [plain English list]
-   🗺 View on map: [GoogleMaps link]
-   🧭 Get directions: [Directions link]
+   🗺 View on map: [Map link from data]
+   🧭 Get directions: [Directions link from data]
    — TourGO Pushkara AI 🕊
-6. ALL GHATS question — list EVERY single ghat (all 15), numbered, each with its GoogleMaps and Directions link. Do not skip any.
-7. EMERGENCY question — list all helpline numbers: 112, 100, 108, 101, 1916, 1800-425-0066.
-8. Keep single-ghat replies to 10 lines max. For all-ghats list, show all 15 with links.
-9. End every on-topic reply with: — TourGO Pushkara AI 🕊
+6. ALL GHATS — list ALL {len(ghats)} ghats, numbered 1 to {len(ghats)}, each with its Map and Directions links. Do not skip any.
+7. EMERGENCY — list all numbers: 112 (National), 100 (Police), 108 (Ambulance), 101 (Fire), 1916 (NDRF), 1800-425-0066 (Festival Helpline).
+8. Keep single-ghat answers under 12 lines. All-ghats list must show all {len(ghats)}.
+9. End every reply with: — TourGO Pushkara AI 🕊
 
 ════════════ LIVE FESTIVAL DATA ════════════
 
@@ -499,16 +336,15 @@ async def chat(req: ChatRequest, request: Request):
     if len(msg) > 500:
         raise HTTPException(status_code=400, detail="Message too long (max 500 chars)")
 
+    if not GROQ_API_KEY:
+        logger.error("[Chat] GROQ_API_KEY not set")
+        raise HTTPException(status_code=503, detail="Chat service not configured. Contact admin.")
+
     # ── PRE-FILTER: block off-topic before hitting Groq ──────────────────────
     if _is_off_topic(msg):
         refusal = _refusal_for_lang(msg)
         logger.info("[Chat] BLOCKED off-topic | q=%s", msg[:60])
         return {"reply": refusal, "cached": False, "filtered": True}
-
-    # ── API key check ────────────────────────────────────────────────────────
-    if not GROQ_API_KEY:
-        logger.error("[Chat] GROQ_API_KEY not set")
-        raise HTTPException(status_code=503, detail="Chat service not configured. Contact admin.")
 
     # Rate limiting
     client_ip = request.client.host
@@ -528,7 +364,7 @@ async def chat(req: ChatRequest, request: Request):
     if cached:
         return {"reply": cached, "cached": True}
 
-    # Build system prompt with live DB data
+    # Build system prompt with live DB data (includes all ghat Maps links)
     try:
         from main import DB
         system_prompt = _build_system_prompt(DB)
@@ -544,7 +380,7 @@ async def chat(req: ChatRequest, request: Request):
 
     # Call Groq
     try:
-        async with httpx.AsyncClient(timeout=20.0) as client:
+        async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.post(
                 GROQ_API_URL,
                 headers={
@@ -554,13 +390,22 @@ async def chat(req: ChatRequest, request: Request):
                 json={
                     "model": GROQ_MODEL,
                     "messages": messages,
-                    "max_tokens": 1200,
+                    "max_tokens": 1500,
                     "temperature": 0.4,
                 },
             )
 
         if response.status_code != 200:
-            logger.error("[Chat] Groq error %s: %s", response.status_code, response.text[:300])
+            # Log the real Groq error for debugging
+            try:
+                err = response.json().get("error", {})
+                groq_detail = f"{err.get('type','')}: {err.get('message','')}"
+            except Exception:
+                groq_detail = response.text[:200]
+            logger.error("[Chat] Groq %s | key=...%s | %s",
+                         response.status_code,
+                         GROQ_API_KEY[-6:] if GROQ_API_KEY else "MISSING",
+                         groq_detail)
             raise HTTPException(
                 status_code=502,
                 detail="AI service temporarily unavailable. Please try again shortly."
