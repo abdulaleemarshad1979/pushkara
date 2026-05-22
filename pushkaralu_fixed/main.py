@@ -330,12 +330,20 @@ async def warm_cache():
 # ═══════════════════════════════════════════════════════════════════════════════
 # Health & Observability
 # ═══════════════════════════════════════════════════════════════════════════════
+@app.get("/ping")
+async def ping():
+    """Lightweight always-200 health check used by Render.
+    Never depends on Redis so cold-start Redis lag cannot cause Render
+    to restart the instance and break the chat service."""
+    return {"status": "ok", "instance": INSTANCE_ID}
+
 @app.get("/health")
 async def health():
     redis_status = await redis_health()
-    status_code  = 200 if redis_status.get("status") == "healthy" else 503
+    # Always return HTTP 200 — Render must not kill the instance just because
+    # Redis is still waking up. The real Redis status is visible in the body.
     return JSONResponse(content={
-        "status":       "ok" if status_code == 200 else "degraded",
+        "status":       "ok" if redis_status.get("status") == "healthy" else "degraded",
         "version":      "8.0.0",
         "instance":     INSTANCE_ID,
         "redis":        redis_status,
@@ -344,7 +352,7 @@ async def health():
         "volunteers":   len(DB["volunteers"]),
         "self_healing": get_health_summary(),
         "timestamp":    _utc_now(),
-    }, status_code=status_code)
+    }, status_code=200)  # ← always 200; degraded ≠ dead
 
 @app.get("/metrics")
 async def metrics():
