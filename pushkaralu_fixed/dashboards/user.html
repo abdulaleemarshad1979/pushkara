@@ -1,3163 +1,400 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="google-site-verification" content="W5QVA7pmftpHwk8lW01LW5W2Dh_3Vj9BKexaESSLlSU" />
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🪔</text></svg>">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="description" content="Godavari Pushkaralu 2027 — Official Pilgrim Portal by Government of Andhra Pradesh. Live ghat status, crowd density, bus tracking, lost & found, emergency SOS, and facilities guide for pilgrims.">
-<meta name="keywords" content="Pushkaralu 2027, Godavari Pushkaram, pilgrim portal, ghat status, SOS emergency, bus tracking, lost and found, Andhra Pradesh, Rajamahendravaram, AP Government pilgrims">
-<meta name="author" content="Abdul Aleem Arshad">
-<meta name="robots" content="index, follow">
-<meta property="og:title" content="Godavari Pushkaralu 2027 — Pilgrim Portal | AP Government">
-<meta property="og:description" content="Official pilgrim portal for Godavari Pushkaralu 2027. Live ghat status, emergency SOS, transport tracking, and facilities for pilgrims.">
-<meta property="og:type" content="website">
-<meta property="og:url" content="https://pushkara.vercel.app/user">
-<meta property="og:image" content="https://pushkara.vercel.app/og-image.png">
-<meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Godavari Pushkaralu 2027 — Pilgrim Portal">
-<meta name="twitter:description" content="Official pilgrim portal for Godavari Pushkaralu 2027. Live ghat status, emergency SOS, transport tracking, and facilities.">
-<link rel="canonical" href="https://pushkara.vercel.app/user">
-<title>Godavari Pushkaralu 2027 — Pilgrim Portal</title>
-<script>
-const API_BASE     = 'https://pushkara.onrender.com';
-const WS_URL       = 'wss://pushkara.onrender.com/ws/volunteer';
-const ADMIN_WS_URL = 'wss://pushkara.onrender.com/ws/volunteer';
-const ADMIN_API_KEY= '64de5b5ae7863eee64aa9a2c7e54455d2b74e46e7b7536fb15807b95210f203c';
-</script>
-<!-- Fonts: truly non-render-blocking via preload swap trick -->
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@400;500;600;700&display=optional" onload="this.onload=null;this.rel='stylesheet'">
-<noscript><link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@400;500;600;700&display=optional" rel="stylesheet"></noscript>
-<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Noto+Serif+Telugu&display=optional" onload="this.onload=null;this.rel='stylesheet'">
-<noscript><link href="https://fonts.googleapis.com/css2?family=Noto+Serif+Telugu&display=optional" rel="stylesheet"></noscript>
-<style>
-/* Size-adjust fallback metrics — eliminates layout shift when web fonts arrive */
-@font-face{font-family:'DM Sans Fallback';src:local('Arial');size-adjust:100%;ascent-override:95%;descent-override:20%;line-gap-override:0%}
-@font-face{font-family:'DM Serif Fallback';src:local('Georgia');size-adjust:98%;ascent-override:90%;descent-override:22%;line-gap-override:0%}
-/* Apply size-adjusted fallbacks — text visible immediately, no reflow on swap */
-h1,h2,h3,.hero-title,.brand-name,.loc-head h2{font-family:'DM Serif Display','DM Serif Fallback',Georgia,serif}
-body,.btn,.card,.toast,.tab{font-family:'DM Sans','DM Sans Fallback',system-ui,-apple-system,sans-serif}
-:root{
-  --navy:#0B2E6E;--navy2:#1A4080;--navy3:#0D1F4C;
-  --saffron:#E8600A;--saffron2:#FF7A1F;
-  --gold:#C8850D;--gold2:#F0A830;
-  --green:#0B6B30;--green2:#14A34A;
-  --bg:#F0F2F5;--card:#FFFFFF;
-  --border:1px solid #D8DCE6;
-  --t1:#1A1F2E;--t2:#3D4558;--t3:#6B7280;
-  --danger:#C0392B;--danger-bg:#FEF2F2;
-  --warn:#8B5A00;--warn-bg:#FFFBEB;
-  --info:#1558A8;--info-bg:#EFF6FF;
-  --ok:#0B6B30;--ok-bg:#F0FDF4;
-  --sh:0 1px 3px rgba(0,0,0,.07);--sh2:0 4px 14px rgba(0,0,0,.10);--sh3:0 8px 30px rgba(0,0,0,.14);
-  --r:6px;--r2:10px;
-}
-.dark-mode{
-  --bg:#020617;--card:#0F172A;
-  --border:1px solid #1E293B;
-  --t1:#F1F5F9;--t2:#94A3B8;--t3:#64748B;
-  --navy:#38BDF8;--navy2:#0EA5E9;--navy3:#000000;
-  --danger-bg:rgba(239,68,68,0.15);--warn-bg:rgba(245,158,11,0.15);
-  --info-bg:rgba(14,165,233,0.15);--ok-bg:rgba(34,197,94,0.15);
-  --sh:0 1px 3px rgba(0,0,0,.5);--sh2:0 4px 14px rgba(0,0,0,.6);--sh3:0 8px 30px rgba(0,0,0,.7);
-}
-*,*::before,*::after{margin:0;padding:0;box-sizing:border-box; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
-html{scroll-behavior:smooth}
-body{font-family:'DM Sans', 'Noto Serif Telugu', sans-serif; background:var(--bg);color:var(--t1);font-size:15px;line-height:1.6;letter-spacing:0.2px; transition:background 0.3s ease, color 0.3s ease}
-
-/* ═══ TYPOGRAPHY HIERARCHY ═══════════════════════════════════════════ */
-h1, h2, h3, .hero-title, .st, .brand-name, .loc-head h2, .mq-tag, .hn {
-  font-family: 'DM Serif Display', 'Noto Serif Telugu', serif !important;
-  font-weight: 400;
-}
-.brand-name { font-size: 1.25rem; }
-.hero-title { font-size: 2.8rem; font-weight: 700; }
-.st { font-size: 1.1rem; }
-
-/* UI & NAVIGATION */
-.nt, .btn-allow, .btn-skip, .lb, .vol-link, .mq-tag, .chip, .htag, .f-tab, .btn-submit {
-  font-family: 'DM Sans', sans-serif !important;
-  font-weight: 600 !important;
-  font-size: 19px !important;
-}
-.nt { font-size: 18px; }
-
-button, .action-btn {
-  font-family: 'DM Sans', sans-serif !important;
-  font-weight: 500;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-/* STATS & TECHNICAL */
-.sv, .cd-num, .hn, code, pre, .mono, .form-control {
-  font-family: 'Source Code Pro', monospace !important;
-  font-weight: 500;
-}
-.sv { font-weight: 700 !important; }
-
-/* TELUGU SPECIALS */
-.brand-te, .hero-te, [lang="te"] {
-  font-family: 'Noto Serif Telugu', serif !important;
-}
-
-/* UTILITY */
-.text-serif { font-family: 'DM Serif Display', 'Noto Serif Telugu', serif !important; }
-.text-sans { font-family: 'DM Sans', sans-serif !important; }
-.text-telugu { font-family: 'Noto Serif Telugu', serif !important; }
-.text-mono { font-family: 'Source Code Pro', monospace !important; }
-
-.dark-mode .gmc.high{background:rgba(239,68,68,0.2)}
-.dark-mode .gmc.medium{background:rgba(245,158,11,0.2)}
-.dark-mode .gmc.low{background:rgba(34,197,94,0.2)}
-.dark-mode .fc-input{background:var(--card);border-color:#1E293B;color:var(--t1)}
-.dark-mode .fc-input:focus{border-color:var(--navy)}
-.dark-mode .file-drop{background:var(--card);border-color:#1E293B}
-.dark-mode .chip{background:var(--card);border-color:#1E293B;color:var(--t2)}
-.dark-mode .chip.active{background:var(--navy);color:white;border-color:var(--navy)}
-.dark-mode .notice-box{background:rgba(245,158,11,0.1);border-color:rgba(245,158,11,0.2)}
-.dark-mode .prog-track{background:rgba(255,255,255,0.05)}
-.dark-mode .cb-track{background:rgba(255,255,255,0.05)}
-.dark-mode .gp{background:var(--card);border-color:#1E293B}
-.dark-mode .tt{background:var(--card);border-color:#1E293B}
-.dark-mode ::-webkit-scrollbar-track{background:var(--bg)}
-.dark-mode ::-webkit-scrollbar-thumb{background:#1E293B}
-.dark-mode .lb{background:var(--card);border-color:#1E293B}
-.dark-mode select.fc-input{background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='white'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 0.5rem center; background-size: 1.5em; appearance: none;}
-.dark-mode #fac-ghat-sel{background-color: var(--card) !important; color: var(--t1) !important; border-color: #1E293B !important;}
-
-/* === LOCATION OVERLAY === */
-#loc-overlay{position:fixed;inset:0;z-index:9999;background:rgba(11,46,110,0.88);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;padding:16px;contain:layout style;}
-.loc-modal{background:var(--card);border-radius:var(--r2);max-width:420px;width:100%;overflow:hidden;box-shadow:var(--sh3);animation:popUp .28s ease}
-@keyframes popUp{from{opacity:0;transform:scale(.93) translateY(12px)}to{opacity:1;transform:scale(1) translateY(0)}}
-.loc-head{background:linear-gradient(135deg,var(--navy3) 0%,var(--navy) 100%);padding:28px 24px 22px;text-align:center;border-bottom:3px solid;border-image:linear-gradient(90deg,var(--saffron) 33%,white 33%,white 66%,var(--green) 66%) 1}
-.loc-emoji{font-size:3rem;margin-bottom:10px}
-.loc-head h2{font-family:'DM Serif Display',serif;color:var(--gold2);font-size:1.25rem;margin-bottom:4px}
-.loc-head p{font-size:12px;color:rgba(255,255,255,.55)}
-.loc-body{padding:22px 24px}
-.loc-body p{font-size:13px;color:var(--t2);text-align:center;margin-bottom:20px;line-height:1.65}
-.loc-actions{display:flex;flex-direction:column;gap:10px}
-.btn-allow{width:100%;background:var(--navy);color:white;border:none;border-radius:var(--r);padding:13px;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:background .15s}
-.btn-allow:hover{background:var(--navy2)}
-.btn-skip{width:100%;background:transparent;border:var(--border);border-radius:var(--r);padding:10px;font-family:'DM Sans',sans-serif;font-size:13px;color:var(--t3);cursor:pointer;transition:all .15s}
-.btn-skip:hover{background:var(--bg)}
-
-/* === TOPBAR === */
-.topbar{background:var(--navy3);color:rgba(255,255,255,.6);padding:5px 12px;font-size:11px;display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid var(--saffron);flex-wrap:wrap;gap:2px;overflow:hidden}
-.topbar strong{color:var(--saffron2)}
-
-/* === HEADER === */
-.hdr{background:var(--card);position:sticky;top:0;z-index:200;box-shadow:var(--sh2);transition:background 0.3s}
-.hdr-main{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;gap:8px;flex-wrap:nowrap;min-width:0;overflow:hidden}
-.brand{display:flex;align-items:center;gap:10px;min-width:0;flex-shrink:1}
-.brand-logo{width:52px;height:52px;background:var(--navy3);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:26px;box-shadow:0 0 0 3px var(--gold2);flex-shrink:0}
-.brand-name{font-family:'DM Serif Display',serif;color:var(--navy);font-size:1.15rem;line-height:1.1;min-width:0}
-.brand-te{font-size:.82rem;color:var(--saffron);margin-top:2px}
-.brand-sub{font-size:10px;color:var(--t3);letter-spacing:.5px;text-transform:uppercase;margin-top:1px}
-.hdr-right{display:flex;align-items:center;gap:6px;flex-wrap:nowrap;flex-shrink:0}
-.countdown{background:var(--navy);border-radius:var(--r);padding:6px 10px;text-align:center;min-width:0}
-.cd-num{font-family:'Source Code Pro',monospace;font-size:1.4rem;color:var(--gold2);line-height:1}
-.cd-lbl{font-size:9px;color:rgba(255,255,255,.5);letter-spacing:.4px;margin-top:2px}
-.cd-sub{font-size:8px;color:rgba(255,255,255,.3)}
-.lang-sw{display:flex;gap:4px}
-.lb{background:var(--bg);border:1.5px solid #D8DCE6;border-radius:5px;padding:6px 10px;font-size:12px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;color:var(--t2);transition:all .15s}
-.dark-mode .lb{border-color:#334155}
-.lb.on,.lb:hover{background:var(--navy);color:white;border-color:var(--navy)}
-.theme-btn{background:var(--bg);border:1.5px solid #D8DCE6;border-radius:5px;padding:6px 8px;font-size:14px;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center}
-.dark-mode .theme-btn{border-color:#334155}
-.theme-btn:hover{background:var(--navy);color:white;border-color:var(--navy)}
-.vol-link{background:var(--navy);color:white;text-decoration:none;padding:8px 14px;border-radius:var(--r);font-size:12px;font-weight:700;white-space:nowrap}
-
-/* === MARQUEE === */
-.marquee-bar{background:linear-gradient(90deg,var(--saffron) 0%,var(--saffron2) 100%);color:white;padding:6px 0;overflow:hidden;display:flex;align-items:center;max-width:100%}
-.mq-tag{background:var(--navy3);padding:4px 14px;font-size:11px;font-weight:700;letter-spacing:1px;flex-shrink:0;white-space:nowrap}
-.mq-wrap{overflow:hidden;flex:1}
-.mq-text{display:inline-block;white-space:nowrap;font-size:12px;font-weight:600;animation:mq 38s linear infinite;padding-left:100%;will-change:transform}
-@keyframes mq{0%{transform:translateX(0)}100%{transform:translateX(-100%)}}
-/* Pause all animations when tab not visible — saves CPU */
-@media (prefers-reduced-motion: reduce) {
-  .mq-text, .sos-hero-btn, .sos-big-btn { animation: none !important; }
-  * { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
-}
-
-/* === NAV === */
-.nav{background:var(--navy)}
-.nav-inner{display:flex;overflow-x:auto;scrollbar-width:none}
-.nav-inner::-webkit-scrollbar{display:none}
-.nt{background:none;border:none;border-bottom:3px solid transparent;color:rgba(255,255,255,.65);padding:11px 14px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;white-space:nowrap;transition:all .15s;display:flex;align-items:center;gap:5px}
-.nt:hover{color:white;background:rgba(255,255,255,.05)}
-.nt.on{color:var(--gold2);border-bottom-color:var(--saffron)}
-
-/* === LAYOUT === */
-.page{max-width:1100px;margin:0 auto;padding:22px 14px;overflow-x:hidden;width:100%}
-.sec{display:none}.sec.on{display:block}
-.sh{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px}
-.st{font-family:'DM Serif Display',serif;font-size:.98rem;font-weight:400;color:var(--navy);display:flex;align-items:center;gap:8px;padding-left:12px;border-left:3px solid var(--saffron)}
-
-/* === HERO === */
-.hero{background:linear-gradient(140deg,var(--navy3) 0%,#0F3060 55%,#183080 100%);border-radius:var(--r2);padding:28px 16px 24px;text-align:center;position:relative;overflow:hidden;margin-bottom:24px;box-shadow:var(--sh3);width:100%}
-.hero::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 50% -10%,rgba(232,96,10,.18) 0%,transparent 65%);pointer-events:none}
-.hero-badge{display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:20px;padding:5px 16px;color:rgba(255,255,255,.8);font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:14px}
-.hero-title{font-family:'DM Serif Display',serif;font-size:2.3rem;color:white;line-height:1.15;margin-bottom:6px;word-break:break-word;overflow-wrap:break-word}
-.hero-te{font-size:1.05rem;color:var(--gold2);margin-bottom:14px}
-.tricolor{height:3px;background:linear-gradient(90deg,var(--saffron) 33%,white 33%,white 66%,var(--green) 66%);border-radius:2px;max-width:180px;margin:0 auto 16px}
-.hero-tags{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin-bottom:22px}
-.htag{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:20px;padding:5px 14px;color:rgba(255,255,255,.85);font-size:12px;font-weight:600}
-.sos-hero-btn{display:inline-flex;align-items:center;gap:10px;background:var(--danger);color:white;border:none;border-radius:var(--r);padding:15px 36px;font-family:'DM Sans',sans-serif;font-size:15px;font-weight:700;cursor:pointer;letter-spacing:.3px;box-shadow:0 4px 20px rgba(192,57,43,.45);transition:transform .2s,opacity .2s;animation:sp 2.5s ease infinite;will-change:transform,opacity}
-.sos-hero-btn:hover{background:#A93226;transform:scale(1.02);box-shadow:0 6px 28px rgba(192,57,43,.6)}
-@keyframes sp{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.88;transform:scale(1.02)}} /* GPU-composited: opacity+transform only */
-.sos-hint{font-size:11px;color:rgba(255,255,255,.4);margin-top:8px}
-
-/* === STATS === */
-.stats{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:24px}
-@media(min-width:540px){.stats{grid-template-columns:repeat(4,1fr)}}
-.sc{background:var(--card);border:var(--border);border-top:3px solid;border-radius:var(--r);padding:14px;text-align:center;box-shadow:var(--sh)}
-.sc.a{border-top-color:var(--saffron)}.sc.b{border-top-color:var(--green)}.sc.c{border-top-color:var(--gold)}.sc.d{border-top-color:var(--info)}
-.sv{font-family:'Source Code Pro',monospace;font-size:1.7rem;color:var(--navy);line-height:1}
-.sl{font-size:10px;color:var(--t3);margin-top:5px;text-transform:uppercase;letter-spacing:.5px}
-
-/* === HELPLINES === */
-.hl-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:24px}
-@media(min-width:560px){.hl-grid{grid-template-columns:repeat(3,1fr)}}
-@media(min-width:860px){.hl-grid{grid-template-columns:repeat(6,1fr)}}
-.hlc{background:var(--card);border:var(--border);border-top:3px solid var(--navy2);border-radius:var(--r);padding:14px 10px;text-align:center;text-decoration:none;color:inherit;display:block;box-shadow:var(--sh);transition:all .18s}
-.hlc:hover{box-shadow:var(--sh2);border-top-color:var(--saffron);transform:translateY(-2px)}
-.hi{font-size:1.5rem;margin-bottom:6px}
-.hn{font-family:'Source Code Pro',monospace;font-size:.95rem;font-weight:500;color:var(--navy)}
-.hlbl{font-size:10px;color:var(--t3);margin-top:2px}
-
-/* === GHAT MINI CARDS (homepage) === */
-.ghat-mini-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:8px}
-@media(min-width:700px){.ghat-mini-grid{grid-template-columns:repeat(3,1fr)}}
-@media(min-width:960px){.ghat-mini-grid{grid-template-columns:repeat(4,1fr)}}
-.gmc{background:var(--card);border:var(--border);border-radius:var(--r);padding:14px;box-shadow:var(--sh);border-left:4px solid #ccc;transition:all .18s;cursor:default}
-.gmc.high{border-left-color:var(--danger);background:#FFF5F5}
-.gmc.medium{border-left-color:var(--gold);background:#FFFEF5}
-.gmc.low{border-left-color:var(--green);background:#F5FFF8}
-.gmc:hover{box-shadow:var(--sh2)}
-.gmc-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;gap:6px}
-.gmc-name{font-weight:700;font-size:13px;color:var(--navy);line-height:1.3}
-.crowd-tag{font-size:10px;font-weight:700;padding:2px 8px;border-radius:3px;white-space:nowrap}
-.crowd-tag.high{background:var(--danger-bg);color:var(--danger)}
-.crowd-tag.medium{background:var(--warn-bg);color:var(--warn)}
-.crowd-tag.low{background:var(--ok-bg);color:var(--ok)}
-.gmc-count{font-size:11px;color:var(--t3);margin-bottom:6px}
-.prog-track{height:5px;background:rgba(0,0,0,.08);border-radius:3px;overflow:hidden}
-.prog-fill{height:100%;border-radius:3px;transition:width .5s ease}
-.prog-fill.high{background:var(--danger)}.prog-fill.medium{background:var(--gold)}.prog-fill.low{background:var(--green)}
-.view-all-link{font-size:13px;font-weight:700;color:var(--navy);text-decoration:none;display:inline-flex;align-items:center;gap:4px;margin-top:10px;margin-bottom:24px}
-.view-all-link:hover{color:var(--saffron)}
-
-/* === FACILITIES QUICK ACCESS (homepage) === */
-.fac-quick-row{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px}
-@media(min-width:480px){.fac-quick-row{grid-template-columns:repeat(5,1fr)}}
-@media(min-width:720px){.fac-quick-row{grid-template-columns:repeat(9,1fr)}}
-.fqb{background:var(--card);border:var(--border);border-radius:var(--r);padding:14px 8px;text-align:center;cursor:pointer;transition:all .18s;box-shadow:var(--sh);display:flex;flex-direction:column;align-items:center;gap:5px}
-.fqb:hover{box-shadow:var(--sh2);border-color:var(--saffron)}
-.fqb.sel{background:var(--navy);border-color:var(--navy)}
-.fqb.sel .fql{color:white}
-.fqi{font-size:1.7rem;line-height:1}
-.fql{font-size:11px;font-weight:600;color:var(--t2);line-height:1.2}
-
-/* === FACILITY LIST === */
-.fac-list{display:grid;grid-template-columns:1fr;gap:8px}
-@media(min-width:600px){.fac-list{grid-template-columns:repeat(2,1fr)}}
-@media(min-width:880px){.fac-list{grid-template-columns:repeat(3,1fr)}}
-.fac-card{background:var(--card);border:var(--border);border-radius:var(--r);padding:13px 14px;box-shadow:var(--sh);display:flex;align-items:flex-start;gap:12px;animation:fu .25s ease}
-@keyframes fu{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
-.fac-ico{width:38px;height:38px;background:var(--bg);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
-.fac-name{font-weight:700;font-size:13px;margin-bottom:4px}
-.fac-meta{display:flex;flex-wrap:wrap;gap:5px}
-.fm{background:var(--bg);padding:2px 7px;border-radius:3px;font-size:10px;color:var(--t3);display:inline-flex;align-items:center;gap:3px}
-.op{padding:2px 8px;border-radius:3px;font-size:10px;font-weight:700}
-.op-operational{background:var(--ok-bg);color:var(--ok)}
-.op-closed{background:var(--danger-bg);color:var(--danger)}
-.op-limited{background:var(--warn-bg);color:var(--warn)}
-.dir-btn{display:inline-flex;align-items:center;gap:4px;background:var(--navy);color:white;border:none;border-radius:5px;padding:5px 11px;font-size:11px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;text-decoration:none;margin-top:7px;transition:background .15s}
-.dir-btn:hover{background:var(--navy2)}
-
-/* === GHAT FULL CARDS === */
-.ghat-grid{display:grid;grid-template-columns:1fr;gap:14px}
-@media(min-width:600px){.ghat-grid{grid-template-columns:repeat(2,1fr)}}
-@media(min-width:880px){.ghat-grid{grid-template-columns:repeat(3,1fr)}}
-.gc{background:var(--card);border:var(--border);border-radius:var(--r2);overflow:hidden;box-shadow:var(--sh);transition:all .2s}
-.gc:hover{box-shadow:var(--sh3);transform:translateY(-3px)}
-.gc-stripe{height:5px}
-.gc-stripe.high{background:linear-gradient(90deg,var(--danger),#E74C3C)}
-.gc-stripe.medium{background:linear-gradient(90deg,var(--gold),var(--gold2))}
-.gc-stripe.low{background:linear-gradient(90deg,var(--green),var(--green2))}
-.gc-body{padding:14px}
-.gc-top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:8px}
-.gc-name{font-family:'DM Serif Display',serif;font-size:.9rem;color:var(--navy);line-height:1.2}
-.gc-te{font-size:.72rem;color:var(--t3);margin-top:2px}
-.crowd-badge{padding:3px 9px;border-radius:3px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;white-space:nowrap}
-.crowd-badge.high{background:var(--danger-bg);color:var(--danger)}
-.crowd-badge.medium{background:var(--warn-bg);color:var(--warn)}
-.crowd-badge.low{background:var(--ok-bg);color:var(--ok)}
-.crowd-bar-wrap{margin-bottom:10px}
-.cb-labels{display:flex;justify-content:space-between;font-size:10px;color:var(--t3);margin-bottom:3px}
-.cb-track{height:5px;background:var(--bg);border-radius:3px;overflow:hidden}
-.cb-fill{height:100%;border-radius:3px;transition:width .5s}
-.cb-fill.high{background:var(--danger)}.cb-fill.medium{background:var(--gold)}.cb-fill.low{background:var(--green)}
-.gc-pills{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px}
-.gp{font-size:10px;background:var(--bg);border:1px solid #E5E7EB;padding:2px 7px;border-radius:3px;color:var(--t2)}
-.gc-special{font-size:10px;color:var(--saffron);font-weight:700;margin-bottom:8px}
-
-/* === TRANSPORT === */
-.tc{background:var(--card);border:var(--border);border-left:4px solid var(--info);border-radius:var(--r);padding:14px;box-shadow:var(--sh);margin-bottom:10px}
-.tc.train{border-left-color:var(--ok)}
-.tc-top{display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;margin-bottom:8px}
-.rb{font-family:'Source Code Pro',monospace;font-size:11px;padding:3px 9px;border-radius:3px}
-.rb.bus{background:var(--info-bg);color:var(--info)}.rb.train{background:var(--ok-bg);color:var(--ok)}
-.sp-badge{background:var(--warn-bg);color:var(--warn);padding:2px 7px;border-radius:3px;font-size:10px;font-weight:700}
-.tc-route{font-weight:700;font-size:.9rem;color:var(--navy);margin-bottom:4px}
-.tc-stops{font-size:12px;color:var(--t3);margin-bottom:8px}
-.tc-tags{display:flex;flex-wrap:wrap;gap:6px}
-.tt{background:var(--bg);border:1px solid #E5E7EB;padding:3px 8px;border-radius:3px;font-size:11px}
-.fare{font-family:'Source Code Pro',monospace;font-size:1.1rem;font-weight:500;color:var(--ok)}
-
-/* === REPORT FORM === */
-.form-wrap{max-width:680px;margin:0 auto}
-.form-box{background:var(--card);border:var(--border);border-radius:var(--r2);overflow:hidden;box-shadow:var(--sh2)}
-.form-head{background:linear-gradient(135deg,var(--navy3) 0%,var(--navy) 100%);padding:20px 24px;border-bottom:3px solid;border-image:linear-gradient(90deg,var(--saffron) 33%,white 33%,white 66%,var(--green) 66%) 1}
-.form-head h2{font-family:'DM Serif Display',serif;color:var(--gold2);font-size:1.05rem;margin-bottom:3px;font-weight:400}
-.form-head p{font-size:11px;color:rgba(255,255,255,.5)}
-.form-body{padding:22px}
-.fg{margin-bottom:15px}
-.fl{display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--t3);margin-bottom:6px}
-.fc-input{width:100%;border:1.5px solid #D1D5DB;border-radius:var(--r);padding:10px 13px;font-size:14px;font-family:'DM Sans',sans-serif;color:var(--t1);outline:none;background:white;transition:border-color .15s}
-.fc-input:focus{border-color:var(--navy);box-shadow:0 0 0 3px rgba(11,46,110,.08)}
-.fc-input::placeholder{color:#9CA3AF}
-select.fc-input{cursor:pointer}
-textarea.fc-input{resize:vertical;min-height:82px}
-.file-drop{border:2px dashed #D1D5DB;border-radius:var(--r);padding:22px;text-align:center;cursor:pointer;transition:all .2s;background:var(--bg);position:relative}
-.file-drop:hover,.file-drop.over{border-color:var(--navy);background:var(--info-bg)}
-.file-drop input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer}
-#pv-wrap{margin-top:10px;display:none}
-#pv-wrap img{max-height:110px;border-radius:var(--r);border:var(--border)}
-.loc-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px}
-.loc-stat{flex:1;background:var(--info-bg);border:1px solid rgba(21,88,168,.15);border-radius:var(--r);padding:9px 13px;font-size:13px;color:var(--info);display:flex;align-items:center;gap:8px;min-width:0}
-.loc-stat.ok{background:var(--ok-bg);border-color:rgba(11,107,48,.15);color:var(--ok)}
-.loc-stat.err{background:var(--danger-bg);border-color:rgba(192,57,43,.15);color:var(--danger)}
-.btn-detect{padding:9px 14px;background:var(--bg);border:var(--border);border-radius:var(--r);cursor:pointer;font-size:12px;font-weight:700;font-family:'DM Sans',sans-serif;color:var(--t2);transition:all .15s;white-space:nowrap}
-.btn-detect:hover{background:var(--navy);color:white;border-color:var(--navy)}
-.alert{padding:12px 16px;border-radius:var(--r);margin-bottom:14px;font-size:13px;display:none;border-left:4px solid}
-.a-ok{background:var(--ok-bg);color:var(--ok);border-color:var(--ok)}
-.a-err{background:var(--danger-bg);color:var(--danger);border-color:var(--danger)}
-.sub-btn{width:100%;background:var(--navy);color:white;border:none;border-radius:var(--r);padding:13px;font-size:14px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;display:flex;align-items:center;justify-content:center;gap:8px;transition:background .15s}
-.sub-btn:hover:not(:disabled){background:var(--navy2)}
-.sub-btn:disabled{opacity:.6;cursor:not-allowed}
-
-/* === SOS PAGE === */
-.sos-wrap{max-width:680px;margin:0 auto}
-.sos-big-btn{width:100%;background:var(--danger);color:white;border:none;border-radius:var(--r2);padding:30px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:1.35rem;font-weight:700;display:flex;align-items:center;justify-content:center;gap:12px;box-shadow:0 4px 24px rgba(192,57,43,.45);transition:transform .2s,opacity .2s;margin-bottom:16px;animation:sp 2.5s ease infinite;will-change:transform,opacity}
-.sos-big-btn:hover{background:#A93226;transform:scale(1.01)}
-.sos-info-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
-@media(max-width:480px){.sos-info-grid{grid-template-columns:1fr}}
-.sic{background:var(--card);border:var(--border);border-radius:var(--r);padding:15px;text-align:center;box-shadow:var(--sh)}
-.sos-form-box{background:var(--card);border:var(--border);border-radius:var(--r2);padding:20px;box-shadow:var(--sh)}
-
-/* === MY REPORTS === */
-.mrc{background:var(--card);border:var(--border);border-left:3px solid var(--info);border-radius:var(--r);padding:14px 16px;margin-bottom:10px;box-shadow:var(--sh)}
-.sp{padding:3px 10px;border-radius:3px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px}
-.sp-pending{background:var(--warn-bg);color:var(--warn)}
-.sp-in_progress{background:var(--info-bg);color:var(--info)}
-.sp-resolved{background:var(--ok-bg);color:var(--ok)}
-.sp-active{background:var(--danger-bg);color:var(--danger)}
-
-/* === MISC === */
-.filter-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px}
-.chip{background:var(--card);border:1.5px solid #D1D5DB;color:var(--t2);padding:6px 14px;border-radius:var(--r);cursor:pointer;font-size:12px;font-weight:600;font-family:'DM Sans',sans-serif;transition:all .15s}
-.chip:hover,.chip.on{background:var(--navy);border-color:var(--navy);color:white}
-.empty{text-align:center;padding:46px 20px;color:var(--t3)}
-.empty-ico{font-size:2.6rem;margin-bottom:10px;opacity:.4}
-.notice-box{background:var(--warn-bg);border:1px solid rgba(139,90,0,.18);border-left:4px solid var(--gold);border-radius:var(--r);padding:14px 16px;margin-bottom:20px}
-.notice-title{font-weight:700;color:var(--warn);margin-bottom:7px;font-size:13px}
-.notice-list{padding-left:16px;color:var(--t2);font-size:13px;line-height:1.85}
-.toast-stack{position:fixed;top:72px;right:16px;z-index:9998;display:flex;flex-direction:column;gap:8px;max-width:340px;pointer-events:none}
-.toast{background:var(--card);border:var(--border);border-radius:var(--r);padding:12px 16px;box-shadow:var(--sh3);display:flex;gap:10px;align-items:flex-start;animation:fu .3s ease;pointer-events:auto}
-.toast.ok{border-left:4px solid var(--ok)}.toast.err{border-left:4px solid var(--danger)}.toast.sos{border-left:4px solid var(--danger)}.toast.info{border-left:4px solid var(--info)}
-.spin{display:inline-block;width:15px;height:15px;border:2px solid rgba(255,255,255,.3);border-top-color:white;border-radius:50%;animation:rot .6s linear infinite}
-@keyframes rot{to{transform:rotate(360deg)}}
-.site-footer{background:var(--navy3);color:rgba(255,255,255,.45);text-align:center;padding:16px;font-size:10px;margin-top:40px;border-top:3px solid;border-image:linear-gradient(90deg,var(--saffron) 33%,white 33%,white 66%,var(--green) 66%) 1}
-::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-track{background:var(--bg)}::-webkit-scrollbar-thumb{background:#D1D5DB;border-radius:3px}
-html,body{max-width:100%;overflow-x:hidden}
-*{box-sizing:border-box}
-
-/* ═══ HAMBURGER DRAWER ════════════════════════════════════════════ */
-.ham-btn {
-  display: none; /* desktop: hidden */
-  flex-direction: column; justify-content: center; align-items: center;
-  gap: 5px; width: 38px; height: 38px; padding: 6px;
-  background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.2);
-  border-radius: 8px; cursor: pointer; flex-shrink: 0;
-  transition: background .15s;
-}
-.ham-btn:hover { background: rgba(255,255,255,.22); }
-.ham-bar {
-  display: block; width: 20px; height: 2px;
-  background: white; border-radius: 2px;
-  transition: transform .25s ease, opacity .25s ease;
-}
-/* Animated X when open */
-.ham-btn.open .ham-bar:nth-child(1) { transform: translateY(7px) rotate(45deg); }
-.ham-btn.open .ham-bar:nth-child(2) { opacity: 0; transform: scaleX(0); }
-.ham-btn.open .ham-bar:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
-
-.ham-overlay {
-  display: none; position: fixed; inset: 0;
-  background: rgba(0,0,0,.5); z-index: 998;
-  backdrop-filter: blur(2px);
-}
-.ham-overlay.open { display: block; }
-
-.ham-drawer {
-  position: fixed; top: 0; right: -100%; width: min(320px, 88vw);
-  height: 100dvh; background: var(--navy3);
-  z-index: 999; display: flex; flex-direction: column;
-  transition: right .28s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: -4px 0 32px rgba(0,0,0,.4);
-  overflow-y: auto; overscroll-behavior: contain;
-}
-.ham-drawer.open { right: 0; }
-
-.ham-head {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 18px 16px 14px; border-bottom: 1px solid rgba(255,255,255,.1);
-  flex-shrink: 0;
-}
-.ham-brand { display: flex; align-items: center; gap: 12px; }
-.ham-close {
-  background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.15);
-  color: white; width: 32px; height: 32px; border-radius: 50%;
-  font-size: 14px; cursor: pointer; display: flex; align-items: center;
-  justify-content: center; flex-shrink: 0; transition: background .15s;
-}
-.ham-close:hover { background: rgba(255,255,255,.25); }
-
-.ham-tricolor {
-  height: 3px; flex-shrink: 0;
-  background: linear-gradient(90deg, var(--saffron) 33%, white 33%, white 66%, var(--green) 66%);
-}
-
-.ham-nav {
-  flex: 1; padding: 10px 0; display: flex; flex-direction: column;
-}
-.ham-item {
-  display: flex; align-items: center; gap: 14px;
-  padding: 14px 20px; background: none; border: none;
-  color: rgba(255,255,255,.75); cursor: pointer; text-align: left;
-  font-family: "DM Sans", sans-serif; font-size: 15px; font-weight: 500;
-  transition: background .15s, color .15s; border-left: 3px solid transparent;
-}
-.ham-item:hover { background: rgba(255,255,255,.08); color: white; }
-.ham-item.ham-active {
-  background: rgba(255,255,255,.1); color: white;
-  border-left-color: var(--saffron);
-}
-.ham-icon { font-size: 20px; flex-shrink: 0; width: 26px; text-align: center; }
-.ham-label { font-size: 15px; }
-.ham-danger { color: #FF7675 !important; font-weight: 700; }
-.ham-item:has(.ham-danger) { border-left-color: var(--danger); }
-
-.ham-footer {
-  padding: 16px; border-top: 1px solid rgba(255,255,255,.1);
-  flex-shrink: 0;
-}
-.ham-lang { display: flex; gap: 8px; }
-
-/* ═══ MOBILE RESPONSIVE ═══════════════════════════════════════════ */
-@media (max-width: 600px) {
-  /* ── Header ── */
-  .hdr-main { padding: 8px 10px; gap: 6px; }
-  .ham-btn { display: flex; } /* show hamburger on mobile */
-  .lang-sw { display: none; } /* moved to drawer */
-  .brand-logo { width: 36px; height: 36px; font-size: 18px; flex-shrink: 0; }
-  .brand-name { font-size: 0.88rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 130px; }
-  .brand-te { font-size: 0.68rem; }
-  .brand-sub { display: none; }
-  .hdr-right { gap: 5px; flex-shrink: 0; }
-  /* Hide countdown on very small screens — save space */
-  .countdown { display: none; }
-  .vol-link { padding: 5px 8px; font-size: 11px; }
-  .theme-btn { width: 28px; height: 28px; font-size: 13px; padding: 0; }
-  .lang-sw { display: none; }
-
-  /* ── Topbar ── */
-  .topbar { padding: 4px 10px; font-size: 10px; gap: 2px; }
-  .topbar .t-right { font-size: 10px; }
-
-  /* ── Marquee ── */
-  .mq-tag { padding: 4px 10px; font-size: 10px; }
-  .mq-text { font-size: 11px; }
-
-  /* ── Nav tabs ── */
-  .nt { padding: 10px 12px; font-size: 12px; gap: 4px; }
-
-  /* ── Page padding ── */
-  .page { padding: 12px 10px; }
-
-  /* ── Hero ── */
-  .hero { padding: 22px 12px 20px; border-radius: var(--r); }
-  .hero-badge { font-size: 9px; padding: 4px 10px; }
-  .hero-title { font-size: 1.45rem; word-break: break-word; }
-  .hero-te { font-size: 0.88rem; }
-  .hero-tags { gap: 5px; }
-  .htag { font-size: 12px; padding: 4px 9px; }
-  .sos-hero-btn { padding: 12px 20px; font-size: 15px; width: 100%; justify-content: center; }
-  .sos-hint { font-size: 10px; }
-
-  /* ── Stats ── */
-  .stats { grid-template-columns: repeat(2, 1fr); gap: 8px; }
-  .sv { font-size: 1.4rem; }
-  .sl { font-size: 9px; }
-
-  /* ── Helplines ── */
-  .hl-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
-  .hlc { padding: 10px 6px; }
-  .hi { font-size: 1.3rem; margin-bottom: 4px; }
-  .hn { font-size: 0.8rem; }
-  .hlbl { font-size: 9px; }
-
-  /* ── Ghat mini ── */
-  .ghat-mini-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
-  .gmc { padding: 10px; }
-  .gmc-name { font-size: 12px; }
-
-  /* ── Facility quick buttons ── */
-  .fac-quick-row { grid-template-columns: repeat(4, 1fr); gap: 6px; }
-  .fqb { padding: 10px 4px; }
-  .fqi { font-size: 1.3rem; }
-  .fql { font-size: 9px; }
-
-  /* ── Full ghat grid ── */
-  .ghat-grid { grid-template-columns: 1fr; }
-
-  /* ── SOS ── */
-  .sos-big-btn { font-size: 1.05rem; padding: 20px; border-radius: var(--r); }
-  .sos-info-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
-  .sic { padding: 10px 8px; }
-  .form-wrap, .sos-wrap { max-width: 100%; }
-
-  /* ── Forms ── */
-  .chip { font-size: 12px; padding: 5px 10px; }
-
-  /* ── Toasts ── */
-  .toast-stack { right: 8px; left: 8px; max-width: 100%; }
-  .toast { padding: 10px 12px; font-size: 13px; }
-
-  /* ── Location modal ── */
-  .loc-row { flex-direction: column; }
-  .loc-stat { width: 100%; }
-  .loc-modal { max-width: 100%; border-radius: var(--r) var(--r) 0 0; }
-
-  /* ── Transport guide ── */
-  #tg-header { padding: 18px 14px 16px; }
-  .tg-grid { grid-template-columns: 1fr !important; }
-  .tg-card { padding: 14px; }
-
-  /* ── Facility list cards ── */
-  .fac-card { padding: 11px 12px; gap: 10px; }
-
-  /* ── Dir button ── */
-  .dir-btn { padding: 5px 9px; font-size: 11px; }
-}
-
-/* ── TourGO Chatbot Widget ── */
-/* ── Chatbot FAB + Panel ─────────────────────────────────────────────── */
-#cb-fab {
-  position: fixed;
-  bottom: 24px;
-  right: 20px;
-  width: 58px;
-  height: 58px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, var(--saffron) 0%, var(--gold) 100%);
-  border: none;
-  cursor: pointer;
-  box-shadow: 0 4px 20px rgba(232,96,10,.45);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.55rem;
-  z-index: 1200;
-  transition: transform .2s cubic-bezier(.4,0,.2,1), box-shadow .2s;
-  animation: cb-pulse 3s ease infinite;
-}
-#cb-fab:hover {
-  transform: scale(1.08);
-  box-shadow: 0 6px 28px rgba(232,96,10,.6);
-}
-#cb-fab.open {
-  background: linear-gradient(135deg, var(--navy) 0%, var(--navy2) 100%);
-  box-shadow: 0 4px 16px rgba(11,46,110,.4);
-  animation: none;
-}
-@keyframes cb-pulse {
-  0%,100% { box-shadow: 0 4px 20px rgba(232,96,10,.45); }
-  50%      { box-shadow: 0 4px 30px rgba(232,96,10,.75); }
-}
-
-#cb-panel {
-  position: fixed;
-  bottom: 94px;
-  right: 20px;
-  width: 340px;
-  max-width: calc(100vw - 24px);
-  height: 480px;
-  max-height: calc(100vh - 120px);
-  background: var(--card);
-  border-radius: 16px;
-  box-shadow: var(--sh3), 0 0 0 1px rgba(0,0,0,.06);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  z-index: 1199;
-  transform: scale(.92) translateY(16px);
-  opacity: 0;
-  pointer-events: none;
-  transition: transform .22s cubic-bezier(.4,0,.2,1), opacity .22s;
-}
-#cb-panel.open {
-  transform: scale(1) translateY(0);
-  opacity: 1;
-  pointer-events: all;
-}
-
-/* Header */
-#cb-header {
-  background: linear-gradient(135deg, var(--navy3) 0%, var(--navy) 100%);
-  padding: 13px 16px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  border-bottom: 2px solid;
-  border-image: linear-gradient(90deg, var(--saffron) 33%, white 33%, white 66%, var(--green) 66%) 1;
-  flex-shrink: 0;
-}
-#cb-avatar {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, var(--saffron) 0%, var(--gold) 100%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.1rem;
-  flex-shrink: 0;
-}
-#cb-header-text { flex: 1; min-width: 0; }
-#cb-header-text strong {
-  display: block;
-  font-family: 'DM Serif Display', serif;
-  color: var(--gold2);
-  font-size: 14px;
-  line-height: 1.2;
-}
-#cb-header-text span {
-  font-size: 10px;
-  color: rgba(255,255,255,.55);
-  font-family: 'DM Sans', sans-serif;
-}
-#cb-close {
-  background: rgba(255,255,255,.1);
-  border: none;
-  border-radius: 6px;
-  color: rgba(255,255,255,.7);
-  cursor: pointer;
-  padding: 5px 8px;
-  font-size: 16px;
-  line-height: 1;
-  transition: background .15s;
-}
-#cb-close:hover { background: rgba(255,255,255,.2); }
-
-/* Messages area */
-#cb-msgs {
-  flex: 1;
-  overflow-y: auto;
-  padding: 14px 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  scroll-behavior: smooth;
-}
-#cb-msgs::-webkit-scrollbar { width: 4px; }
-#cb-msgs::-webkit-scrollbar-track { background: transparent; }
-#cb-msgs::-webkit-scrollbar-thumb { background: rgba(0,0,0,.15); border-radius: 4px; }
-
-.cb-msg {
-  display: flex;
-  gap: 7px;
-  align-items: flex-end;
-  animation: cb-in .2s ease;
-}
-@keyframes cb-in {
-  from { opacity:0; transform:translateY(6px); }
-  to   { opacity:1; transform:translateY(0); }
-}
-.cb-msg.user { flex-direction: row-reverse; }
-
-.cb-bubble {
-  max-width: 80%;
-  padding: 9px 12px;
-  border-radius: 14px;
-  font-family: 'DM Sans', sans-serif;
-  font-size: 13px;
-  line-height: 1.5;
-  color: var(--t1);
-  background: var(--bg);
-  border: var(--border);
-}
-.cb-msg.user .cb-bubble {
-  background: linear-gradient(135deg, var(--navy) 0%, var(--navy2) 100%);
-  color: white;
-  border: none;
-  border-radius: 14px 14px 4px 14px;
-}
-.cb-msg.bot .cb-bubble {
-  border-radius: 4px 14px 14px 14px;
-}
-.cb-msg-icon {
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: .85rem;
-  background: linear-gradient(135deg, var(--saffron) 0%, var(--gold) 100%);
-}
-.cb-msg.user .cb-msg-icon {
-  background: rgba(11,46,110,.12);
-}
-
-/* Typing indicator */
-#cb-typing {
-  display: none;
-  align-items: flex-end;
-  gap: 7px;
-}
-#cb-typing.show { display: flex; }
-.cb-dots {
-  background: var(--bg);
-  border: var(--border);
-  border-radius: 4px 14px 14px 14px;
-  padding: 10px 14px;
-  display: flex;
-  gap: 4px;
-  align-items: center;
-}
-.cb-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--t3);
-  animation: cb-bounce .9s ease infinite;
-}
-.cb-dot:nth-child(2) { animation-delay: .15s; }
-.cb-dot:nth-child(3) { animation-delay: .30s; }
-@keyframes cb-bounce {
-  0%,60%,100% { transform:translateY(0); }
-  30%          { transform:translateY(-5px); }
-}
-
-/* Input area */
-#cb-input-area {
-  padding: 10px 12px;
-  border-top: var(--border);
-  display: flex;
-  gap: 8px;
-  align-items: flex-end;
-  flex-shrink: 0;
-  background: var(--card);
-}
-#cb-input {
-  flex: 1;
-  border: 1.5px solid #D8DCE6;
-  border-radius: 10px;
-  padding: 9px 12px;
-  font-family: 'DM Sans', sans-serif;
-  font-size: 13px;
-  background: var(--bg);
-  color: var(--t1);
-  resize: none;
-  max-height: 80px;
-  min-height: 38px;
-  outline: none;
-  transition: border-color .15s;
-  line-height: 1.4;
-}
-#cb-input:focus { border-color: var(--navy2); }
-#cb-input::placeholder { color: var(--t3); }
-#cb-send {
-  width: 38px;
-  height: 38px;
-  border-radius: 10px;
-  background: linear-gradient(135deg, var(--saffron) 0%, var(--gold) 100%);
-  border: none;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 15px;
-  transition: transform .15s, opacity .15s;
-  flex-shrink: 0;
-}
-#cb-send:hover { transform: scale(1.06); }
-#cb-send:disabled { opacity: .5; cursor: not-allowed; transform: none; }
-
-/* Quick replies */
-#cb-quick {
-  padding: 0 12px 10px;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  flex-shrink: 0;
-}
-.cb-qr {
-  background: var(--info-bg);
-  color: var(--info);
-  border: 1px solid rgba(21,88,168,.2);
-  border-radius: 20px;
-  padding: 4px 11px;
-  font-size: 11px;
-  font-family: 'DM Sans', sans-serif;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background .15s;
-  white-space: nowrap;
-}
-.cb-qr:hover { background: rgba(21,88,168,.15); }
-
-/* Dark mode adjustments */
-.dark-mode #cb-input {
-  border-color: #1E293B;
-  background: #0F172A;
-  color: var(--t1);
-}
-.dark-mode #cb-input:focus { border-color: var(--navy); }
-.dark-mode .cb-bubble { border-color: #1E293B; }
-
-/* Mobile — make panel full width */
-@media (max-width: 480px) {
-  #cb-panel {
-    right: 8px;
-    bottom: 84px;
-    width: calc(100vw - 16px);
-    height: 420px;
-  }
-  #cb-fab {
-    bottom: 18px;
-    right: 14px;
-    width: 52px;
-    height: 52px;
-    font-size: 1.35rem;
-  }
-}
-</style>
-</head>
-<body>
-
-<!-- LOCATION OVERLAY -->
-<div id="loc-overlay">
-  <div class="loc-modal">
-    <div class="loc-head">
-      <div class="loc-emoji">📍</div>
-      <h2 id="lo-h">Allow Location Access</h2>
-      <p id="lo-p">For nearest facilities & emergency SOS dispatch</p>
-    </div>
-    <div class="loc-body">
-      <p id="lo-desc">This portal uses your location to show nearby ghats, toilets, medical camps, and to dispatch the nearest volunteer during emergencies. Your location is never stored.</p>
-      <div class="loc-actions">
-        <button class="btn-allow" onclick="reqLoc()" id="btn-allow">📍 Allow Location</button>
-        <button class="btn-skip" onclick="skipLoc()" id="btn-skip">Continue without location</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- GOV TOPBAR -->
-<div class="topbar">
-  <span id="t-govbar">🇮🇳 Government of Andhra Pradesh — Official Portal</span>
-  <span id="t-helpbar">Helpline: <strong>1800-425-8877</strong></span>
-</div>
-
-<!-- HEADER -->
-<header class="hdr">
-  <div class="hdr-main">
-    <div class="brand">
-      <div class="brand-logo">🪔</div>
-      <div>
-        <div class="brand-name">Godavari Pushkaralu 2027</div>
-        <div class="brand-te">గోదావరి పుష్కరాలు 2027</div>
-        <div class="brand-sub">Govt of Andhra Pradesh · East Godavari</div>
-      </div>
-    </div>
-    <div class="hdr-right">
-      <div class="countdown">
-        <div class="cd-num" id="cd">–</div>
-        <div class="cd-lbl" id="t-days">Days to Pushkaralu</div>
-        <div class="cd-sub">Jun 26 – Jul 7, 2027</div>
-      </div>
-      <div class="lang-sw">
-        <button class="lb on" onclick="setLang('en')">EN</button>
-        <button class="lb" onclick="setLang('te')">తె</button>
-        <button class="lb" onclick="setLang('hi')">हि</button>
-      </div>
-      <button id="theme-toggle" class="theme-btn" onclick="toggleTheme()" title="Toggle Dark Mode">🌙</button>
-      <button class="ham-btn" id="ham-btn" onclick="toggleHam()" aria-label="Menu" aria-expanded="false">
-        <span class="ham-bar"></span>
-        <span class="ham-bar"></span>
-        <span class="ham-bar"></span>
-      </button>
-    </div>
-  </div>
-  <!-- MARQUEE -->
-  <div class="marquee-bar">
-    <div class="mq-tag">📢 NOTICE</div>
-    <div class="mq-wrap">
-      <div class="mq-text">Mahapushkaram: June 26 &nbsp;|&nbsp; Antima Pushkaram: July 7 &nbsp;|&nbsp; Helpline: 1800-425-0066 (Toll Free) &nbsp;|&nbsp; Special APSRTC Pushkaralu buses every 5 minutes from RJY Railway Station &nbsp;|&nbsp; Do not litter on ghats — Keep Godavari Clean &nbsp;|&nbsp; Police: 100 &nbsp;|&nbsp; Ambulance: 108 &nbsp;|&nbsp; NDRF: 1916</div>
-    </div>
-  </div>
-  <!-- NAV -->
-  <nav class="nav">
-    <div class="nav-inner">
-      <button class="nt on" onclick="goSec('home')">🏠 <span class="t" data-k="nav_home">Home</span></button>
-      <button class="nt" onclick="goSec('ghats')">🌊 <span class="t" data-k="nav_ghats">Ghats & Schedule</span></button>
-      <button class="nt" onclick="goSec('fac')">🏥 <span class="t" data-k="nav_fac">Facilities</span></button>
-      <button class="nt" onclick="goSec('transport')">🚌 <span class="t" data-k="nav_trans">Transport</span></button>
-      <button class="nt" onclick="goSec('report')">📋 <span class="t" data-k="nav_report">Report Issue</span></button>
-      <button class="nt" onclick="goSec('sos')">🆘 SOS</button>
-      <button class="nt" onclick="goSec('emergency')">🚨 Emergency Contacts</button>
-      <button class="nt" onclick="goSec('lost')">🔍 Lost &amp; Found</button>
-      <button class="nt" onclick="goSec('about')">ℹ️ <span class="t" data-k="nav_about">About</span></button>
-      <!-- My Reports removed per requirement D -->
-      <button class="nt" onclick="goSec('tourgo')">🗺️ TourGo Explorer</button>
-    </div>
-  </nav>
-</header>
-
-<!-- ══ HAMBURGER DRAWER (mobile only) ══════════════════════════════ -->
-<div id="ham-overlay" class="ham-overlay" onclick="closeHam()"></div>
-<div id="ham-drawer" class="ham-drawer" role="dialog" aria-modal="true" aria-label="Navigation Menu">
-  <div class="ham-head">
-    <div class="ham-brand">
-      <span style="font-size:28px">🪔</span>
-      <div>
-        <div style="font-weight:700;font-size:1rem;color:white">Godavari Pushkaralu</div>
-        <div style="font-size:11px;color:rgba(255,255,255,.55);margin-top:1px">2027 · Govt of Andhra Pradesh</div>
-      </div>
-    </div>
-    <button class="ham-close" onclick="closeHam()" aria-label="Close menu">✕</button>
-  </div>
-  <div class="ham-tricolor"></div>
-  <nav class="ham-nav">
-    <button class="ham-item ham-active" onclick="hamGoSec('home')">    <span class="ham-icon">🏠</span><span class="ham-label">Home</span></button>
-    <button class="ham-item" onclick="hamGoSec('ghats')">             <span class="ham-icon">🌊</span><span class="ham-label">Ghats &amp; Schedule</span></button>
-    <button class="ham-item" onclick="hamGoSec('fac')">               <span class="ham-icon">🏥</span><span class="ham-label">Facilities</span></button>
-    <button class="ham-item" onclick="hamGoSec('transport')">         <span class="ham-icon">🚌</span><span class="ham-label">Transport</span></button>
-    <button class="ham-item" onclick="hamGoSec('report')">            <span class="ham-icon">📋</span><span class="ham-label">Report Issue</span></button>
-    <button class="ham-item" onclick="hamGoSec('sos')">               <span class="ham-icon">🆘</span><span class="ham-label ham-danger">Emergency SOS</span></button>
-    <button class="ham-item" onclick="hamGoSec('emergency')">         <span class="ham-icon">🚨</span><span class="ham-label">Emergency Contacts</span></button>
-    <button class="ham-item" onclick="hamGoSec('lost')">              <span class="ham-icon">🔍</span><span class="ham-label">Lost &amp; Found</span></button>
-    <button class="ham-item" onclick="hamGoSec('tourgo')">            <span class="ham-icon">🗺️</span><span class="ham-label">TourGo Explorer</span></button>
-    <button class="ham-item" onclick="hamGoSec('about')">             <span class="ham-icon">ℹ️</span><span class="ham-label">About</span></button>
-  </nav>
-  <div class="ham-footer">
-    <div class="ham-lang">
-      <button class="lb on" onclick="setLang('en');closeHam()">EN</button>
-      <button class="lb" onclick="setLang('te');closeHam()">తె</button>
-      <button class="lb" onclick="setLang('hi');closeHam()">हि</button>
-    </div>
-    <div style="font-size:10px;color:rgba(255,255,255,.35);margin-top:10px;text-align:center">
-      📞 Helpline: 1800-425-0066 (Toll Free)
-    </div>
-  </div>
-</div>
-
-<!-- PAGE -->
-<div class="page">
-
-<!-- ===== HOME ===== -->
-<div id="sec-home" class="sec on">
-  <!-- HERO -->
-  <div class="hero">
-    <div class="hero-badge">🪔 <span class="t" data-k="hero_badge">Sacred Festival of Godavari River</span></div>
-    <h1 class="hero-title" id="t-hero-title">Godavari Pushkaralu 2027</h1>
-    <div class="hero-te">గోదావరి పుష్కరాలు 2027 — రాజమహేంద్రవరం</div>
-    <div class="tricolor"></div>
-    <div class="hero-tags">
-      <span class="htag">📍 Rajahmundry, East Godavari</span>
-      <span class="htag">📅 June 26 – July 7, 2027</span>
-      <span class="htag">🌊 River Godavari</span>
-      <span class="htag">🕯️ 12 <span class="t" data-k="sacred_days">Sacred Days</span></span>
-    </div>
-    <button class="sos-hero-btn" onclick="goSec('sos')">
-      🆘 <span class="t" data-k="sos_btn">EMERGENCY SOS</span>
-    </button>
-    <div class="sos-hint"><span class="t" data-k="sos_hint">Press only in emergencies — Police · Medical · Volunteer dispatch</span></div>
-  </div>
-
-  <!-- LIVE STATS -->
-  <div class="sh">
-    <div class="st">📊 <span class="t" data-k="live_status">Live Festival Status</span></div>
-    <button class="chip" onclick="loadStats()">↻ <span class="t" data-k="refresh">Refresh</span></button>
-  </div>
-  <div class="stats">
-    <div class="sc a"><div class="sv" id="h-ghats">12</div><div class="sl t" data-k="s_ghats">Sacred Ghats</div></div>
-    <div class="sc b"><div class="sv" id="h-vols">–</div><div class="sl t" data-k="s_vols">Active Volunteers</div></div>
-    <div class="sc c"><div class="sv" id="h-fac">–</div><div class="sl t" data-k="s_fac">Facilities</div></div>
-    <div class="sc d"><div class="sv" id="h-trans">–</div><div class="sl t" data-k="s_trans">Transport Routes</div></div>
-  </div>
-
-  <!-- HELPLINES -->
-  <div class="sh"><div class="st">📞 <span class="t" data-k="helplines">Emergency Helplines</span></div></div>
-  <div class="hl-grid">
-    <a href="tel:108" class="hlc" aria-label="Call Ambulance: 108"><div class="hi">🚑</div><div class="hn">108</div><div class="hlbl t" data-k="hl_amb">Ambulance</div></a>
-    <a href="tel:100" class="hlc" aria-label="Call Police: 100"><div class="hi">👮</div><div class="hn">100</div><div class="hlbl t" data-k="hl_pol">Police</div></a>
-    <a href="tel:101" class="hlc" aria-label="Call Fire service: 101"><div class="hi">🔥</div><div class="hn">101</div><div class="hlbl t" data-k="hl_fire">Fire</div></a>
-    <a href="tel:18004250066" class="hlc" aria-label="Call Pushkaralu Helpline: 1800-425-0066"><div class="hi">📞</div><div class="hn" style="font-size:.8rem">1800-425-0066</div><div class="hlbl t" data-k="hl_push">Pushkaralu Helpline</div></a>
-    <a href="tel:1916" class="hlc" aria-label="Call NDRF Control: 1916"><div class="hi">🆘</div><div class="hn">1916</div><div class="hlbl t" data-k="hl_ndrf">NDRF Control</div></a>
-    <a href="tel:08832461234" class="hlc" aria-label="Call Rajahmundry Medical Camp: 0883-2461234"><div class="hi">🏥</div><div class="hn" style="font-size:.8rem">0883-2461234</div><div class="hlbl t" data-k="hl_rjy">RJY Medical Camp</div></a>
-  </div>
-
-  <!-- LIVE GHAT STATUS (mini) -->
-  <div class="sh">
-    <div class="st">🌊 <span class="t" data-k="live_ghats">Live Ghat Status — Rajahmundry & East Godavari</span></div>
-  </div>
-  <div id="ghat-mini" class="ghat-mini-grid"></div>
-  <a href="#" class="view-all-link" onclick="goSec('ghats');return false;">
-    <span class="t" data-k="view_all_ghats">View All 15 Ghats with Schedule</span> →
-  </a>
-
-  <!-- FACILITIES QUICK ACCESS -->
-  <div class="sh">
-    <div class="st">🏥 <span class="t" data-k="fac_quick">Facilities Quick Access</span>
-      <span id="loc-hint" style="font-size:11px;font-weight:400;color:var(--t3);margin-left:6px"></span>
-    </div>
-  </div>
-  <div id="fac-type-btns" class="fac-quick-row"></div>
-  <div id="fac-home-list" class="fac-list" style="margin-bottom:24px"></div>
-
-  <!-- IMPORTANT INFO -->
-  <div class="notice-box">
-    <div class="notice-title t" data-k="notice_title">⚠️ Important Safety Notice</div>
-    <ul class="notice-list">
-      <li class="t" data-k="n1">Wear ID wristbands provided at entry points</li>
-      <li class="t" data-k="n2">Follow designated bathing zones — no swimming beyond barricades</li>
-      <li class="t" data-k="n3">Keep children close; use the child help desk if separated</li>
-      <li class="t" data-k="n4">Carry medicine prescriptions for medical camps</li>
-      <li class="t" data-k="n5">Report suspicious objects immediately to volunteers or police</li>
-    </ul>
-  </div>
-</div>
-
-<!-- ===== GHATS ===== -->
-<!-- ===== ABOUT ===== -->
-<div id="sec-about" class="sec">
-  <div class="sh"><div class="st">ℹ️ About Godavari Pushkaralu 2027</div></div>
-
-  <!-- Festival Overview Card -->
-  <div style="background:var(--card);border-radius:var(--r);padding:18px;margin-bottom:14px;border-left:4px solid var(--saffron)">
-    <div style="font-size:16px;font-weight:700;color:var(--saffron);margin-bottom:8px">🪔 What is Godavari Pushkaralu?</div>
-    <p style="font-size:14px;color:var(--t2);line-height:1.7;margin:0">Godavari Pushkaralu is one of South India's grandest religious festivals, celebrated once every 12 years when Jupiter (Brihaspati) transits into the zodiac sign Simha (Leo). Millions of devotees gather on the banks of the sacred Godavari River at Rajahmundry (Rajamahendravaram) to take a holy dip, believing it confers the merit of bathing in 12 sacred rivers over 12 years. The 2027 edition is expected to host <strong>2–3 crore devotees</strong>, making it comparable to the Maha Kumbh Mela.</p>
-  </div>
-
-  <!-- Key Dates -->
-  <div style="background:var(--card);border-radius:var(--r);padding:18px;margin-bottom:14px">
-    <div style="font-size:15px;font-weight:700;color:var(--t1);margin-bottom:12px">📅 Key Dates — 2027</div>
-    <div style="display:grid;gap:10px">
-      <div style="display:flex;align-items:center;gap:12px;padding:10px;background:var(--bg);border-radius:8px;border-left:3px solid var(--ok)">
-        <div style="font-size:22px">🌊</div>
-        <div>
-          <div style="font-weight:700;color:var(--ok);font-size:14px">June 26, 2027 — Maha Pushkaram (First Day)</div>
-          <div style="font-size:12px;color:var(--t3)">Most sacred day — the biggest crowd expected. Arrive early.</div>
-        </div>
-      </div>
-      <div style="display:flex;align-items:center;gap:12px;padding:10px;background:var(--bg);border-radius:8px;border-left:3px solid var(--info)">
-        <div style="font-size:22px">🕯️</div>
-        <div>
-          <div style="font-weight:700;color:var(--info);font-size:14px">June 26 – July 7, 2027 — 12 Sacred Days</div>
-          <div style="font-size:12px;color:var(--t3)">Each day dedicated to a different auspicious bathing muhurtham.</div>
-        </div>
-      </div>
-      <div style="display:flex;align-items:center;gap:12px;padding:10px;background:var(--bg);border-radius:8px;border-left:3px solid var(--saffron)">
-        <div style="font-size:22px">🙏</div>
-        <div>
-          <div style="font-weight:700;color:var(--saffron);font-size:14px">July 7, 2027 — Antima Pushkaram (Last Day)</div>
-          <div style="font-size:12px;color:var(--t3)">Second most sacred day — the closing ceremony of the festival.</div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Significance -->
-  <div style="background:var(--card);border-radius:var(--r);padding:18px;margin-bottom:14px">
-    <div style="font-size:15px;font-weight:700;color:var(--t1);margin-bottom:12px">✨ Significance</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-      <div style="padding:10px;background:var(--bg);border-radius:8px;text-align:center">
-        <div style="font-size:24px;margin-bottom:4px">12</div>
-        <div style="font-size:11px;color:var(--t3)">Years between festivals</div>
-      </div>
-      <div style="padding:10px;background:var(--bg);border-radius:8px;text-align:center">
-        <div style="font-size:24px;margin-bottom:4px">3Cr+</div>
-        <div style="font-size:11px;color:var(--t3)">Expected devotees</div>
-      </div>
-      <div style="padding:10px;background:var(--bg);border-radius:8px;text-align:center">
-        <div style="font-size:24px;margin-bottom:4px">15</div>
-        <div style="font-size:11px;color:var(--t3)">Official bathing ghats</div>
-      </div>
-      <div style="padding:10px;background:var(--bg);border-radius:8px;text-align:center">
-        <div style="font-size:24px;margin-bottom:4px">12</div>
-        <div style="font-size:11px;color:var(--t3)">Sacred bathing days</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Government Preparations -->
-  <div style="background:var(--card);border-radius:var(--r);padding:18px;margin-bottom:14px">
-    <div style="font-size:15px;font-weight:700;color:var(--t1);margin-bottom:12px">🏛️ Government Preparations</div>
-    <div style="display:grid;gap:8px;font-size:13px;color:var(--t2)">
-      <div style="display:flex;gap:8px;align-items:flex-start"><span>🏗️</span><span><strong>Akhanda Godavari Tourism Project</strong> — comprehensive development covering Havelock Bridge, Pushkar Ghat, Bridgelanka beautification, Kovvur Goshpadakshetram revamp, and Kadiyam Nurseries.</span></div>
-      <div style="display:flex;gap:8px;align-items:flex-start"><span>🛖</span><span><strong>Tent Cities & Homestays</strong> — 21 major pilgrimage centres across the state will have tent cities for 2–3 day stays. Traditional manduva logili huts to be leased for rural tourism.</span></div>
-      <div style="display:flex;gap:8px;align-items:flex-start"><span>🤖</span><span><strong>AI-Powered Security</strong> — CCTV surveillance with AI crowd-counting and real-time density monitoring across all ghats.</span></div>
-      <div style="display:flex;gap:8px;align-items:flex-start"><span>🚌</span><span><strong>Transport Upgrades</strong> — Special APSRTC buses, 311 trains listed through Rajahmundry, and dedicated pilgrim transport corridors.</span></div>
-      <div style="display:flex;gap:8px;align-items:flex-start"><span>🏥</span><span><strong>Medical Infrastructure</strong> — Medical camps at every ghat, emergency corridors, and 108 ambulance priority routing.</span></div>
-    </div>
-  </div>
-
-  <!-- Location -->
-  <div style="background:var(--card);border-radius:var(--r);padding:18px;margin-bottom:14px">
-    <div style="font-size:15px;font-weight:700;color:var(--t1);margin-bottom:12px">📍 Location & Getting There</div>
-    <div style="font-size:13px;color:var(--t2);line-height:1.6">
-      <p style="margin:0 0 8px">The festival is centred at <strong>Rajahmundry (Rajamahendravaram)</strong>, East Godavari District, Andhra Pradesh — on both banks of the sacred Godavari River.</p>
-      <div style="display:flex;gap:8px;margin-bottom:6px;align-items:center"><span>✈️</span><span><strong>By Air:</strong> Rajahmundry Airport (RJA) — direct flights from Hyderabad, Chennai, Bengaluru</span></div>
-      <div style="display:flex;gap:8px;margin-bottom:6px;align-items:center"><span>🚂</span><span><strong>By Train:</strong> Rajahmundry Railway Station (RJY) — 311 trains listed, including Pushkaralu Specials</span></div>
-      <div style="display:flex;gap:8px;align-items:center"><span>🚌</span><span><strong>By Road:</strong> NH-16 (Kolkata–Chennai Highway) — APSRTC special buses from all major AP/Telangana cities</span></div>
-    </div>
-  </div>
-
-  <!-- Official Links -->
-  <div style="background:var(--card);border-radius:var(--r);padding:18px">
-    <div style="font-size:15px;font-weight:700;color:var(--t1);margin-bottom:12px">🔗 Official Resources</div>
-    <div style="display:grid;gap:8px">
-      <a href="https://eastgodavari.ap.gov.in/ghats/" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--bg);border-radius:8px;text-decoration:none;color:var(--t1);font-size:13px">
-        <span style="font-size:18px">🌊</span>
-        <div><div style="font-weight:600">Official Ghats Details</div><div style="font-size:11px;color:var(--t3)">eastgodavari.ap.gov.in</div></div>
-      </a>
-      <a href="https://eastgodavari.ap.gov.in/Hotels" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--bg);border-radius:8px;text-decoration:none;color:var(--t1);font-size:13px">
-        <span style="font-size:18px">🏨</span>
-        <div><div style="font-weight:600">Hotels List</div><div style="font-size:11px;color:var(--t3)">East Godavari District — Official Accommodation</div></div>
-      </a>
-      <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--bg);border-radius:8px;font-size:13px;color:var(--t2)">
-        <span style="font-size:18px">📞</span>
-        <div><div style="font-weight:600">Helpline: 1800-425-0066</div><div style="font-size:11px;color:var(--t3)">Toll-free · 24×7 during festival</div></div>
-      </div>
-      <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--bg);border-radius:8px;font-size:13px;color:var(--t2)">
-        <span style="font-size:18px">📧</span>
-        <div><div style="font-weight:600">godavaripushkaralu2027@gmail.com</div><div style="font-size:11px;color:var(--t3)">Official email contact</div></div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ===== TOURISM (sub-section inside About) ===== -->
-  <div style="margin-top:18px">
-    <div style="font-size:15px;font-weight:700;color:var(--t1);margin-bottom:12px;padding-top:14px;border-top:var(--border)">🌿 Tourism & Attractions</div>
-    <div style="font-size:13px;color:var(--t3);margin-bottom:12px">Explore the beautiful places around Rajahmundry & East Godavari during Pushkaralu 2027</div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
-      <button class="chip on" onclick="fTourism('all',this)">All</button>
-      <button class="chip" onclick="fTourism('Nature',this)">🌿 Nature</button>
-      <button class="chip" onclick="fTourism('Heritage',this)">🏛️ Heritage</button>
-      <button class="chip" onclick="fTourism('Museum',this)">🎨 Museum</button>
-      <button class="chip" onclick="fTourism('Eco-Tourism',this)">🌲 Eco</button>
-      <button class="chip" onclick="fTourism('Cultural',this)">🎭 Cultural</button>
-    </div>
-    <div id="tourism-list" style="display:grid;gap:12px"></div>
-  </div>
-
-  <!-- ===== POOJA (sub-section inside About, last) ===== -->
-  <div style="margin-top:18px">
-    <div style="font-size:15px;font-weight:700;color:var(--saffron);margin-bottom:12px;padding-top:14px;border-top:var(--border)">🪔 Poojas & Rituals</div>
-    <div style="background:var(--card);border-radius:var(--r);padding:11px 14px;margin-bottom:14px;font-size:13px;color:var(--t2);border-left:4px solid var(--saffron)">
-      🙏 These sacred rituals are performed on the banks of the Godavari River during the 12 auspicious days of Pushkaralu. Priests (purohits) are available at all major ghats.
-    </div>
-    <div id="pooja-list" style="display:grid;gap:14px"></div>
-  </div>
-</div>
-
-<div id="sec-ghats" class="sec">
-  <div class="sh">
-    <div class="st">🌊 <span class="t" data-k="ghats_title">Live Ghat Status</span></div>
-    <button class="chip" onclick="loadGhats()">↻</button>
-  </div>
-  <div class="filter-row">
-    <button class="chip on" onclick="fGhats('all',this)" data-k="all">All</button>
-    <button class="chip" onclick="fGhats('low',this)">🟢 <span class="t" data-k="low_crowd">Less Crowded</span></button>
-    <button class="chip" onclick="fGhats('medium',this)">🟡 <span class="t" data-k="med_crowd">Moderate</span></button>
-    <button class="chip" onclick="fGhats('high',this)">🔴 <span class="t" data-k="hi_crowd">Very Crowded</span></button>
-  </div>
-  <div id="ghats-list" class="ghat-grid"></div>
-</div>
-
-<!-- ===== FACILITIES (full page) ===== -->
-<div id="sec-fac" class="sec">
-  <div class="sh">
-    <div class="st">🏥 <span class="t" data-k="fac_title">All Facilities & Services</span></div>
-    <button class="chip" onclick="loadFac()">↻</button>
-  </div>
-  <!-- Ghat scope selector -->
-  <div style="background:var(--card);border:var(--border);border-radius:var(--r);padding:11px 14px;margin-bottom:12px;box-shadow:var(--sh);display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-    <span style="font-size:12px;font-weight:700;color:var(--t2);white-space:nowrap">🌊 Filter by Ghat:</span>
-    <select id="fac-ghat-sel" onchange="onFacGhatChange(this.value)" style="flex:1;min-width:0;border:1.5px solid #D0D5DD;border-radius:6px;padding:7px 10px;font-size:13px;font-family:'DM Sans',sans-serif;background:white;color:#1A1F2E">
-      <option value="">All Ghats</option>
-    </select>
-    <span style="font-size:11px;color:var(--t3)" id="fac-ghat-note">Showing all facilities</span>
-  </div>
-  <div class="filter-row">
-    <button class="chip on" onclick="fFac('all',this)">All</button>
-    <button class="chip" onclick="fFac('medical_camp',this)">🏥 <span class="t" data-k="medical">Medical</span></button>
-    <button class="chip" onclick="fFac('toilet',this)">🚻 <span class="t" data-k="toilet">Toilet</span></button>
-    <button class="chip" onclick="fFac('food_stall',this)">🍽️ <span class="t" data-k="food">Food</span></button>
-    <button class="chip" onclick="fFac('parking',this)">🅿️ <span class="t" data-k="parking">Parking</span></button>
-    <button class="chip" onclick="fFac('enquiry_counter',this)">❓ <span class="t" data-k="enquiry">Enquiry</span></button>
-    <button class="chip" onclick="fFac('hotel',this)">🏨 <span class="t" data-k="hotel">Hotel</span></button>
-  </div>
-  <!-- Hotel star filter (only shows when hotel type is selected) -->
-  <div id="star-filter-row" style="display:none;gap:8px;margin-bottom:10px;flex-wrap:wrap;align-items:center">
-    <span style="font-size:12px;font-weight:600;color:var(--t2)">⭐ Stars:</span>
-    <button class="chip on" onclick="fStars(null,this)">All</button>
-    <button class="chip" onclick="fStars(3,this)">⭐⭐⭐</button>
-    <button class="chip" onclick="fStars(2,this)">⭐⭐</button>
-    <button class="chip" onclick="fStars(1,this)">⭐</button>
-    <button class="chip" onclick="fStars(0,this)">Unrated</button>
-  </div>
-  <div id="fac-full" class="fac-list"></div>
-
-  <!-- Hotels & Accommodation (sub-section within Facilities) -->
-  <div id="fac-hotels-sub" style="margin-top:20px;display:none">
-    <div style="font-size:15px;font-weight:700;color:var(--t1);margin-bottom:10px;padding-top:10px;border-top:var(--border)">🏨 Hotels & Accommodation</div>
-    <div style="background:var(--info-bg);border-radius:var(--r);padding:10px 14px;margin-bottom:12px;font-size:13px;color:var(--info)">
-      ℹ️ List is indicative. More hotels will be added closer to the festival. <a href="https://godavaripushkaralu.co.in/hotels/" target="_blank" style="color:var(--info);text-decoration:underline">Official Booking Page →</a>
-    </div>
-    <div id="hotels-list" style="display:grid;gap:10px"></div>
-  </div>
-</div>
-
-<!-- ===== TRANSPORT ===== -->
-<div id="sec-transport" class="sec">
-  <div class="sh">
-    <div class="st">🚌 <span class="t" data-k="trans_title">Transport Routes</span></div>
-    <button class="chip" onclick="loadTrans()">↻</button>
-  </div>
-  <div class="filter-row">
-    <button class="chip on" onclick="fTrans('all',this)">All</button>
-    <button class="chip" onclick="fTrans('bus',this)">🚌 Bus</button>
-    <button class="chip" onclick="fTrans('train',this)">🚂 All Trains</button>
-    <button class="chip" onclick="fTrans('special',this)">✨ Special</button>
-    <button class="chip" onclick="fTrans('originate',this)">🟢 Starts at RJY</button>
-    <button class="chip" onclick="fTrans('terminate',this)">🔴 Ends at RJY</button>
-  </div>
-  <div style="padding:8px 0 4px">
-    <input id="trans-search" class="fc-input" type="search" placeholder="🔍 Search train name or number…"
-      oninput="renderTrans()" style="width:100%;font-size:13px;padding:8px 10px">
-  </div>
-  <div id="trans-count" style="font-size:12px;color:var(--t3);padding:2px 0 6px"></div>
-  <div id="trans-list"></div>
-</div>
-
-<!-- ===== HOTELS ===== -->
-<!-- Hotels moved into Facilities section -->
-
-<!-- Hospitals moved into Emergency Contacts section -->
-
-<!-- Tourism moved into About section -->
-
-<!-- Pooja moved into About section -->
-
-<!-- ===== REPORT ===== -->
-<div id="sec-report" class="sec">
-  <div class="form-wrap">
-    <div class="sh"><div class="st">📋 <span class="t" data-k="report_title">Report an Issue</span></div></div>
-    <div class="form-box">
-      <div class="form-head">
-        <h2 class="t" data-k="report_h2">📝 Submit Issue Report</h2>
-        <p class="t" data-k="report_sub">Your report goes directly to on-ground volunteers · Response within 10 minutes</p>
-      </div>
-      <div class="form-body">
-        <div class="alert a-ok" id="r-ok">✅ <span class="t" data-k="r_ok">Issue reported! Volunteers have been notified.</span></div>
-        <div class="alert a-err" id="r-err">❌ <span class="t" data-k="r_err">Failed to submit. Please try again or call 1800-425-8877.</span></div>
-        <div class="fg">
-          <label class="fl t" data-k="your_name">Your Name (Optional)</label>
-          <input class="fc-input" type="text" id="r-name" placeholder="e.g. Rama Rao" autocomplete="name">
-        </div>
-        <div class="fg">
-          <label class="fl t" data-k="category">Issue Category</label>
-          <select class="fc-input" id="r-cat">
-            <option value="safety">⚠️ Safety Hazard</option>
-            <option value="medical">🏥 Medical Emergency</option>
-            <option value="crowd">👥 Crowd Congestion</option>
-            <option value="facility">🚻 Facility Problem</option>
-            <option value="general">📌 General Issue</option>
-          </select>
-        </div>
-        <div class="fg">
-          <label class="fl t" data-k="description">Description</label>
-          <textarea class="fc-input" id="r-desc" placeholder="Describe the issue clearly..."></textarea>
-        </div>
-        <div class="fg">
-          <label class="fl">📍 <span class="t" data-k="location">Location</span></label>
-          <div class="loc-row">
-            <div class="loc-stat" id="r-loc-box"><span>📍</span><span id="r-loc-txt" class="t" data-k="loc_tap">Tap Detect to auto-detect</span></div>
-            <button class="btn-detect" onclick="getRepLoc()" id="t-detect">Detect</button>
-          </div>
-          <input type="hidden" id="r-lat" value="16.9857">
-          <input type="hidden" id="r-lon" value="81.7821">
-        </div>
-        <div class="fg">
-          <label class="fl">📸 <span class="t" data-k="photo">Attach Photo (Optional)</span></label>
-          <div class="file-drop" id="file-drop">
-            <input type="file" id="r-img" accept="image/*" onchange="handleImg(this)">
-            <div style="font-size:2rem;margin-bottom:6px">📷</div>
-            <div style="font-size:13px;color:var(--t3)" class="t" data-k="tap_photo">Tap or drag to select photo</div>
-            <div style="font-size:11px;color:var(--t3);margin-top:3px">JPG, PNG · max 5MB</div>
-          </div>
-          <div id="pv-wrap">
-            <img id="pv-img" src="" alt="">
-            <button onclick="clearImg()" style="background:var(--danger-bg);color:var(--danger);border:none;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:12px;margin-left:8px">✕</button>
-          </div>
-        </div>
-        <button class="sub-btn" id="sub-btn" onclick="submitReport()">
-          📤 <span class="t" data-k="submit">Submit Report to Volunteers</span>
-        </button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- ===== SOS ===== -->
-<div id="sec-sos" class="sec">
-  <div class="sos-wrap">
-    <div class="sh"><div class="st">🆘 <span class="t" data-k="sos_title">Emergency SOS</span></div></div>
-    <div class="sos-info-grid">
-      <div class="sic"><div style="font-size:1.8rem;margin-bottom:6px">⚡</div><div style="font-weight:700;font-size:13px;margin-bottom:3px" class="t" data-k="instant">Instant Response</div><div style="font-size:11px;color:var(--t3)" class="t" data-k="instant_d">Nearest volunteer alerted in seconds</div></div>
-      <div class="sic"><div style="font-size:1.8rem;margin-bottom:6px">📍</div><div style="font-weight:700;font-size:13px;margin-bottom:3px" class="t" data-k="gps_sent">GPS Location Sent</div><div style="font-size:11px;color:var(--t3)" class="t" data-k="gps_d">Your exact location shared automatically</div></div>
-    </div>
-    <button class="sos-big-btn" onclick="triggerSOS()">🆘 <span class="t" data-k="send_sos">SEND SOS EMERGENCY ALERT</span></button>
-    <div class="alert a-ok" id="sos-ok">✅ <span class="t" data-k="sos_ok">SOS sent! A volunteer has been dispatched. Stay where you are.</span></div>
-    <div class="alert a-err" id="sos-err">❌ <span class="t" data-k="sos_err">SOS failed. Call 1800-425-8877 immediately!</span></div>
-
-    <!-- Task 6: Nearest Services Card — injected by loadLocationContext() -->
-    <div id="loc-ctx-wrap"></div>
-
-    <div class="sos-form-box">
-      <div style="font-family:'DM Serif Display',serif;font-size:.95rem;color:var(--navy);margin-bottom:14px;padding-left:10px;border-left:3px solid var(--saffron)" class="t" data-k="sos_details">Your Details (Optional but Helpful)</div>
-      <div class="fg">
-        <label class="fl t" data-k="your_name">Your Name</label>
-        <input class="fc-input" type="text" id="sos-name" placeholder="e.g. Venkata Rao">
-      </div>
-      <div class="fg">
-        <label class="fl t" data-k="phone">Phone Number</label>
-        <input class="fc-input" type="tel" id="sos-phone" placeholder="e.g. 9848012345" autocomplete="tel">
-      </div>
-      <div class="loc-stat" id="sos-loc-box" style="margin-bottom:10px"><span>📍</span><span id="sos-loc-txt" class="t" data-k="sos_loc_auto">Location auto-detected when SOS pressed</span></div>
-      <button class="btn-detect" onclick="detectSOSLoc()">📍 <span class="t" data-k="pre_detect">Pre-detect My Location</span></button>
-    </div>
-    <div class="notice-box" style="margin-top:16px;background:var(--danger-bg);border-color:rgba(192,57,43,.2);border-left-color:var(--danger)">
-      <div class="notice-title t" style="color:var(--danger)" data-k="sos_warn">⚠️ Use SOS Only for Genuine Emergencies</div>
-      <p class="t" style="font-size:13px;color:var(--t2)" data-k="sos_warn_d">False alarms misuse volunteer resources. For non-emergency issues, use the Report Issue section.</p>
-    </div>
-  </div>
-</div>
-
-<!-- ===== LOST & FOUND (View Only) ===== -->
-<div id="sec-lost" class="sec">
-  <div class="sh">
-    <div class="st">🔍 Lost &amp; Found — Missing Persons Registry</div>
-    <button class="chip" onclick="loadLostUser()">↻ Refresh</button>
-  </div>
-  <!-- Info banner — contact help desk to report missing persons -->
-  <div style="background:#FFF9EC;border:1px solid #F59E0B;border-left:4px solid #F59E0B;border-radius:var(--r);padding:13px 15px;margin-bottom:16px;font-size:13px;color:#92400E">
-    📞 To report a missing person, please contact the <strong>Help Desk: 0883-2434400</strong> or approach any volunteer wearing an orange badge.
-  </div>
-  <!-- Search bar -->
-  <div style="margin-bottom:14px">
-    <input type="text" id="lost-search-user" placeholder="🔍 Search by name..." oninput="renderLostUser()" style="width:100%;border:1.5px solid #D0D5DD;border-radius:6px;padding:10px 14px;font-size:14px;font-family:'DM Sans',sans-serif;color:#1A1F2E;outline:none">
-  </div>
-  <!-- Filter chips -->
-  <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
-    <button class="chip on" id="ulf-all" onclick="setUserLostFilter('all',this)">All</button>
-    <button class="chip" id="ulf-missing" onclick="setUserLostFilter('missing',this)">🔴 Missing</button>
-    <button class="chip" id="ulf-found" onclick="setUserLostFilter('found',this)">✅ Found</button>
-  </div>
-  <div id="user-lost-list"><div class="empty"><div class="empty-ico">⏳</div><p>Loading...</p></div></div>
-</div>
-
-<!-- ===== EMERGENCY CONTACTS ===== -->
-<div id="sec-emergency" class="sec">
-  <div class="sh">
-    <div class="st">🚨 Emergency Services — Rajahmundry &amp; East Godavari</div>
-    <button class="chip" onclick="loadEmergencyServices()">↻ Refresh</button>
-  </div>
-
-  <!-- Quick-dial helplines — always visible, no fetch needed -->
-  <div style="background:var(--danger-bg);border:1px solid rgba(192,57,43,.18);border-left:4px solid var(--danger);border-radius:var(--r2);padding:16px 18px;margin-bottom:20px">
-    <div style="font-weight:700;font-size:13px;color:var(--danger);margin-bottom:12px;letter-spacing:.3px">⚡ One-Tap Emergency Calls</div>
-    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px">
-      <a href="tel:108" aria-label="Emergency call: Ambulance 108" style="display:flex;align-items:center;gap:10px;background:var(--ok);color:white;padding:13px 16px;border-radius:var(--r);text-decoration:none;font-weight:700;font-size:14px;box-shadow:0 2px 8px rgba(11,107,48,.3)">
-        <span style="font-size:1.5rem">🚑</span><div><div>Ambulance</div><div style="font-family:'Source Code Pro',monospace;font-size:1.1rem">108</div></div>
-      </a>
-      <a href="tel:100" aria-label="Emergency call: Police 100" style="display:flex;align-items:center;gap:10px;background:var(--navy);color:white;padding:13px 16px;border-radius:var(--r);text-decoration:none;font-weight:700;font-size:14px;box-shadow:0 2px 8px rgba(11,46,110,.3)">
-        <span style="font-size:1.5rem">👮</span><div><div>Police</div><div style="font-family:'Source Code Pro',monospace;font-size:1.1rem">100</div></div>
-      </a>
-      <a href="tel:101" aria-label="Emergency call: Fire 101" style="display:flex;align-items:center;gap:10px;background:#B91C1C;color:white;padding:13px 16px;border-radius:var(--r);text-decoration:none;font-weight:700;font-size:14px;box-shadow:0 2px 8px rgba(185,28,28,.3)">
-        <span style="font-size:1.5rem">🔥</span><div><div>Fire</div><div style="font-family:'Source Code Pro',monospace;font-size:1.1rem">101</div></div>
-      </a>
-      <a href="tel:112" aria-label="Emergency call: National Emergency 112" style="display:flex;align-items:center;gap:10px;background:#7C3AED;color:white;padding:13px 16px;border-radius:var(--r);text-decoration:none;font-weight:700;font-size:14px;box-shadow:0 2px 8px rgba(124,58,237,.3)">
-        <span style="font-size:1.5rem">🆘</span><div><div>National Emergency</div><div style="font-family:'Source Code Pro',monospace;font-size:1.1rem">112</div></div>
-      </a>
-      <a href="tel:18004250066" aria-label="Emergency call: Pushkaralu Festival Helpline 1800-425-0066" style="display:flex;align-items:center;gap:10px;background:var(--saffron);color:white;padding:13px 16px;border-radius:var(--r);text-decoration:none;font-weight:700;font-size:13px;grid-column:1/-1;box-shadow:0 2px 8px rgba(232,96,10,.3)">
-        <span style="font-size:1.5rem">📞</span><div><div>Pushkaralu Festival Helpline (Toll Free)</div><div style="font-family:'Source Code Pro',monospace;font-size:1rem">1800-425-0066</div></div>
-      </a>
-    </div>
-  </div>
-
-  <!-- Filter tabs -->
-  <div class="filter-row" id="em-filter-row">
-    <button class="chip on" onclick="filterEmSvc('all',this)">All</button>
-    <button class="chip" onclick="filterEmSvc('police',this)">🚔 Police</button>
-    <button class="chip" onclick="filterEmSvc('hospital',this)">🏥 Hospital</button>
-    <button class="chip" onclick="filterEmSvc('fire',this)">🔥 Fire</button>
-    <button class="chip" onclick="filterEmSvc('administration',this)">🏛️ Admin</button>
-    <button class="chip" onclick="showEmTab('police-stations',this)">📋 Police Stations List</button>
-    <button class="chip" onclick="showEmTab('hospitals-list',this)">🏥 Hospital Directory</button>
-  </div>
-
-  <!-- Service cards rendered by JS -->
-  <div id="em-svc-list">
-    <div class="empty"><div class="empty-ico">⏳</div><p>Loading emergency services...</p></div>
-  </div>
-
-  <!-- Police Stations Directory (hidden by default) -->
-  <div id="em-police-stations" style="display:none;margin-top:4px">
-    <div style="font-size:15px;font-weight:700;color:var(--navy);margin-bottom:10px">🚔 East Godavari Police Stations</div>
-    <input id="police-search" class="fc-input" type="search" placeholder="🔍 Search station or number…"
-      oninput="renderPoliceStations()" style="width:100%;font-size:13px;padding:8px 10px;margin-bottom:10px">
-    <div id="police-count" style="font-size:12px;color:var(--t3);margin-bottom:8px"></div>
-    <div id="police-list" style="display:grid;gap:6px"></div>
-  </div>
-
-  <!-- Hospital Directory (hidden by default) -->
-  <div id="em-hospitals-list" style="display:none;margin-top:4px">
-    <div style="font-size:15px;font-weight:700;color:var(--danger);margin-bottom:10px">🏥 Area Hospitals & CHC Directory</div>
-    <input id="hosp-search" class="fc-input" type="search" placeholder="🔍 Search hospital or doctor name…"
-      oninput="renderHospitals()" style="width:100%;font-size:13px;padding:8px 10px;margin-bottom:10px">
-    <div id="hosp-count" style="font-size:12px;color:var(--t3);margin-bottom:8px"></div>
-    <div id="hosp-list" style="display:grid;gap:8px"></div>
-  </div>
-</div>
-
-
-<!-- ===== TOURGO EXPLORER ===== -->
-<div id="sec-tourgo" class="sec">
-
-  <!-- TourGo Header — matches ScraperBot's design language -->
-  <div id="tg-header" style="
-    background:linear-gradient(135deg,#050505 0%,#0f0f1a 60%,#12122a 100%);
-    border-radius:16px;margin-bottom:20px;padding:32px 28px 26px;
-    position:relative;overflow:hidden;box-shadow:0 8px 32px rgba(99,102,241,.18);">
-    <!-- Atmospheric glow blobs (pure CSS, no JS) -->
-    <div style="position:absolute;top:-30%;left:-10%;width:55%;height:55%;
-      border-radius:50%;background:rgba(99,102,241,.08);filter:blur(80px);pointer-events:none"></div>
-    <div style="position:absolute;top:30%;right:-10%;width:45%;height:45%;
-      border-radius:50%;background:rgba(99,102,241,.05);filter:blur(60px);pointer-events:none"></div>
-
-    <div style="position:relative;z-index:1;display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:16px;">
-      <div>
-        <!-- Globe icon + brand — identical to ScraperBot header -->
-        <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">
-          <div style="width:44px;height:44px;background:#6366F1;border-radius:12px;
-            display:flex;align-items:center;justify-content:center;
-            box-shadow:0 4px 16px rgba(99,102,241,.4);font-size:20px;">🌐</div>
-          <div>
-            <div style="font-family:'DM Serif Display',Georgia,serif;font-style:italic;
-              font-size:1.6rem;color:#FDFCFB;line-height:1;letter-spacing:-.01em;">Tour Go</div>
-            <div style="font-family:'Source Code Pro',monospace;font-size:9px;
-              letter-spacing:.3em;color:rgba(253,252,251,.35);text-transform:uppercase;margin-top:4px;">
-              Global Discovery Engine</div>
-          </div>
-        </div>
-        <p style="font-size:12px;color:rgba(253,252,251,.5);max-width:420px;line-height:1.65;margin:0;">
-          AI-powered place discovery near your location — famous landmarks &amp; hidden gems,
-          surfaced by Groq intelligence.
-        </p>
-      </div>
-      <!-- Status indicator -->
-      <div id="tg-status-dot" style="display:flex;align-items:center;gap:6px;
-        background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);
-        border-radius:20px;padding:6px 14px;font-family:'Source Code Pro',monospace;
-        font-size:10px;color:rgba(253,252,251,.45);text-transform:uppercase;letter-spacing:.15em;white-space:nowrap;">
-        <span style="width:7px;height:7px;border-radius:50%;background:#22c55e;
-          animation:tg-pulse 2s ease infinite;"></span>
-        System Operational
-      </div>
-    </div>
-  </div>
-
-  <!-- Filter chips — Famous / Underrated / All -->
-  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:16px;">
-    <div style="display:flex;gap:6px;" id="tg-filter-row">
-      <button class="chip on" onclick="tgFilter('all',this)">All Places</button>
-      <button class="chip" onclick="tgFilter('Famous',this)">⭐ Famous</button>
-      <button class="chip" onclick="tgFilter('Underrated',this)">💎 Hidden Gems</button>
-    </div>
-    <button class="chip" onclick="loadTourGo(true)" id="tg-refresh-btn" style="margin-left:auto;">↻ Refresh</button>
-  </div>
-
-  <!-- Stats bar (shown after load) -->
-  <div id="tg-stats" style="background:var(--card);border:var(--border);
-    border-radius:var(--r);padding:12px 16px;margin-bottom:16px;
-    display:none;align-items:center;gap:16px;flex-wrap:wrap;box-shadow:var(--sh);">
-    <span style="font-family:'Source Code Pro',monospace;font-size:10px;color:#6366F1;
-      text-transform:uppercase;letter-spacing:.1em;">📡 Intelligence Report</span>
-    <span id="tg-area-label" style="font-size:13px;font-weight:700;color:var(--navy);flex:1;"></span>
-    <span id="tg-count-all"  class="fm">0 total</span>
-    <span id="tg-count-fam"  class="fm">⭐ 0 famous</span>
-    <span id="tg-count-hid"  class="fm">💎 0 hidden</span>
-  </div>
-
-  <!-- Place cards grid -->
-  <div id="tg-list"></div>
-
-</div><!-- /sec-tourgo -->
-
-<footer class="site-footer">
-  <span class="t" data-k="footer">Godavari Pushkaralu 2027 · Pilgrim Information Portal · Government of Andhra Pradesh · District Administration, East Godavari</span><br>
-  <span style="margin-top:4px;display:block">Emergency: 1800-425-8877 &nbsp;|&nbsp; Police: 100 &nbsp;|&nbsp; Ambulance: 108</span>
-</footer>
-<div class="toast-stack" id="ts"></div>
-<script>
-// ═══ TRANSLATIONS ═══════════════════════════════════════════
-const LANG={
-en:{
-  nav_home:'Home',nav_ghats:'Ghats & Schedule',nav_fac:'Facilities',nav_trans:'Transport',nav_report:'Report Issue',nav_mine:'My Reports',
-  hero_badge:'Sacred Festival of Godavari River',sacred_days:'Sacred Days',
-  sos_btn:'EMERGENCY SOS',sos_hint:'Press only in emergencies — Police · Medical · Volunteer dispatch',
-  live_status:'Live Festival Status',refresh:'Refresh',
-  s_ghats:'Sacred Ghats',s_vols:'Active Volunteers',s_fac:'Facilities',s_trans:'Transport Routes',
-  helplines:'Emergency Helplines',hl_amb:'Ambulance',hl_pol:'Police',hl_fire:'Fire',hl_push:'Pushkaralu Helpline',hl_ndrf:'NDRF Control',hl_rjy:'RJY Medical Camp',
-  live_ghats:'Live Ghat Status — Rajahmundry & East Godavari',view_all_ghats:'View All 15 Ghats with Schedule',
-  fac_quick:'Facilities Quick Access',
-  notice_title:'⚠️ Important Safety Notice',
-  n1:'Wear ID wristbands provided at entry points',n2:'Follow designated bathing zones — no swimming beyond barricades',n3:'Keep children close; use the child help desk if separated',n4:'Carry medicine prescriptions for medical camps',n5:'Report suspicious objects immediately to volunteers or police',
-  ghats_title:'Live Ghat Status',all:'All',low_crowd:'Less Crowded',med_crowd:'Moderate',hi_crowd:'Very Crowded',
-  fac_title:'All Facilities & Services',medical:'Medical',toilet:'Toilet',food:'Food',parking:'Parking',enquiry:'Enquiry',hotel:'Hotel',
-  trans_title:'Transport Routes',
-  report_title:'Report an Issue',report_h2:'📝 Submit Issue Report',report_sub:'Your report goes directly to on-ground volunteers · Response within 10 minutes',
-  r_ok:'Issue reported! Volunteers have been notified.',r_err:'Failed to submit. Please try again or call 1800-425-8877.',
-  your_name:'Your Name (Optional)',category:'Issue Category',description:'Description',location:'Location',loc_tap:'Tap Detect to auto-detect',detect:'Detect',photo:'Attach Photo (Optional)',tap_photo:'Tap or drag to select photo',submit:'Submit Report to Volunteers',
-  sos_title:'Emergency SOS',send_sos:'SEND SOS EMERGENCY ALERT',instant:'Instant Response',instant_d:'Nearest volunteer alerted in seconds',gps_sent:'GPS Location Sent',gps_d:'Your exact location shared automatically',
-  sos_ok:'SOS sent! A volunteer has been dispatched. Stay where you are.',sos_err:'SOS failed. Call 1800-425-8877 immediately!',
-  sos_details:'Your Details (Optional but Helpful)',phone:'Phone Number',sos_loc_auto:'Location auto-detected when SOS pressed',pre_detect:'Pre-detect My Location',
-  sos_warn:'⚠️ Use SOS Only for Genuine Emergencies',sos_warn_d:'False alarms misuse volunteer resources. Use Report Issue for non-emergencies.',
-  mine_title:'My Submitted Reports',footer:'Godavari Pushkaralu 2027 · Pilgrim Information Portal · Government of Andhra Pradesh',
-  t_govbar:'🇮🇳 Government of Andhra Pradesh — Official Portal',t_helpbar:'Helpline: 1800-425-8877',t_days:'Days to Pushkaralu',t_vol:'Volunteer',
-  lo_h:'Allow Location Access',lo_p:'For nearest facilities & emergency SOS dispatch',lo_desc:'This portal uses your location to show nearby ghats, toilets, medical camps, and to dispatch the nearest volunteer during emergencies. Your location is never stored.',lo_allow:'📍 Allow Location',lo_skip:'Continue without location',
-  fac_all:'All',fac_toilet:'Toilets',fac_medical:'Medical Camps',fac_parking:'Parking',fac_enquiry:'Enquiry',fac_food:'Food Stalls',fac_hotel:'Hotels',fac_bus:'Bus Stops',fac_petrol:'Petrol Bunks',fac_luggage:'Luggage',
-},
-te:{
-  nav_home:'హోమ్',nav_ghats:'ఘాట్లు & షెడ్యూల్',nav_fac:'సౌకర్యాలు',nav_trans:'రవాణా',nav_report:'సమస్య నివేదించు',nav_mine:'నా నివేదికలు',
-  hero_badge:'గోదావరి నదీ పవిత్ర పండుగ',sacred_days:'పవిత్ర దినాలు',
-  sos_btn:'అత్యవసర SOS',sos_hint:'అత్యవసర పరిస్థితులలో మాత్రమే నొక్కండి',
-  live_status:'లైవ్ పండుగ స్థితి',refresh:'రిఫ్రెష్',
-  s_ghats:'పవిత్ర ఘాట్లు',s_vols:'వాలంటీర్లు',s_fac:'సౌకర్యాలు',s_trans:'రవాణా మార్గాలు',
-  helplines:'అత్యవసర హెల్ప్‌లైన్లు',hl_amb:'అంబులెన్స్',hl_pol:'పోలీసు',hl_fire:'అగ్నిమాపక',hl_push:'పుష్కరాల హెల్ప్‌లైన్',hl_ndrf:'NDRF',hl_rjy:'RJY వైద్య శిబిరం',
-  live_ghats:'లైవ్ ఘాట్ స్థితి',view_all_ghats:'12 ఘాట్లన్నీ చూడండి →',
-  fac_quick:'సౌకర్యాల త్వరిత యాక్సెస్',
-  notice_title:'⚠️ ముఖ్యమైన భద్రతా సూచన',
-  n1:'ప్రవేశ ద్వారాలలో అందించిన ID బ్యాండులు ధరించండి',n2:'నిర్దేశిత స్నాన జోన్లను అనుసరించండి — అడ్డంకుల అవతల ఈదకండి',n3:'పిల్లలను దగ్గర ఉంచుకోండి; వేరుపడితే చైల్డ్ హెల్ప్ డెస్క్ సంప్రదించండి',n4:'వైద్య శిబిరాలకు ప్రిస్క్రిప్షన్లు తీసుకెళ్ళండి',n5:'అనుమానాస్పద వస్తువులను వెంటనే వాలంటీర్లకు లేదా పోలీసులకు నివేదించండి',
-  ghats_title:'లైవ్ ఘాట్ స్థితి',all:'అన్నీ',low_crowd:'తక్కువ రద్దీ',med_crowd:'మితమైన',hi_crowd:'చాలా రద్దీ',
-  fac_title:'అన్ని సౌకర్యాలు & సేవలు',medical:'వైద్య శిబిరం',toilet:'టాయిలెట్',food:'ఆహారం',parking:'పార్కింగ్',enquiry:'విచారణ',hotel:'హోటల్',
-  trans_title:'రవాణా మార్గాలు',
-  report_title:'సమస్య నివేదించు',report_h2:'📝 సమస్య నివేదిక సమర్పించు',report_sub:'మీ నివేదిక నేరుగా వాలంటీర్లకు వెళ్తుంది · 10 నిమిషాలలో స్పందన',
-  r_ok:'సమస్య నివేదించబడింది! వాలంటీర్లకు తెలియజేశాం.',r_err:'సమర్పణ విఫలమైంది. మళ్ళీ ప్రయత్నించండి.',
-  your_name:'మీ పేరు (ఐచ్ఛికం)',category:'సమస్య వర్గం',description:'వివరణ',location:'స్థానం',loc_tap:'గుర్తించడానికి నొక్కండి',detect:'గుర్తించు',photo:'ఫోటో జతచేయి (ఐచ్ఛికం)',tap_photo:'ఫోటో ఎంచుకోవడానికి టాప్ చేయండి',submit:'వాలంటీర్లకు నివేదిక సమర్పించు',
-  sos_title:'అత్యవసర SOS',send_sos:'అత్యవసర SOS హెచ్చరిక పంపు',instant:'తక్షణ స్పందన',instant_d:'సమీప వాలంటీర్‌కు సెకన్లలో హెచ్చరిక',gps_sent:'GPS స్థానం పంపబడింది',gps_d:'మీ ఖచ్చితమైన స్థానం స్వయంచాలకంగా భాగస్వామ్యం',
-  sos_ok:'SOS పంపబడింది! వాలంటీర్ పంపబడ్డారు. మీ స్థానంలో ఉండండి.',sos_err:'SOS విఫలమైంది. 1800-425-8877 కి కాల్ చేయండి!',
-  sos_details:'మీ వివరాలు (ఐచ్ఛికం కానీ సహాయకరం)',phone:'ఫోన్ నంబర్',sos_loc_auto:'SOS నొక్కినప్పుడు స్థానం స్వయంచాలకంగా గుర్తించబడుతుంది',pre_detect:'నా స్థానం ముందే గుర్తించు',
-  sos_warn:'⚠️ నిజమైన అత్యవసర పరిస్థితులలో మాత్రమే SOS వాడండి',sos_warn_d:'తప్పుడు హెచ్చరికలు వాలంటీర్ వనరులను వృథా చేస్తాయి.',
-  mine_title:'నా సమర్పించిన నివేదికలు',footer:'గోదావరి పుష్కరాలు 2027 · ఆంధ్రప్రదేశ్ ప్రభుత్వం',
-  t_govbar:'🇮🇳 ఆంధ్రప్రదేశ్ ప్రభుత్వం — అధికారిక పోర్టల్',t_helpbar:'హెల్ప్‌లైన్: 1800-425-8877',t_days:'పుష్కరాలకు రోజులు',t_vol:'వాలంటీర్',
-  lo_h:'స్థాన యాక్సెస్ అనుమతించండి',lo_p:'సమీప సౌకర్యాలు & SOS కోసం',lo_desc:'ఈ పోర్టల్ సమీప ఘాట్లు, టాయిలెట్లు, వైద్య శిబిరాలు చూపించడానికి మీ స్థానాన్ని ఉపయోగిస్తుంది.',lo_allow:'📍 స్థానం అనుమతించు',lo_skip:'స్థానం లేకుండా కొనసాగించు',
-  fac_all:'అన్నీ',fac_toilet:'టాయిలెట్లు',fac_medical:'వైద్య శిబిరాలు',fac_parking:'పార్కింగ్',fac_enquiry:'విచారణ',fac_food:'ఆహార స్టాల్స్',fac_hotel:'హోటళ్ళు',fac_bus:'బస్ స్టాప్లు',fac_petrol:'పెట్రోల్ బంక్లు',fac_luggage:'లగేజీ',
-},
-hi:{
-  nav_home:'होम',nav_ghats:'घाट & शेड्यूल',nav_fac:'सुविधाएं',nav_trans:'परिवहन',nav_report:'समस्या रिपोर्ट',nav_mine:'मेरी रिपोर्ट',
-  hero_badge:'गोदावरी नदी का पवित्र उत्सव',sacred_days:'पवित्र दिन',
-  sos_btn:'आपातकालीन SOS',sos_hint:'केवल आपात स्थिति में दबाएं — पुलिस · चिकित्सा · स्वयंसेवक',
-  live_status:'लाइव फेस्टिवल स्थिति',refresh:'रिफ्रेश',
-  s_ghats:'पवित्र घाट',s_vols:'सक्रिय स्वयंसेवक',s_fac:'सुविधाएं',s_trans:'परिवहन मार्ग',
-  helplines:'आपातकालीन हेल्पलाइन',hl_amb:'एम्बुलेंस',hl_pol:'पुलिस',hl_fire:'अग्निशमन',hl_push:'पुष्करालु हेल्पलाइन',hl_ndrf:'NDRF कंट्रोल',hl_rjy:'RJY मेडिकल कैंप',
-  live_ghats:'लाइव घाट स्थिति',view_all_ghats:'सभी 12 घाट देखें →',
-  fac_quick:'सुविधाएं त्वरित पहुंच',
-  notice_title:'⚠️ महत्वपूर्ण सुरक्षा सूचना',
-  n1:'प्रवेश द्वारों पर दिए गए ID बैंड पहनें',n2:'निर्धारित स्नान क्षेत्रों का पालन करें',n3:'बच्चों को पास रखें',n4:'चिकित्सा शिविरों के लिए प्रिस्क्रिप्शन ले जाएं',n5:'संदिग्ध वस्तुओं की तुरंत रिपोर्ट करें',
-  ghats_title:'लाइव घाट स्थिति',all:'सभी',low_crowd:'कम भीड़',med_crowd:'मध्यम',hi_crowd:'बहुत भीड़',
-  fac_title:'सभी सुविधाएं और सेवाएं',medical:'चिकित्सा शिविर',toilet:'शौचालय',food:'खाना',parking:'पार्किंग',enquiry:'पूछताछ',hotel:'होटल',
-  trans_title:'परिवहन मार्ग',
-  report_title:'समस्या रिपोर्ट करें',report_h2:'📝 समस्या रिपोर्ट सबमिट करें',report_sub:'आपकी रिपोर्ट सीधे स्वयंसेवकों को जाती है · 10 मिनट में प्रतिक्रिया',
-  r_ok:'समस्या रिपोर्ट हुई! स्वयंसेवकों को सूचित किया गया।',r_err:'सबमिट करने में विफल। फिर से प्रयास करें।',
-  your_name:'आपका नाम (वैकल्पिक)',category:'समस्या श्रेणी',description:'विवरण',location:'स्थान',loc_tap:'Detect बटन दबाएं',detect:'पता लगाएं',photo:'फ़ोटो संलग्न करें (वैकल्पिक)',tap_photo:'फ़ोटो चुनने के लिए टैप करें',submit:'स्वयंसेवकों को रिपोर्ट सबमिट करें',
-  sos_title:'आपातकालीन SOS',send_sos:'SOS आपातकालीन अलर्ट भेजें',instant:'तत्काल प्रतिक्रिया',instant_d:'निकटतम स्वयंसेवक सेकंडों में सतर्क',gps_sent:'GPS स्थान भेजा गया',gps_d:'आपका सटीक स्थान स्वतः साझा किया जाता है',
-  sos_ok:'SOS भेजा गया! स्वयंसेवक भेजा गया। जहाँ हैं वहीं रहें।',sos_err:'SOS विफल। 1800-425-8877 पर कॉल करें!',
-  sos_details:'आपकी जानकारी (वैकल्पिक पर सहायक)',phone:'फ़ोन नंबर',sos_loc_auto:'SOS दबाने पर स्थान स्वतः पता चलेगा',pre_detect:'मेरा स्थान पहले पता लगाएं',
-  sos_warn:'⚠️ SOS केवल वास्तविक आपात स्थिति में उपयोग करें',sos_warn_d:'झूठे अलर्ट स्वयंसेवक संसाधन बर्बाद करते हैं।',
-  mine_title:'मेरी सबमिट की गई रिपोर्ट',footer:'गोदावरी पुष्करालु 2027 · आंध्र प्रदेश सरकार',
-  t_govbar:'🇮🇳 आंध्र प्रदेश सरकार — आधिकारिक पोर्टल',t_helpbar:'हेल्पलाइन: 1800-425-8877',t_days:'पुष्करालु तक दिन',t_vol:'स्वयंसेवक',
-  lo_h:'स्थान अनुमति दें',lo_p:'निकटतम सुविधाओं और SOS के लिए',lo_desc:'यह पोर्टल निकटतम घाट, शौचालय, चिकित्सा शिविर दिखाने के लिए और आपातकाल में स्वयंसेवक भेजने के लिए आपके स्थान का उपयोग करता है।',lo_allow:'📍 स्थान की अनुमति दें',lo_skip:'स्थान के बिना जारी रखें',
-  fac_all:'सभी',fac_toilet:'शौचालय',fac_medical:'चिकित्सा शिविर',fac_parking:'पार्किंग',fac_enquiry:'पूछताछ',fac_food:'खाना',fac_hotel:'होटल',fac_bus:'बस स्टॉप',fac_petrol:'पेट्रोल पंप',fac_luggage:'सामान',
-}};
-
-let lang='en';
-function setLang(l){
-  lang=l;
-  document.querySelectorAll('.lb').forEach(b=>b.classList.remove('on'));
-  document.querySelector(`.lb[onclick="setLang('${l}')"]`).classList.add('on');
-  const T=LANG[l];
-  // update all .t elements
-  document.querySelectorAll('.t[data-k]').forEach(el=>{const k=el.getAttribute('data-k');if(T[k])el.textContent=T[k];});
-  // update specific IDs
-  if(T.t_govbar)document.getElementById('t-govbar').textContent=T.t_govbar;
-  if(T.t_helpbar)document.getElementById('t-helpbar').innerHTML=T.t_helpbar.replace('1800-425-8877','<strong>1800-425-8877</strong>');
-  if(T.t_days)document.getElementById('t-days').textContent=T.t_days;
-  if(T.t_vol)document.getElementById('t-vol').textContent=T.t_vol;
-  // overlay
-  document.getElementById('lo-h').textContent=T.lo_h||'';
-  document.getElementById('lo-p').textContent=T.lo_p||'';
-  document.getElementById('lo-desc').textContent=T.lo_desc||'';
-  document.getElementById('btn-allow').textContent=T.lo_allow||'Allow Location';
-  document.getElementById('btn-skip').textContent=T.lo_skip||'Skip';
-  // rebuild fac buttons with new lang
-  buildFacBtns();
-}
-function tr(k){return(LANG[lang]||LANG.en)[k]||k;}
-
-// ═══ STATE ═══════════════════════════════════════════════════
-let allGhats=[],allFac=[],allTrans=[];
-let gFilter='all',fFilter='all',tFilter='all',homeFacFilter='all';
-let facGhatFilter='';   // ghat_id for facility scope ('' = all ghats)
-let facStarFilter=null; // null = all stars; 0-3 = specific star rating
-let uLat=16.9857,uLon=81.7821,locKnown=false;
-// GPS accuracy in metres — updated every time a fix is obtained
-let uAccuracy = null;
-// AppData — holds hotels, hospitals, tourism, poojas loaded from API
-let appData = {};
-let _appDataLoaded = false, _appDataCallbacks = [];
-async function loadAppData(cb){
-  if(_appDataLoaded){if(cb)cb();return;}
-  _appDataCallbacks.push(cb);
-  if(_appDataCallbacks.length>1)return;
-  try{const d=await(await fetch(`${API_BASE}/get_app_data`)).json();Object.assign(appData,d);}
-  catch(e){console.warn('[AppData] API unavailable');}
-  _appDataLoaded=true;
-  _appDataCallbacks.forEach(fn=>fn&&fn());
-  _appDataCallbacks=[];
-}
-const GPS_OPTS = { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 };
-// Warn threshold: if accuracy > this value (metres), show caution to user
-const GPS_ACCURACY_WARN = 100;
-let myReports=[];
-try{myReports=JSON.parse(localStorage.getItem('pr')||'[]');}catch(e){}
-
-// ═══ COUNTDOWN ═══════════════════════════════════════════════
-(function(){const t=new Date('2027-06-26T00:00:00+05:30');document.getElementById('cd').textContent=Math.max(0,Math.floor((t-Date.now())/86400000));})();
-
-// ═══ LOCATION OVERLAY ════════════════════════════════════════
-function reqLoc(){
-  const b=document.getElementById('btn-allow');
-  b.innerHTML='<span class="spin"></span> Detecting...';b.disabled=true;
-  if(!navigator.geolocation){skipLoc();return;}
-  navigator.geolocation.getCurrentPosition(pos=>{
-    uLat=pos.coords.latitude;uLon=pos.coords.longitude;locKnown=true;
-    uAccuracy=pos.coords.accuracy;
-    console.log('[GPS] Initial fix — lat:', uLat, 'lon:', uLon, 'accuracy:', uAccuracy+'m');
-    document.getElementById('r-lat').value=uLat;document.getElementById('r-lon').value=uLon;
-    const accTag=uAccuracy&&uAccuracy>GPS_ACCURACY_WARN?` ⚠️ ±${Math.round(uAccuracy)}m`:(uAccuracy?` ±${Math.round(uAccuracy)}m`:'');
-    setLocStatus('r-loc-box','r-loc-txt',`✅ ${uLat.toFixed(5)}, ${uLon.toFixed(5)}${accTag}`,'ok');
-    setLocStatus('sos-loc-box','sos-loc-txt',`✅ ${uLat.toFixed(5)}, ${uLon.toFixed(5)}${accTag}`,'ok');
-    document.getElementById('loc-hint').textContent=`📍 ${uLat.toFixed(4)}, ${uLon.toFixed(4)}${accTag}`;
-    closeOverlay();
-    if(allFac.length)renderFacHome(homeFacFilter);
-    _onLocGranted();   // trigger location context if SOS tab is open
-  },()=>closeOverlay(),GPS_OPTS);
-}
-function skipLoc(){closeOverlay();}
-function closeOverlay(){const o=document.getElementById('loc-overlay');o.style.opacity='0';o.style.transition='opacity .3s';setTimeout(()=>o.style.display='none',300);}
-
-// ═══ NAVIGATION ══════════════════════════════════════════════
-// FIX Bug 1 & 2: always render the target section regardless of whether
-// data was already prefetched by loadStats(). Previously the lazy guard
-// `if(!allGhats.length)loadGhats()` meant that if loadStats() had already
-// filled the array the render function was never called for that section.
-// ── HAMBURGER MENU ────────────────────────────────────────────────
-function toggleHam() {
-  const drawer = document.getElementById('ham-drawer');
-  const overlay = document.getElementById('ham-overlay');
-  const btn = document.getElementById('ham-btn');
-  const isOpen = drawer.classList.contains('open');
-  if (isOpen) { closeHam(); } else {
-    drawer.classList.add('open');
-    overlay.classList.add('open');
-    btn.classList.add('open');
-    btn.setAttribute('aria-expanded','true');
-    document.body.style.overflow = 'hidden'; // prevent bg scroll
-  }
-}
-function closeHam() {
-  const drawer = document.getElementById('ham-drawer');
-  const overlay = document.getElementById('ham-overlay');
-  const btn = document.getElementById('ham-btn');
-  drawer.classList.remove('open');
-  overlay.classList.remove('open');
-  btn.classList.remove('open');
-  btn.setAttribute('aria-expanded','false');
-  document.body.style.overflow = '';
-}
-function hamGoSec(id) {
-  // Update active state in drawer
-  document.querySelectorAll('.ham-item').forEach(i => i.classList.remove('ham-active'));
-  const ids = ['home','ghats','fac','transport','report','sos','emergency','lost','tourgo','about'];
-  const idx = ids.indexOf(id);
-  if (idx >= 0) document.querySelectorAll('.ham-item')[idx].classList.add('ham-active');
-  goSec(id);
-  closeHam();
-}
-// Close drawer on Escape key
-document.addEventListener('keydown', e => { if (e.key === 'Escape') closeHam(); });
-
-function goSec(id){
-  document.querySelectorAll('.sec').forEach(s=>s.classList.remove('on'));
-  document.querySelectorAll('.nt').forEach(t=>t.classList.remove('on'));
-  document.getElementById('sec-'+id).classList.add('on');
-  const ids=['home','ghats','fac','transport','report','sos','emergency','lost','about','tourgo'];
-  const i=ids.indexOf(id);if(i>=0)document.querySelectorAll('.nt')[i].classList.add('on');
-
-  // Always load+render the section; if data is already in memory the fetch
-  // is a tiny no-op because we cache results in module-level arrays.
-  if(id==='ghats'){
-    if(allGhats.length) renderGhats(); else loadGhats();
-  }
-  if(id==='fac'){
-    if(allFac.length){ buildFacBtns(); renderFacFull(); } else loadFac();
-  }
-  if(id==='transport'){
-    if(allTrans.length) renderTrans(); else loadTrans();
-  }
-  if(id==='hotels'){ loadAppData(()=>renderHotels()); }
-  if(id==='hospitals'){ loadAppData(()=>renderHospitals()); }
-  if(id==='tourism'){ loadAppData(()=>renderTourism()); }
-  if(id==='pooja'){ loadAppData(()=>renderPoojas()); }
-  if(id==='about'){ loadAppData(()=>{renderTourism();renderPoojas();}); }
-  if(id==='emergency'){ loadAppData(()=>{renderHospitals();renderPoliceStations();}); }
-  if(id==='fac'){ loadAppData(()=>renderHotels()); }
-  if(id==='lost') loadLostUser();
-  if(id==='sos')  loadLocationContext();
-  if(id==='emergency') loadEmergencyServices();
-  if(id==='tourgo') loadTourGo(false);
-  window.scrollTo(0,0);
-}
-
-// ═══ LOCATION CONTEXT (Task 4 + 6) ══════════════════════════
-// Calls the new /location_context endpoint after the user lands on
-// the SOS tab and location is known. Shows nearest police & hospital
-// and ambulance number inline — no long directories.
-let _locCtxLoaded = false;
-async function loadLocationContext(){
-  if(!locKnown) return;               // silently skip if no GPS yet
-  if(_locCtxLoaded) return;           // only fetch once per session
-  try {
-    const r = await fetch(`${API_BASE}/location_context?lat=${uLat}&lon=${uLon}`);
-    if(!r.ok) return;
-    const d = await r.json();
-    _locCtxLoaded = true;
-    renderLocationContext(d);
-  } catch(e) { /* non-critical — SOS still works without it */ }
-}
-
-function renderLocationContext(d){
-  const wrap = document.getElementById('loc-ctx-wrap');
-  if(!wrap) return;
-  const p = d.nearest_police;
-  const h = d.nearest_hospital;
-  const g = d.nearest_ghat;
-  wrap.innerHTML = `
-    <div style="background:var(--card);border:var(--border);border-radius:var(--r2);padding:16px;margin-bottom:16px;box-shadow:var(--sh)">
-      <div style="font-family:'DM Serif Display',serif;font-size:.95rem;color:var(--navy);margin-bottom:12px;padding-left:10px;border-left:3px solid var(--saffron)">
-        📍 Nearest Emergency Services
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-        ${g ? `
-        <div style="background:var(--ok-bg);border:1px solid rgba(11,107,48,.15);border-radius:var(--r);padding:10px;grid-column:1/-1">
-          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ok);margin-bottom:4px">🌊 Nearest Ghat</div>
-          <div style="font-weight:700;font-size:13px;color:var(--navy)">${g.name}</div>
-          <div style="font-size:11px;color:var(--t3)">${g._distance_km} km away · ${g.crowd_level?.toUpperCase()} crowd</div>
-        </div>` : ''}
-        ${p ? `
-        <div style="background:var(--info-bg);border:1px solid rgba(21,88,168,.15);border-radius:var(--r);padding:10px">
-          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--info);margin-bottom:4px">👮 Nearest Police</div>
-          <div style="font-weight:700;font-size:12px;color:var(--navy)">${p.name}</div>
-          <div style="font-size:11px;color:var(--t3);margin-top:2px">${p._distance_km} km away</div>
-          <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
-            <a href="tel:${p.phone}" style="display:inline-flex;align-items:center;gap:4px;background:var(--navy);color:white;padding:5px 10px;border-radius:4px;font-size:11px;font-weight:700;text-decoration:none">📞 ${p.phone}</a>
-            <a href="https://maps.google.com/?q=${p.lat},${p.lon}" target="_blank" style="display:inline-flex;align-items:center;gap:4px;background:var(--bg);border:var(--border);color:var(--t2);padding:5px 10px;border-radius:4px;font-size:11px;font-weight:700;text-decoration:none">🗺️ Directions</a>
-          </div>
-        </div>` : ''}
-        ${h ? `
-        <div style="background:#FFF5F5;border:1px solid rgba(192,57,43,.15);border-radius:var(--r);padding:10px">
-          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--danger);margin-bottom:4px">🏥 Nearest Hospital</div>
-          <div style="font-weight:700;font-size:12px;color:var(--navy)">${h.name}</div>
-          <div style="font-size:11px;color:var(--t3);margin-top:2px">${h._distance_km} km away</div>
-          <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
-            <a href="tel:${h.phone}" style="display:inline-flex;align-items:center;gap:4px;background:var(--danger);color:white;padding:5px 10px;border-radius:4px;font-size:11px;font-weight:700;text-decoration:none">📞 ${h.phone}</a>
-            <a href="https://maps.google.com/?q=${h.lat},${h.lon}" target="_blank" style="display:inline-flex;align-items:center;gap:4px;background:var(--bg);border:var(--border);color:var(--t2);padding:5px 10px;border-radius:4px;font-size:11px;font-weight:700;text-decoration:none">🗺️ Directions</a>
-          </div>
-        </div>` : ''}
-      </div>
-      <div style="display:flex;gap:10px;margin-top:10px;flex-wrap:wrap">
-        <a href="tel:108" style="flex:1;min-width:80px;display:flex;align-items:center;justify-content:center;gap:6px;background:#0B6B30;color:white;padding:9px;border-radius:var(--r);font-size:13px;font-weight:700;text-decoration:none">🚑 Ambulance: 108</a>
-        <a href="tel:100" style="flex:1;min-width:80px;display:flex;align-items:center;justify-content:center;gap:6px;background:var(--navy);color:white;padding:9px;border-radius:var(--r);font-size:13px;font-weight:700;text-decoration:none">👮 Police: 100</a>
-      </div>
-    </div>`;
-}
-
-// Re-trigger location context if location was just granted
-function _onLocGranted(){
-  _locCtxLoaded = false;           // allow re-fetch with real coords
-  const sosEl = document.getElementById('sec-sos');
-  if(sosEl && sosEl.classList.contains('on')) loadLocationContext();
-}
-
-// ═══ DATA LOADING ═════════════════════════════════════════════
-// FIX Bug 2: loadStats() fills module arrays but only calls homepage
-// renderers. If the user has already navigated to a section, the
-// full-page render is called here after each fetch resolves.
-async function loadStats(){
-  // Fire all 4 fetches in parallel — avoids sequential await blocking main thread (~4x faster)
-  const safe = (p) => p.catch(() => null);
-  const [stats, fac, trans, ghats] = await Promise.all([
-    safe(fetch(`${API_BASE}/stats`).then(r=>r.json())),
-    safe(fetch(`${API_BASE}/get_facilities`).then(r=>r.json())),
-    safe(fetch(`${API_BASE}/get_transport`).then(r=>r.json())),
-    safe(fetch(`${API_BASE}/get_ghats`).then(r=>r.json())),
-  ]);
-  if(stats){
-    if(document.getElementById('h-vols'))document.getElementById('h-vols').textContent=stats.active_volunteers??'–';
-  }
-  if(fac){ allFac=fac.facilities||[];
-    if(document.getElementById('h-fac'))document.getElementById('h-fac').textContent=allFac.length;
-    buildFacBtns(); renderFacHome('all');
-    if(document.getElementById('sec-fac')?.classList.contains('on')){ buildFacBtns(); renderFacFull(); }
-  }
-  if(trans){ allTrans=trans.transport_routes||[];
-    if(document.getElementById('h-trans'))document.getElementById('h-trans').textContent=allTrans.length;
-    if(document.getElementById('sec-transport')?.classList.contains('on')) renderTrans();
-  }
-  if(ghats){ allGhats=ghats.ghats||[];
-    if(document.getElementById('h-ghats'))document.getElementById('h-ghats').textContent=allGhats.length;
-    renderGhatMini(); populateGhatSelector();
-    if(document.getElementById('sec-ghats')?.classList.contains('on')) renderGhats();
-  }
-}
-
-// Auto-refresh home page stats every 30 seconds
-setInterval(()=>{ if(!document.hidden) loadStats(); }, 30000);
-// Pause CSS animations when tab hidden — saves CPU significantly
-document.addEventListener('visibilitychange', () => {
-  document.body.style.animationPlayState = document.hidden ? 'paused' : '';
-  document.querySelectorAll('.mq-text,.sos-hero-btn,.sos-big-btn').forEach(el => {
-    el.style.animationPlayState = document.hidden ? 'paused' : '';
-  });
-});
-
-// ── LOST & FOUND (user - view only) ──────────────────────────────────
-let allLostUser = [], userLostFilter = 'all';
-
-async function loadLostUser(){
-  const el=document.getElementById('user-lost-list');
-  if(el)el.innerHTML='<div class="empty"><div class="empty-ico">⏳</div><p>Loading...</p></div>';
-  try{
-    const d=await(await fetch(`${API_BASE}/lost`)).json();
-    allLostUser=d.lost_persons||[];
-    renderLostUser();
-  }catch(e){
-    if(el)el.innerHTML='<div class="empty"><div class="empty-ico">⚠️</div><p>Could not load data. Check connection.</p></div>';
-  }
-}
-
-function setUserLostFilter(f,btn){
-  userLostFilter=f;
-  document.querySelectorAll('#sec-lost .chip').forEach(c=>c.classList.remove('on'));
-  btn.classList.add('on');
-  renderLostUser();
-}
-
-function renderLostUser(){
-  const el=document.getElementById('user-lost-list');
-  if(!el)return;
-  const q=(document.getElementById('lost-search-user')?.value||'').toLowerCase();
-  let data=userLostFilter==='all'?allLostUser:allLostUser.filter(p=>p.status===userLostFilter);
-  if(q)data=data.filter(p=>p.name.toLowerCase().includes(q)||(p.last_seen_location||'').toLowerCase().includes(q)||(p.description||'').toLowerCase().includes(q));
-  if(!data.length){el.innerHTML='<div class="empty"><div class="empty-ico">🔍</div><p>No records found.</p></div>';return;}
-  el.innerHTML=data.map(p=>`
-    <div style="background:white;border:1px solid #D8DCE6;border-radius:8px;padding:14px;margin-bottom:10px;display:flex;gap:12px;align-items:flex-start;box-shadow:0 1px 3px rgba(0,0,0,.07)">
-      ${p.photo_url?`<img src="${API_BASE}${p.photo_url}" style="width:60px;height:60px;object-fit:cover;border-radius:6px;border:1px solid #D8DCE6;flex-shrink:0" onerror="this.style.display='none'">`:'<div style="width:60px;height:60px;background:#F0F2F6;border-radius:6px;border:1px solid #D8DCE6;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0">👤</div>'}
-      <div style="flex:1;min-width:0">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap;margin-bottom:6px">
-          <div style="font-weight:700;font-size:.95rem;color:#1A1F2E">${p.name} &nbsp;<span style="font-weight:400;font-size:.8rem;color:#6B7280">Age ${p.age}</span></div>
-          <span style="padding:3px 10px;border-radius:4px;font-size:10px;font-weight:700;text-transform:uppercase;${p.status==='found'?'background:#F0FDF4;color:#0B6B30;border:1px solid #BBF7D0':'background:#FEF2F2;color:#C0392B;border:1px solid #FECACA'}">${p.status}</span>
-        </div>
-        <div style="font-size:12px;color:#6B7280;display:flex;flex-direction:column;gap:3px">
-          <span>📍 Last seen: <strong style="color:#3D4558">${p.last_seen_location}</strong></span>
-          ${p.current_location&&p.current_location!=='Unknown'?`<span>📌 Current: <strong style="color:#3D4558">${p.current_location}</strong></span>`:''}
-          <span>📞 Contact: <strong style="color:#0B2E6E">${p.contact_person}</strong> — <a href="tel:${p.contact_phone}" style="color:#0B2E6E;font-weight:700">${p.contact_phone}</a></span>
-          ${p.description?`<span>📋 ${p.description}</span>`:''}
-          <span style="color:#9CA3AF;font-size:10px;margin-top:2px">Registered: ${ago(p.timestamp)}</span>
-        </div>
-      </div>
-    </div>`).join('');
-}
-async function loadGhats(){
-  const el=document.getElementById('ghats-list');el.innerHTML=loading();
-  try{const d=await(await fetch(`${API_BASE}/get_ghats`)).json();allGhats=d.ghats||[];renderGhats();populateGhatSelector();}
-  catch(e){el.innerHTML=errMsg();}
-}
-async function loadFac(){
-  const el=document.getElementById('fac-full');el.innerHTML=loading();
-  try{
-    let url=`${API_BASE}/get_facilities`;
-    const params=[];
-    if(facGhatFilter) params.push(`ghat_id=${encodeURIComponent(facGhatFilter)}`);
-    if(fFilter!=='all') params.push(`type=${encodeURIComponent(fFilter)}`);
-    if(facStarFilter!==null) params.push(`stars=${facStarFilter}`);
-    if(params.length) url+='?'+params.join('&');
-    const d=await(await fetch(url)).json();
-    allFac=d.facilities||[];
-    buildFacBtns();renderFacFull();
-  }catch(e){el.innerHTML=errMsg();}
-}
-async function loadTrans(){
-  const el=document.getElementById('trans-list');el.innerHTML=loading();
-  try{const d=await(await fetch(`${API_BASE}/get_transport`)).json();allTrans=d.transport_routes||[];renderTrans();}
-  catch(e){el.innerHTML=errMsg();}
-}
-
-// ═══ GHAT MINI (homepage) ════════════════════════════════════
-const FI={toilet:'🚻',medical_camp:'🏥',parking:'🅿️',food_stall:'🍽️',enquiry_counter:'❓',drinking_water:'💧',luggage_counter:'🧳',bus_stop:'🚌',hotel:'🏨',petrol_bunk:'⛽'};
-function renderGhatMini(){
-  const el=document.getElementById('ghat-mini');
-  const data=allGhats.slice(0,8);
-  if(!data.length){el.innerHTML='';return;}
-  el.innerHTML=data.map(g=>{
-    const pct=Math.min(100,Math.round((g.current_count/g.capacity)*100));
-    const cl=g.crowd_level==='high'?`🔴 ${tr('hi_crowd')}`:g.crowd_level==='medium'?`🟡 ${tr('med_crowd')}`:`🟢 ${tr('low_crowd')}`;
-    return `<div class="gmc ${g.crowd_level}">
-      <div class="gmc-top"><div class="gmc-name">${g.name}</div><span class="crowd-tag ${g.crowd_level}">${cl}</span></div>
-      <div class="gmc-count">${(g.current_count||0).toLocaleString()} / ${(g.capacity||0).toLocaleString()} · ${g.zone}</div>
-      <div class="prog-track"><div class="prog-fill ${g.crowd_level}" style="width:${pct}%"></div></div>
-    </div>`;}).join('');
-}
-
-// ═══ FACILITY QUICK BUTTONS & INLINE LIST ════════════════════
-const FAC_TYPES=[
-  {type:'all',icon:'🏢',lk:'fac_all'},
-  {type:'toilet',icon:'🚻',lk:'fac_toilet'},
-  {type:'medical_camp',icon:'🏥',lk:'fac_medical'},
-  {type:'parking',icon:'🅿️',lk:'fac_parking'},
-  {type:'enquiry_counter',icon:'❓',lk:'fac_enquiry'},
-  {type:'food_stall',icon:'🍽️',lk:'fac_food'},
-  {type:'hotel',icon:'🏨',lk:'fac_hotel'},
-  {type:'bus_stop',icon:'🚌',lk:'fac_bus'},
-  {type:'petrol_bunk',icon:'⛽',lk:'fac_petrol'},
-  {type:'luggage_counter',icon:'🧳',lk:'fac_luggage'},
-];
-function buildFacBtns(){
-  const wrap=document.getElementById('fac-type-btns');if(!wrap)return;
-  wrap.innerHTML=FAC_TYPES.map(ft=>`
-    <div class="fqb ${homeFacFilter===ft.type?'sel':''}" onclick="selHomeFac('${ft.type}',this)">
-      <div class="fqi">${ft.icon}</div>
-      <div class="fql">${tr(ft.lk)}</div>
-    </div>`).join('');
-}
-function selHomeFac(type,el){
-  homeFacFilter=type;
-  document.querySelectorAll('.fqb').forEach(b=>b.classList.remove('sel'));
-  el.classList.add('sel');
-  renderFacHome(type);
-}
-function renderFacHome(type){
-  const el=document.getElementById('fac-home-list');
-  let data=type==='all'?allFac:allFac.filter(f=>f.type===type);
-  if(locKnown)data=data.map(f=>({...f,dist:hvs(uLat,uLon,f.latitude,f.longitude)})).sort((a,b)=>a.dist-b.dist);
-  if(!data.length){el.innerHTML=`<div class="empty"><div class="empty-ico">🔍</div><p>No facilities found</p></div>`;return;}
-  el.innerHTML=data.map(f=>facCard(f)).join('');
-}
-
-function fFac(f,el){
-  fFilter=f;
-  document.querySelectorAll('#sec-fac .chip').forEach(c=>c.classList.remove('on'));
-  el.classList.add('on');
-  // Show/hide star filter row when hotel type is selected
-  const starRow=document.getElementById('star-filter-row');
-  if(starRow) starRow.style.display = (f==='hotel')?'flex':'none';
-  if(f!=='hotel'){facStarFilter=null;}
-  // Show hotels sub-section when hotel filter is active
-  const hotelSub=document.getElementById('fac-hotels-sub');
-  if(hotelSub) hotelSub.style.display=(f==='hotel')?'block':'none';
-  loadFac();
-}
-function fStars(stars,el){
-  facStarFilter=stars;
-  document.querySelectorAll('#star-filter-row .chip').forEach(c=>c.classList.remove('on'));
-  el.classList.add('on');
-  loadFac();
-}
-function onFacGhatChange(ghatId){
-  facGhatFilter=ghatId;
-  const note=document.getElementById('fac-ghat-note');
-  if(note){
-    if(ghatId){
-      const g=allGhats.find(x=>x.id===ghatId);
-      note.textContent=`Showing facilities near ${g?g.name:ghatId}`;
-    } else { note.textContent='Showing all facilities'; }
-  }
-  loadFac();
-}
-function populateGhatSelector(){
-  const sel=document.getElementById('fac-ghat-sel');
-  if(!sel||!allGhats.length)return;
-  const existing=new Set(Array.from(sel.options).map(o=>o.value));
-  allGhats.forEach(g=>{
-    if(!existing.has(g.id)){
-      const o=document.createElement('option');
-      o.value=g.id;o.textContent=g.name;
-      sel.appendChild(o);
-    }
-  });
-}
-function renderFacFull(){
-  const el=document.getElementById('fac-full');
-  // Client-side filter (uses in-memory allFac which is already server-filtered)
-  let data=allFac;
-  if(locKnown)data=data.map(f=>({...f,dist:hvs(uLat,uLon,f.latitude,f.longitude)})).sort((a,b)=>a.dist-b.dist);
-  if(!data.length){el.innerHTML=`<div class="empty"><div class="empty-ico">🏥</div><p>No facilities found${facGhatFilter?' for this ghat':''}</p></div>`;return;}
-  el.innerHTML=data.map(f=>facCard(f)).join('');
-}
-function facCard(f){
-  const distTag=locKnown&&f.dist!==undefined?`<span class="fm">📏 ${f.dist<1?(f.dist*1000).toFixed(0)+'m':f.dist.toFixed(1)+'km'}</span>`:'';
-  const stars=f.type==='hotel'&&f.star_rating!=null?`<span class="fm">${'⭐'.repeat(f.star_rating)||'Unrated'} ${f.price_range?'· '+f.price_range:''}</span>`:'';
-  return `<div class="fac-card">
-    <div class="fac-ico">${FI[f.type]||'🏢'}</div>
-    <div style="flex:1;min-width:0">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap;margin-bottom:5px">
-        <div class="fac-name">${f.name}</div>
-        <span class="op op-${f.status||'operational'}">${(f.status||'operational').toUpperCase()}</span>
-      </div>
-      <div class="fac-meta">
-        <span class="fm">📍 ${f.zone}</span>
-        ${stars}
-        ${f.capacity?`<span class="fm">👥 ${f.capacity}</span>`:''}
-        ${f.contact?`<span class="fm">📞 ${f.contact}</span>`:''}
-        ${distTag}
-      </div>
-      <a href="https://www.google.com/maps/dir/?api=1&destination=${f.latitude},${f.longitude}" target="_blank" class="dir-btn">🗺️ ${locKnown?'Directions':'Navigate'}</a>
-    </div>
-  </div>`;
-}
-
-// ═══ GHATS FULL PAGE ══════════════════════════════════════════
-function renderGhats(){
-  const el=document.getElementById('ghats-list');
-  const data=gFilter==='all'?allGhats:allGhats.filter(g=>g.crowd_level===gFilter);
-  if(!data.length){el.innerHTML=`<div class="empty"><div class="empty-ico">🌊</div><p>No ghats</p></div>`;return;}
-  el.innerHTML=data.map(g=>{
-    const pct=Math.min(100,Math.round((g.current_count/g.capacity)*100));
-    const cl=g.crowd_level==='high'?`🔴 ${tr('hi_crowd')}`:g.crowd_level==='medium'?`🟡 ${tr('med_crowd')}`:`🟢 ${tr('low_crowd')}`;
-    const facs=(g.facilities||[]).map(f=>FI[f]||'').filter(Boolean).join(' ');
-    return `<div class="gc">
-      <div class="gc-stripe ${g.crowd_level}"></div>
-      <div class="gc-body">
-        <div class="gc-top">
-          <div><div class="gc-name">${g.name}</div><div class="gc-te">${g.telugu_name}</div></div>
-          <span class="crowd-badge ${g.crowd_level}">${cl}</span>
-        </div>
-        <div class="crowd-bar-wrap">
-          <div class="cb-labels"><span>${(g.current_count||0).toLocaleString()} / ${(g.capacity||0).toLocaleString()}</span><span>${pct}%</span></div>
-          <div class="cb-track"><div class="cb-fill ${g.crowd_level}" style="width:${pct}%"></div></div>
-        </div>
-        <div class="gc-pills">
-          ${g.location_group?`<span class="gp" style="background:var(--info-bg);color:var(--info);font-weight:600">📍 ${g.location_group}</span>`:''}
-          <span class="gp">⏰ ${g.bathing_timings}</span>
-          <span class="gp">🗺️ ${g.zone}</span>
-          ${facs?`<span class="gp">${facs}</span>`:''}
-          ${g.nearest_landmark?`<span class="gp">🏛️ ${g.nearest_landmark}</span>`:''}
-        </div>
-        ${g.special_dates?.length?`<div class="gc-special">✨ Special: ${g.special_dates.join(', ')}</div>`:''}
-        <a href="https://www.google.com/maps/dir/?api=1&destination=${g.latitude},${g.longitude}" target="_blank" class="dir-btn">🗺️ Directions</a>
-      </div>
-    </div>`;}).join('');
-}
-function fGhats(f,el){gFilter=f;document.querySelectorAll('#sec-ghats .chip').forEach(c=>c.classList.remove('on'));el.classList.add('on');renderGhats();}
-
-// ═══ TRANSPORT ════════════════════════════════════════════════
-function renderTrans(){
-  const el=document.getElementById('trans-list');
-  const cntEl=document.getElementById('trans-count');
-  const q=(document.getElementById('trans-search')?.value||'').toLowerCase().trim();
-  let data=allTrans;
-  // Type filter
-  if(tFilter==='bus') data=data.filter(r=>r.type==='bus');
-  else if(tFilter==='train') data=data.filter(r=>r.type==='train');
-  else if(tFilter==='special') data=data.filter(r=>r.special_pushkaralu);
-  else if(tFilter==='originate') data=data.filter(r=>r.type==='train'&&r.originates_rjy);
-  else if(tFilter==='terminate') data=data.filter(r=>r.type==='train'&&r.terminates_rjy);
-  // Search filter
-  if(q) data=data.filter(r=>{
-    const name=(r.train_name||r.route_number||'').toLowerCase();
-    const num=(r.train_number||'').toLowerCase();
-    const frm=(r.from||'').toLowerCase();
-    const to=(r.to||'').toLowerCase();
-    return name.includes(q)||num.includes(q)||frm.includes(q)||to.includes(q);
-  });
-  if(cntEl) cntEl.textContent=data.length?`Showing ${data.length} route${data.length===1?'':'s'}`:'';
-  if(!data.length){el.innerHTML=`<div class="empty"><div class="empty-ico">🚂</div><p>No routes found</p></div>`;return;}
-  el.innerHTML=data.map(r=>{
-    if(r.type==='bus') return `
-    <div class="tc bus">
-      <div class="tc-top">
-        <div>
-          <div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap;margin-bottom:5px">
-            <span class="rb bus">🚌 ${r.route_number||''}</span>
-            ${r.special_pushkaralu?'<span class="sp-badge">✨ PUSHKARALU SPECIAL</span>':''}
-          </div>
-          <div class="tc-route">${r.from||''} → ${r.to||''}</div>
-        </div>
-        <div style="text-align:right"><div class="fare">${r.fare||''}</div><div style="font-size:11px;color:var(--t3)">${r.operator||''}</div></div>
-      </div>
-      ${r.stops?.length?`<div class="tc-stops">🔵 ${r.stops.join(' → ')}</div>`:''}
-      <div class="tc-tags">
-        ${r.frequency_mins?`<span class="tt">⏱️ Every ${r.frequency_mins} mins</span>`:''}
-        ${r.first_service?`<span class="tt">🌅 First: ${r.first_service}</span>`:''}
-        ${r.last_service?`<span class="tt">🌙 Last: ${r.last_service}</span>`:''}
-      </div>
-    </div>`;
-    // Train card
-    const arrLbl=r.originates_rjy?'<span style="color:var(--ok);font-weight:700;font-size:11px">🟢 STARTS HERE</span>'
-      :(r.arrival_rjy?`<span class="tt">🛬 Arr: <b>${r.arrival_rjy}</b></span>`:'');
-    const depLbl=r.terminates_rjy?'<span style="color:var(--danger);font-weight:700;font-size:11px">🔴 ENDS HERE</span>'
-      :(r.departure_rjy?`<span class="tt">🛫 Dep: <b>${r.departure_rjy}</b></span>`:'');
-    const catColor={
-      'Vande Bharat':'#7C3AED','Duronto':'#B45309','Humsafar':'#0E7490',
-      'Garib Rath':'#15803D','Amrit Bharat':'#B91C1C','AC Superfast':'#1558A8',
-      'Superfast':'#0369A1','Double Decker':'#6D28D9','MEMU':'#065F46','DEMU':'#065F46',
-      'Passenger':'#374151','Express':'var(--ok)'
-    }[r.category]||'var(--ok)';
-    return `
-    <div class="tc train">
-      <div class="tc-top">
-        <div>
-          <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:4px">
-            <span class="rb train" style="background:${catColor}20;color:${catColor};border:1px solid ${catColor}40">🚂 ${r.train_number}</span>
-            <span style="font-size:11px;background:var(--info-bg);color:var(--info);padding:2px 6px;border-radius:3px;font-weight:600">${r.category||'Express'}</span>
-            ${r.special_pushkaralu?'<span class="sp-badge">✨ SPECIAL</span>':''}
-          </div>
-          <div class="tc-route" style="font-size:.92rem">${r.train_name||'Train '+r.train_number}</div>
-          <div style="font-size:12px;color:var(--t3);margin-top:2px">${r.from||''} → ${r.to||''}</div>
-        </div>
-        <div style="text-align:right;min-width:80px">
-          <div style="font-size:11px;color:var(--t3)">Rajahmundry</div>
-          <div style="font-size:11px;color:var(--t3)">${r.operator||'Indian Railways'}</div>
-        </div>
-      </div>
-      <div class="tc-tags" style="gap:8px;margin-top:6px">
-        ${arrLbl}${depLbl}
-      </div>
-    </div>`;
-  }).join('');
-}
-function fTrans(f,el){tFilter=f;document.querySelectorAll('#sec-transport .chip').forEach(c=>c.classList.remove('on'));el.classList.add('on');renderTrans();}
-
-// ═══ HOTELS ══════════════════════════════════════════════════
-// ═══ EMERGENCY TAB SWITCHER ══════════════════════════════════
-function showEmTab(tab, el){
-  // Hide the service list and filter row
-  const svcList = document.getElementById('em-svc-list');
-  const filterRow = document.getElementById('em-filter-row');
-  const policeDiv = document.getElementById('em-police-stations');
-  const hospDiv = document.getElementById('em-hospitals-list');
-
-  // Deactivate all chips
-  document.querySelectorAll('#em-filter-row .chip').forEach(c=>c.classList.remove('on'));
-  el.classList.add('on');
-
-  if(tab==='police-stations'){
-    svcList.style.display='none';
-    hospDiv.style.display='none';
-    policeDiv.style.display='block';
-    renderPoliceStations();
-  } else if(tab==='hospitals-list'){
-    svcList.style.display='none';
-    policeDiv.style.display='none';
-    hospDiv.style.display='block';
-    renderHospitals();
-  }
-}
-
-// Override the regular filter chips to restore service list view
-const _origFilterEmSvc = typeof filterEmSvc === 'function' ? filterEmSvc : null;
-function filterEmSvcWrapped(type, el){
-  document.getElementById('em-police-stations').style.display='none';
-  document.getElementById('em-hospitals-list').style.display='none';
-  document.getElementById('em-svc-list').style.display='';
-  if(_origFilterEmSvc) _origFilterEmSvc(type, el);
-  else filterEmSvc(type, el);
-}
-
-// ═══ POLICE STATIONS ══════════════════════════════════════════
-function renderPoliceStations(){
-  const el=document.getElementById('police-list');
-  const cntEl=document.getElementById('police-count');
-  if(!el) return;
-  const q=(document.getElementById('police-search')?.value||'').toLowerCase().trim();
-  let data=appData.police_stations||[];
-  if(q) data=data.filter(p=>(p.name+p.contact).toLowerCase().includes(q));
-  if(cntEl) cntEl.textContent=data.length?`Showing ${data.length} station${data.length===1?'':'s'}`:'';
-  if(!data.length){el.innerHTML='<div class="empty"><div class="empty-ico">🚔</div><p>No results</p></div>';return;}
-  el.innerHTML=data.map(p=>`
-    <div style="background:var(--card);border-radius:var(--r);padding:10px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px">
-      <div style="font-size:13px;font-weight:600;color:var(--t1)">🚔 ${p.name}</div>
-      <a href="tel:${p.contact.replace(/[^0-9]/g,'')}" style="background:var(--navy);color:white;padding:5px 11px;border-radius:6px;font-size:12px;font-weight:700;text-decoration:none;white-space:nowrap">${p.contact}</a>
-    </div>`).join('');
-}
-
-function renderHotels(){
-  const el=document.getElementById('hotels-list');
-  if(!el) return;
-  // Show the sub-section container
-  const sub=document.getElementById('fac-hotels-sub');
-  if(sub) sub.style.display='block';
-  const hotels=appData.hotels||[];
-  if(!hotels.length){el.innerHTML='<div class="empty"><div class="empty-ico">🏨</div><p>Loading accommodation data…</p></div>';return;}
-  const areaColors={'Rajamahendravaram':'var(--saffron)','Kovvur':'var(--ok)','Government':'var(--info)'};
-  const typeIcons={'Resort':'🌴','Hotel':'🏨','APTDC':'🏛️','Lodge':'🏠','Temporary':'⛺','Pilgrim Complex':'🙏','Rest Centre':'🛖'};
-  const byArea={};
-  hotels.forEach(h=>{if(!byArea[h.area])byArea[h.area]=[];byArea[h.area].push(h);});
-  el.innerHTML=Object.entries(byArea).map(([area,items])=>`
-    <div>
-      <div style="font-size:12px;font-weight:700;color:${areaColors[area]||'var(--t3)'};text-transform:uppercase;letter-spacing:.05em;padding:6px 0 8px">${area}</div>
-      <div style="display:grid;gap:8px">
-        ${items.map(h=>`
-          <div style="background:var(--card);border-radius:var(--r);padding:12px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px">
-            <div style="display:flex;align-items:center;gap:10px">
-              <span style="font-size:22px">${typeIcons[h.type]||'🏨'}</span>
-              <div>
-                <div style="font-weight:600;font-size:14px;color:var(--t1)">${h.name}</div>
-                <div style="font-size:11px;color:var(--t3);margin-top:2px">${h.type} · ${h.location}</div>
-              </div>
-            </div>
-            <a href="${h.booking_link}" target="_blank" style="background:var(--saffron);color:white;padding:6px 12px;border-radius:6px;font-size:12px;font-weight:600;text-decoration:none;white-space:nowrap">Book →</a>
-          </div>`).join('')}
-      </div>
-    </div>`).join('');
-}
-
-function _oldRenderHotels(){} // kept as no-op to avoid reference errors
-
-// ═══ HOSPITALS ═══════════════════════════════════════════════
-function renderHospitals(){
-  const el=document.getElementById('hosp-list');
-  const cntEl=document.getElementById('hosp-count');
-  if(!el) return;
-  const q=(document.getElementById('hosp-search')?.value||'').toLowerCase().trim();
-  let data=appData.hospitals||[];
-  if(q) data=data.filter(h=>(h.name+h.doctor+h.location+h.type).toLowerCase().includes(q));
-  if(cntEl) cntEl.textContent=data.length?`Showing ${data.length} hospital record${data.length===1?'':'s'}`:'';
-  if(!data.length){el.innerHTML='<div class="empty"><div class="empty-ico">🏥</div><p>No results found</p></div>';return;}
-  const typeColor={'Area Hospital':'var(--danger)','Community Health Centre':'var(--ok)'};
-  el.innerHTML=data.map(h=>`
-    <div style="background:var(--card);border-radius:var(--r);padding:12px 14px;border-left:3px solid ${typeColor[h.type]||'var(--info)'}">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap">
-        <div>
-          <div style="font-size:12px;font-weight:700;color:${typeColor[h.type]||'var(--info)'};text-transform:uppercase;letter-spacing:.04em">${h.type}</div>
-          <div style="font-weight:600;font-size:14px;color:var(--t1);margin-top:2px">${h.location} — ${h.name}</div>
-          <div style="font-size:13px;color:var(--t2);margin-top:3px">👨‍⚕️ ${h.doctor}</div>
-        </div>
-        <a href="tel:${h.contact}" style="background:var(--ok-bg);color:var(--ok);padding:6px 12px;border-radius:6px;font-size:13px;font-weight:700;text-decoration:none;white-space:nowrap">📞 ${h.contact}</a>
-      </div>
-      <div style="font-size:11px;color:var(--t3);margin-top:6px">✉️ <a href="mailto:${h.email}" style="color:var(--t3)">${h.email}</a></div>
-    </div>`).join('');
-}
-
-// ═══ TOURISM ═════════════════════════════════════════════════
-let tourismFilter='all';
-function renderTourism(){
-  const el=document.getElementById('tourism-list');
-  if(!el) return;
-  let data=appData.tourism_spots||[];
-  if(tourismFilter!=='all') data=data.filter(t=>t.category===tourismFilter);
-  const catColors={'Nature':'#15803D','Heritage':'#B45309','Museum':'#6D28D9','Eco-Tourism':'#065F46','Cultural':'#B91C1C','Resort':'#0E7490'};
-  const catIcons={'Nature':'🌿','Heritage':'🏛️','Museum':'🎨','Eco-Tourism':'🌲','Cultural':'🎭','Resort':'🌴'};
-  if(!data.length){el.innerHTML='<div class="empty"><div class="empty-ico">🌿</div><p>No spots found</p></div>';return;}
-  el.innerHTML=data.map(t=>{
-    const c=catColors[t.category]||'var(--ok)';
-    return `<div style="background:var(--card);border-radius:var(--r);overflow:hidden">
-      <div style="height:4px;background:${c}"></div>
-      <div style="padding:14px 16px">
-        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:8px">
-          <div>
-            <div style="font-size:16px;font-weight:700;color:var(--t1)">${catIcons[t.category]||'🌿'} ${t.name}</div>
-            <span style="display:inline-block;margin-top:4px;font-size:11px;font-weight:600;padding:2px 8px;border-radius:4px;background:${c}20;color:${c}">${t.category}</span>
-          </div>
-          <a href="${t.link}" target="_blank" style="flex-shrink:0;font-size:12px;color:var(--info);text-decoration:none;border:1px solid var(--info);padding:4px 10px;border-radius:6px">Read more</a>
-        </div>
-        <p style="font-size:13px;color:var(--t2);margin:0;line-height:1.6">${t.description}</p>
-      </div>
-    </div>`;}).join('');
-}
-function fTourism(f,el){tourismFilter=f;document.querySelectorAll('#sec-tourism .chip').forEach(c=>c.classList.remove('on'));el.classList.add('on');renderTourism();}
-
-// ═══ POOJAS ══════════════════════════════════════════════════
-function renderPoojas(){
-  const el=document.getElementById('pooja-list');
-  if(!el) return;
-  const data=appData.poojas||[];
-  if(!data.length){el.innerHTML='<div class="empty"><div class="empty-ico">🪔</div><p>Loading pooja details…</p></div>';return;}
-  el.innerHTML=data.map((p,i)=>`
-    <div style="background:var(--card);border-radius:var(--r);overflow:hidden">
-      <div style="height:3px;background:linear-gradient(90deg,var(--saffron),#d4a017)"></div>
-      <div style="padding:16px">
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
-          <div style="width:32px;height:32px;border-radius:50%;background:var(--saffron);color:white;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;flex-shrink:0">${i+1}</div>
-          <div>
-            <div style="font-size:16px;font-weight:700;color:var(--t1)">${p.name}</div>
-            <div style="font-size:13px;color:var(--saffron);font-weight:500">${p.telugu_name}</div>
-          </div>
-        </div>
-        <p style="font-size:13px;color:var(--t2);margin:0 0 8px;line-height:1.65">${p.description}</p>
-        <div style="background:var(--bg);border-radius:7px;padding:9px 11px;font-size:12px;color:var(--t3)">
-          <span style="font-weight:600;color:var(--saffron)">✨ Significance: </span>${p.significance}
-        </div>
-        <a href="${p.link}" target="_blank" style="display:inline-block;margin-top:10px;font-size:12px;color:var(--info);text-decoration:none">Learn more →</a>
-      </div>
-    </div>`).join('');
-}
-
-// ═══ LOCATION HELPERS ════════════════════════════════════════
-function hvs(la1,lo1,la2,lo2){const R=6371,d1=(la2-la1)*Math.PI/180,d2=(lo2-lo1)*Math.PI/180,a=Math.sin(d1/2)**2+Math.cos(la1*Math.PI/180)*Math.cos(la2*Math.PI/180)*Math.sin(d2/2)**2;return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));}
-function setLocStatus(boxId,txtId,msg,type){const b=document.getElementById(boxId);if(b){b.className='loc-stat'+(type?' '+type:'');const t=document.getElementById(txtId);if(t)t.textContent=msg;}}
-function getRepLoc(){
-  setLocStatus('r-loc-box','r-loc-txt','🔍 Detecting...','');
-  if(!navigator.geolocation){setLocStatus('r-loc-box','r-loc-txt','Not supported','err');return;}
-  navigator.geolocation.getCurrentPosition(pos=>{
-    uLat=pos.coords.latitude;uLon=pos.coords.longitude;locKnown=true;
-    uAccuracy=pos.coords.accuracy;
-    console.log('[GPS] Report fix — lat:', uLat, 'lon:', uLon, 'accuracy:', uAccuracy+'m');
-    document.getElementById('r-lat').value=uLat;document.getElementById('r-lon').value=uLon;
-    const accTag=uAccuracy&&uAccuracy>GPS_ACCURACY_WARN?` ⚠️ ±${Math.round(uAccuracy)}m`:(uAccuracy?` ±${Math.round(uAccuracy)}m`:'');
-    setLocStatus('r-loc-box','r-loc-txt',`✅ ${uLat.toFixed(5)}, ${uLon.toFixed(5)}${accTag}`,'ok');
-  },()=>setLocStatus('r-loc-box','r-loc-txt','Could not detect','err'),GPS_OPTS);
-}
-function detectSOSLoc(){
-  if(!navigator.geolocation)return;
-  navigator.geolocation.getCurrentPosition(pos=>{
-    uLat=pos.coords.latitude;uLon=pos.coords.longitude;locKnown=true;
-    uAccuracy=pos.coords.accuracy;
-    console.log('[GPS] SOS detect — lat:', uLat, 'lon:', uLon, 'accuracy:', uAccuracy+'m');
-    const accTag=uAccuracy&&uAccuracy>GPS_ACCURACY_WARN?` ⚠️ ±${Math.round(uAccuracy)}m`:(uAccuracy?` ±${Math.round(uAccuracy)}m`:'');
-    setLocStatus('sos-loc-box','sos-loc-txt',`✅ ${uLat.toFixed(5)}, ${uLon.toFixed(5)}${accTag}`,'ok');
-    _onLocGranted();   // show nearest services card immediately
-  },()=>setLocStatus('sos-loc-box','sos-loc-txt','Could not detect','err'),GPS_OPTS);
-}
-
-// ═══ IMAGE HANDLING ═══════════════════════════════════════════
-function handleImg(inp){
-  const f=inp.files[0];if(!f)return;
-  if(f.size>5*1024*1024){toast('❌ File Too Large','Max 5MB','err');inp.value='';return;}
-  const r=new FileReader();r.onload=e=>{document.getElementById('pv-img').src=e.target.result;document.getElementById('pv-wrap').style.display='block';};r.readAsDataURL(f);
-}
-function clearImg(){document.getElementById('r-img').value='';document.getElementById('pv-wrap').style.display='none';}
-const dd=document.getElementById('file-drop');
-dd.addEventListener('dragover',e=>{e.preventDefault();dd.classList.add('over');});
-dd.addEventListener('dragleave',()=>dd.classList.remove('over'));
-dd.addEventListener('drop',e=>{e.preventDefault();dd.classList.remove('over');const f=e.dataTransfer.files[0];if(f&&f.type.startsWith('image/')){const dt=new DataTransfer();dt.items.add(f);document.getElementById('r-img').files=dt.files;handleImg(document.getElementById('r-img'));}});
-
-// ═══ SUBMIT REPORT ════════════════════════════════════════════
-async function submitReport(){
-  const desc=document.getElementById('r-desc').value.trim();
-  if(!desc){toast('⚠️','Please describe the issue','info');return;}
-  const btn=document.getElementById('sub-btn');const orig=btn.innerHTML;
-  btn.innerHTML='<span class="spin"></span> Submitting...';btn.disabled=true;
-  document.getElementById('r-ok').style.display='none';document.getElementById('r-err').style.display='none';
-  try{
-    const fd=new FormData();
-    fd.append('description',desc);fd.append('category',document.getElementById('r-cat').value);
-    fd.append('user_name',document.getElementById('r-name').value||'Pilgrim');
-    fd.append('latitude',document.getElementById('r-lat').value||uLat);
-    fd.append('longitude',document.getElementById('r-lon').value||uLon);
-    const img=document.getElementById('r-img').files[0];if(img)fd.append('image',img);
-    const resp=await fetch(`${API_BASE}/report_issue`,{method:'POST',body:fd});
-    const data=await resp.json();if(!resp.ok||!data.success)throw new Error(data.detail||'err');
-    myReports.unshift({id:data.issue_id,description:desc,category:document.getElementById('r-cat').value,user_name:document.getElementById('r-name').value||'Pilgrim',status:'pending',timestamp:new Date().toISOString(),image:img?URL.createObjectURL(img):null});
-    try{localStorage.setItem('pr',JSON.stringify(myReports.slice(0,20)));}catch(e){}
-    document.getElementById('r-ok').style.display='block';
-    toast('✅',tr('r_ok'),'ok');
-    document.getElementById('r-desc').value='';document.getElementById('r-name').value='';clearImg();
-    setTimeout(()=>document.getElementById('r-ok').style.display='none',6000);
-  }catch(e){document.getElementById('r-err').style.display='block';toast('❌',tr('r_err'),'err');}
-  finally{btn.innerHTML=orig;btn.disabled=false;}
-}
-
-// ═══ SOS ════════════════════════════════════════════════════
-async function triggerSOS(){
-  const btn=document.querySelector('.sos-big-btn');const orig=btn.innerHTML;
-  document.getElementById('sos-ok').style.display='none';document.getElementById('sos-err').style.display='none';
-  if(!locKnown&&navigator.geolocation){
-    btn.innerHTML='<span class="spin"></span> Getting location...';btn.disabled=true;
-    let gpsOk=false;
-    await new Promise(res=>navigator.geolocation.getCurrentPosition(pos=>{
-      uLat=pos.coords.latitude;uLon=pos.coords.longitude;locKnown=true;gpsOk=true;
-      uAccuracy=pos.coords.accuracy;
-      console.log('[GPS] SOS trigger — lat:', uLat, 'lon:', uLon, 'accuracy:', uAccuracy+'m');
-      const accTag=uAccuracy&&uAccuracy>GPS_ACCURACY_WARN?` ⚠️ ±${Math.round(uAccuracy)}m`:(uAccuracy?` ±${Math.round(uAccuracy)}m`:'');
-      setLocStatus('sos-loc-box','sos-loc-txt',`✅ ${uLat.toFixed(5)}, ${uLon.toFixed(5)}${accTag}`,'ok');
-      res();
-    },err=>{
-      console.warn('[GPS] SOS location failed:', err.message);
-      res();
-    },GPS_OPTS));
-    if(!gpsOk){
-      const errEl=document.getElementById('sos-err');
-      errEl.innerHTML='⚠️ Could not detect location. SOS sending with approximate location — call <strong>112 (Emergency) | 100 (Police) | 108 (Ambulance)</strong> for fastest response.';
-      errEl.style.display='block';
-    }
-  }
-  btn.innerHTML='<span class="spin"></span> Sending SOS...';btn.disabled=true;
-  try{
-    const fd=new FormData();fd.append('user_name',document.getElementById('sos-name').value||'Pilgrim');fd.append('phone',document.getElementById('sos-phone').value||'');fd.append('latitude',uLat);fd.append('longitude',uLon);
-    const resp=await fetch(`${API_BASE}/sos_alert`,{method:'POST',body:fd});
-    if(resp.status===429){
-      const errEl=document.getElementById('sos-err');
-      errEl.innerHTML='⚠️ Too many SOS requests. Wait 30 seconds and try again. <strong>Real emergency? Call 112 (Emergency) | 100 (Police) | 108 (Ambulance)</strong>';
-      errEl.style.display='block';
-      toast('⚠️','Too many requests — call 112 if urgent','err');
-      return;
-    }
-    const data=await resp.json();
-    if(!resp.ok||!data.success)throw new Error();
-    const _okEl=document.getElementById('sos-ok');
-    if(data.volunteer_assigned){
-      _okEl.innerHTML='✅ SOS sent! Volunteer <strong>'+(data.nearest_volunteer?.name||'')+'</strong> dispatched. Stay where you are.';
-      _okEl.style.cssText='';
-    } else {
-      _okEl.innerHTML='⚠️ SOS received — no volunteer nearby. <strong>Call: 100 (Police) | 108 (Ambulance) | 1800-425-8877 (Control Room)</strong>';
-      _okEl.style.background='#FEF3C7';_okEl.style.borderColor='#F59E0B';_okEl.style.color='#92400E';
-    }
-    _okEl.style.display='block';toast('🆘 SOS SENT!',data.message||'Help is on the way!','sos');beep();
-  }catch(e){document.getElementById('sos-err').style.display='block';toast('❌',tr('sos_err'),'err');}
-  finally{btn.innerHTML=orig;btn.disabled=false;}
-}
-
-// ═══ TOAST ════════════════════════════════════════════════════
-function toast(title,body,type=''){
-  const s=document.getElementById('ts');const el=document.createElement('div');
-  el.className=`toast ${type}`;
-  el.innerHTML=`<div style="font-size:1.2rem;flex-shrink:0">${type==='sos'?'🆘':type==='ok'?'✅':type==='err'?'❌':'ℹ️'}</div><div><div style="font-weight:700;font-size:13px;margin-bottom:2px">${title}</div>${body?`<div style="font-size:11px;color:var(--t3);line-height:1.4">${body}</div>`:''}</div>`;
-  s.appendChild(el);setTimeout(()=>{el.style.opacity='0';el.style.transform='translateX(16px)';el.style.transition='all .3s';setTimeout(()=>el.remove(),300);},5000);
-}
-function beep(){try{const c=new AudioContext();const o=c.createOscillator();const g=c.createGain();o.connect(g);g.connect(c.destination);o.frequency.value=880;g.gain.setValueAtTime(.15,c.currentTime);g.gain.exponentialRampToValueAtTime(.001,c.currentTime+.8);o.start();o.stop(c.currentTime+.8);}catch(e){}}
-function ago(ts){const s=Math.floor((Date.now()-new Date(ts).getTime())/1000);if(s<60)return s+'s ago';if(s<3600)return Math.floor(s/60)+'m ago';if(s<86400)return Math.floor(s/3600)+'h ago';return Math.floor(s/86400)+'d ago';}
-function loading(){return'<div class="empty"><div class="empty-ico">⏳</div><p>Loading...</p></div>';}
-function errMsg(){return'<div class="empty"><div class="empty-ico">⚠️</div><p>Could not load data. Check connection.</p></div>';}
-
-// ═══ EMERGENCY SERVICES (user-facing) ════════════════════════
-// Fetches /emergency_services from backend, renders categorised service cards.
-// Cached in _emSvcData after first load — subsequent filter calls are instant.
-let _emSvcData = [];
-let _emSvcFilter = 'all';
-
-const EM_ICONS = { police:'🚔', hospital:'🏥', fire:'🔥', administration:'🏛️', medical:'🏥' };
-const EM_CAT_LABELS = {
-  helpline:'Helpline', station:'Police Station', control:'Control Room',
-  medical:'Hospital', emergency:'Fire Station', government:'Govt Office',
-};
-
-async function loadEmergencyServices(){
-  const el = document.getElementById('em-svc-list');
-  if(!el) return;
-  if(_emSvcData.length){ renderEmSvc(); return; }  // already cached
-  el.innerHTML = loading();
-  try{
-    const d = await (await fetch(`${API_BASE}/emergency_services`)).json();
-    // Only show services that have location (can provide directions) + helplines
-    _emSvcData = (d.emergency_services || []).filter(s => s.lat !== undefined || s.category === 'helpline');
-    renderEmSvc();
-  }catch(e){
-    el.innerHTML = errMsg();
-  }
-}
-
-function renderEmSvc(){
-  const el = document.getElementById('em-svc-list');
-  if(!el) return;
-  let list = _emSvcFilter === 'all'
-    ? _emSvcData
-    : _emSvcData.filter(s => s.type === _emSvcFilter);
-  if(!list.length){
-    el.innerHTML = '<div class="empty"><div class="empty-ico">🔍</div><p>No services for this category.</p></div>';
-    return;
-  }
-  el.innerHTML = list.map(s => {
-    const icon     = EM_ICONS[s.type] || '📋';
-    const catLabel = EM_CAT_LABELS[s.category] || s.category;
-    const hasLoc   = s.lat !== undefined;
-    const distTag  = (hasLoc && locKnown)
-      ? `<span class="fm">📏 ${hvs(uLat,uLon,s.lat,s.lon) < 1
-          ? (hvs(uLat,uLon,s.lat,s.lon)*1000).toFixed(0)+'m'
-          : hvs(uLat,uLon,s.lat,s.lon).toFixed(1)+'km'} away</span>`
-      : '';
-    return `
-      <div style="background:var(--card);border:var(--border);border-radius:var(--r);padding:14px 16px;
-                  margin-bottom:10px;display:flex;align-items:flex-start;gap:14px;box-shadow:var(--sh);
-                  transition:box-shadow .15s" onmouseover="this.style.boxShadow='var(--sh2)'"
-                  onmouseout="this.style.boxShadow='var(--sh)'">
-        <div style="width:42px;height:42px;background:var(--bg);border-radius:8px;display:flex;
-                    align-items:center;justify-content:center;font-size:1.4rem;flex-shrink:0">${icon}</div>
-        <div style="flex:1;min-width:0">
-          <div style="font-weight:700;font-size:.9rem;color:var(--navy);margin-bottom:4px">${s.name}</div>
-          <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px">
-            <span class="fm">${catLabel}</span>
-            ${s.address ? `<span class="fm">📍 ${s.address}</span>` : ''}
-            ${distTag}
-          </div>
-          <div style="display:flex;gap:8px;flex-wrap:wrap">
-            <a href="tel:${s.phone}"
-               style="display:inline-flex;align-items:center;gap:5px;background:var(--navy);color:white;
-                      padding:7px 13px;border-radius:var(--r);font-size:12px;font-weight:700;
-                      text-decoration:none;transition:background .15s"
-               onmouseover="this.style.background='var(--navy2)'"
-               onmouseout="this.style.background='var(--navy)'">
-              📞 ${s.phone}
-            </a>
-            ${hasLoc ? `
-            <a href="https://maps.google.com/?q=${s.lat},${s.lon}" target="_blank"
-               style="display:inline-flex;align-items:center;gap:5px;background:var(--bg);border:var(--border);
-                      color:var(--t2);padding:7px 13px;border-radius:var(--r);font-size:12px;font-weight:700;
-                      text-decoration:none">
-              🗺️ Directions
-            </a>` : ''}
-          </div>
-        </div>
-      </div>`;
-  }).join('');
-}
-
-function filterEmSvc(type, btn){
-  _emSvcFilter = type;
-  document.querySelectorAll('#em-filter-row .chip').forEach(c => c.classList.remove('on'));
-  btn.classList.add('on');
-  // Hide directory panels, restore service list
-  const policeDiv=document.getElementById('em-police-stations');
-  const hospDiv=document.getElementById('em-hospitals-list');
-  const svcList=document.getElementById('em-svc-list');
-  if(policeDiv) policeDiv.style.display='none';
-  if(hospDiv) hospDiv.style.display='none';
-  if(svcList) svcList.style.display='';
-  if(_emSvcData.length) renderEmSvc(); else loadEmergencyServices();
-}
-
-// ═══ TOURGO EXPLORER ══════════════════════════════════════════
-// Architecture: user.html → FastAPI /tourgo/explore → ScraperBot → Groq AI
-// The GROQ_API_KEY never touches this file. All AI happens server-side.
-// ══════════════════════════════════════════════════════════════
-
-// Inject ScraperBot-matching fonts & keyframe once
-(function(){
-  if(!document.getElementById('tg-fonts')){
-    const l=document.createElement('link');
-    l.id='tg-fonts';l.rel='stylesheet';
-    l.href='https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=JetBrains+Mono:wght@400;500&display=swap';
-    document.head.appendChild(l);
-  }
-  if(!document.getElementById('tg-style')){
-    const s=document.createElement('style');
-    s.id='tg-style';
-    s.textContent=`
-      @keyframes tg-pulse{0%,100%{opacity:1}50%{opacity:.7}}
-      @keyframes tg-spin{to{transform:rotate(360deg)}}
-      @keyframes tg-fadeup{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
-      .tg-card{
-        background:#FDFCFB;border:1px solid rgba(26,26,26,.08);
-        border-radius:20px;padding:24px;display:flex;flex-direction:column;
-        gap:14px;transition:border-color .3s,box-shadow .3s;
-        animation:tg-fadeup .4s ease both;
-      }
-      .tg-card:hover{border-color:rgba(99,102,241,.4);box-shadow:0 8px 32px rgba(99,102,241,.1);}
-      .tg-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;}
-      .tg-badge-famous{border:1px solid rgba(234,179,8,.4);color:#a16207;background:rgba(234,179,8,.06);
-        border-radius:20px;padding:2px 10px;font-size:9px;font-family:'Source Code Pro',monospace;
-        font-weight:700;text-transform:uppercase;letter-spacing:.1em;display:inline-flex;align-items:center;gap:4px;}
-      .tg-badge-hidden{border:1px solid rgba(34,197,94,.4);color:#166534;background:rgba(34,197,94,.06);
-        border-radius:20px;padding:2px 10px;font-size:9px;font-family:'Source Code Pro',monospace;
-        font-weight:700;text-transform:uppercase;letter-spacing:.1em;display:inline-flex;align-items:center;gap:4px;}
-      .tg-cat-tag{border:1px solid rgba(26,26,26,.1);border-radius:6px;padding:2px 8px;
-        font-size:9px;font-family:'Source Code Pro',monospace;font-weight:700;
-        text-transform:uppercase;letter-spacing:.08em;color:rgba(26,26,26,.5);}
-      .tg-dir-btn{display:inline-flex;align-items:center;gap:6px;
-        background:#6366F1;color:#fff;border:none;border-radius:10px;
-        padding:8px 14px;font-size:11px;font-weight:700;cursor:pointer;
-        font-family:'DM Sans',sans-serif;text-decoration:none;
-        transition:background .15s,transform .1s;}
-      .tg-dir-btn:hover{background:#4f46e5;transform:scale(1.03);}
-      .tg-num{font-family:'Source Code Pro',monospace;font-size:10px;color:#6366F1;font-weight:700;}
-      .tg-place-name{font-family:'DM Serif Display',Georgia,serif;font-style:italic;
-        font-size:1.15rem;color:#1A1A1A;line-height:1.25;}
-      .tg-desc{font-size:12px;color:rgba(26,26,26,.6);line-height:1.7;}
-      .tg-coords{font-family:'Source Code Pro',monospace;font-size:9px;color:rgba(26,26,26,.3);}
-
-    `;
-    document.head.appendChild(s);
-  }
-})();
-
-// ── State ──────────────────────────────────────────────────────
-let _tgData      = null;   // full API response cache
-let _tgFilter    = 'all';  // 'all' | 'Famous' | 'Underrated'
-
-let _tgLoading   = false;
-
-// ── Filter chip handler ────────────────────────────────────────
-function tgFilter(f, btn){
-  _tgFilter = f;
-  document.querySelectorAll('#tg-filter-row .chip').forEach(c=>c.classList.remove('on'));
-  btn.classList.add('on');
-  if(_tgData) renderTourGoPlaces();
-}
-
-// ── Location request for TourGo ────────────────────────────────
-function tgRequestLocation(){
-  navigator.geolocation.getCurrentPosition(
-    p=>{
-      uLat=p.coords.latitude;uLon=p.coords.longitude;locKnown=true;
-      uAccuracy=p.coords.accuracy;
-      console.log('[GPS] TourGo fix — lat:',uLat,'lon:',uLon,'accuracy:',uAccuracy+'m');
-      loadTourGo(true);
-    },
-    ()=>{document.getElementById('tg-list').innerHTML='<div class="empty"><div class="empty-ico">❌</div><p>Location access denied.</p></div>';},
-    GPS_OPTS
-  );
-}
-
-// ── Main loader ────────────────────────────────────────────────
-async function loadTourGo(force){
-  // Don't re-fetch if we already have data and user didn't hit Refresh
-  if(_tgData && !force) { renderTourGoPlaces(); return; }
-  if(_tgLoading) return;
-
-  const listEl = document.getElementById('tg-list');
-  if(!listEl) return;
-
-  // If location not yet known, ask for it with high-accuracy then retry
-  if(!locKnown){
-    listEl.innerHTML = `
-      <div class="empty">
-        <div class="empty-ico">📍</div>
-        <p style="margin-bottom:14px;">Location required to find places near you.</p>
-        <button class="dir-btn" onclick="tgRequestLocation()">📍 Enable Location</button>
-      </div>`;
-    return;
-  }
-
-  _tgLoading = true;
-
-  // ACCURACY WARNING — soft warning only, never a hard block.
-  // Pilgrims indoors or on laptops typically get 100–300m accuracy from Wi-Fi/IP geolocation.
-  // Blocking them entirely defeats the feature. We warn and let them decide.
-  const accuracyNote = (uAccuracy && uAccuracy > GPS_ACCURACY_WARN)
-    ? `<div style="background:#FFFBEB;border:1px solid #FCD34D;border-radius:8px;
-        padding:10px 14px;margin-bottom:14px;font-size:12px;color:#92400E;
-        display:flex;align-items:flex-start;gap:8px;">
-        <span>⚠️</span>
-        <span>GPS accuracy is <strong>±${Math.round(uAccuracy)}m</strong> — 
-        results may not reflect your exact location. 
-        For best results, move outdoors.</span>
-       </div>`
-    : '';
-
-  listEl.innerHTML = accuracyNote + `
-    <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;
-      padding:60px 20px;gap:20px;">
-      <div style="position:relative;width:56px;height:56px;">
-        <div style="width:56px;height:56px;border:2px solid rgba(99,102,241,.2);
-          border-top-color:#6366F1;border-radius:50%;animation:tg-spin .9s linear infinite;"></div>
-        <span style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:20px;">🌐</span>
-      </div>
-      <div style="text-align:center;">
-        <div style="font-family:'Source Code Pro',monospace;font-size:10px;color:#6366F1;
-          text-transform:uppercase;letter-spacing:.3em;font-weight:700;margin-bottom:6px;">
-          Intelligence Scan in Progress</div>
-        <div style="font-size:12px;color:var(--t3);">
-          Gathering places near <strong>${uLat}, ${uLon}</strong>…</div>
-      </div>
-    </div>`;
-
-  // Log exact coords being sent — no rounding, no transformation
-  console.log('[TourGo] API request — lat:', uLat, 'lon:', uLon, 'accuracy:', uAccuracy ? uAccuracy+'m' : 'unknown');
-
-  try {
-    // Direct call to ScraperBot — bypasses FastAPI, works even when only Live Server + ScraperBot are running
-    const SCRAPERBOT_URL = 'https://pushkara.onrender.com';
-    const apiUrl = `${SCRAPERBOT_URL}/tourgo/explore?lat=${uLat}&lon=${uLon}&radius_km=60`;
-    console.log('[TourGo] Fetching ScraperBot directly:', apiUrl);
-
-    // 30-second client-side timeout — prevents infinite spinner if Groq/backend hangs
-    const controller = new AbortController();
-    const tgTimer = setTimeout(() => controller.abort(), 30000);
-    let res;
-    try {
-      res = await fetch(apiUrl, { signal: controller.signal });
-    } catch(fetchErr) {
-      if(fetchErr.name === 'AbortError')
-        throw new Error('Request timed out (30s). Groq AI is slow — try again in a moment.');
-      throw fetchErr;
-    } finally {
-      clearTimeout(tgTimer);
-    }
-
-    if(!res.ok){
-      const err = await res.json().catch(()=>({}));
-      throw new Error(err.detail || `Server error ${res.status}`);
-    }
-    _tgData = await res.json();
-    console.log('[TourGo] Response — area:', _tgData.requested_area, 'places:', _tgData.total);
-    renderTourGoPlaces();
-  } catch(e){
-    listEl.innerHTML = `
-      <div class="empty">
-        <div class="empty-ico">⚠️</div>
-        <p style="margin-bottom:4px;font-weight:700;">Could not load places</p>
-        <p style="font-size:12px;color:var(--t3);margin-bottom:14px;">${e.message}</p>
-        <button class="dir-btn" onclick="loadTourGo(true)">↻ Try Again</button>
-      </div>`;
-  } finally {
-    _tgLoading = false;
-  }
-}
-
-// ── Render place cards — ScraperBot card design, Pushkaralu palette ──────────
-function renderTourGoPlaces(){
-  const listEl   = document.getElementById('tg-list');
-  const statsEl  = document.getElementById('tg-stats');
-  if(!listEl || !_tgData) return;
-
-  const all    = _tgData.places || [];
-  const famous = all.filter(p=>p.popularity==='Famous');
-  const hidden = all.filter(p=>p.popularity==='Underrated');
-
-  // Update stats bar
-  if(statsEl){
-    statsEl.style.display = 'flex';
-    const areaEl = document.getElementById('tg-area-label');
-    if(areaEl) areaEl.textContent = _tgData.requested_area || '';
-    const ca = document.getElementById('tg-count-all');
-    const cf = document.getElementById('tg-count-fam');
-    const ch = document.getElementById('tg-count-hid');
-    if(ca) ca.textContent = all.length + ' total';
-    if(cf) cf.textContent = '⭐ ' + famous.length + ' famous';
-    if(ch) ch.textContent = '💎 ' + hidden.length + ' hidden';
-  }
-
-  // Apply filter
-  const filtered = _tgFilter === 'all'
-    ? all
-    : all.filter(p => p.popularity === _tgFilter);
-
-  if(!filtered.length){
-    listEl.innerHTML = `<div class="empty"><div class="empty-ico">🔍</div>
-      <p>No places for this filter.</p></div>`;
-    return;
-  }
-
-  // Build cards — ScraperBot card layout adapted to user.html styles
-  listEl.innerHTML = `<div class="tg-grid">${filtered.map((p,i)=>{
-    const isFamous  = p.popularity === 'Famous';
-    const badge     = isFamous
-      ? `<span class="tg-badge-famous">⭐ Famous</span>`
-      : `<span class="tg-badge-hidden">💎 Hidden Gem</span>`;
-    const catTags   = (p.category||[]).map(c=>`<span class="tg-cat-tag">${c}</span>`).join(' ');
-    const dist      = (typeof p.distance_km === 'number')
-      ? (p.distance_km < 1
-          ? (p.distance_km*1000).toFixed(0)+'m away'
-          : p.distance_km.toFixed(1)+'km away')
-      : (locKnown ? hvs(uLat,uLon,p.latitude,p.longitude).toFixed(1)+'km away' : '');
-    const distTag   = dist ? `<span class="fm">📏 ${dist}</span>` : '';
-    const mapsUrl   = `https://maps.google.com/?q=${p.latitude},${p.longitude}`;
-    const delay     = Math.min(i*0.05, 0.8);
-
-    return `
-      <div class="tg-card" style="animation-delay:${delay}s">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
-          <div style="display:flex;flex-direction:column;gap:6px;">
-            <div style="display:flex;align-items:center;gap:6px;">
-              <span class="tg-num">${String(i+1).padStart(2,'0')}</span>
-              ${badge}
-            </div>
-            <div class="tg-place-name">${p.place_name}</div>
-          </div>
-          <div style="font-size:1.4rem;flex-shrink:0;">${isFamous ? '⭐' : '👁️'}</div>
-        </div>
-
-        <div style="display:flex;align-items:center;gap:4px;font-size:11px;color:rgba(26,26,26,.45);">
-          <span>📍</span>
-          <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${p.parent_area||''}</span>
-          ${distTag ? `<span style="margin-left:4px;">${distTag}</span>` : ''}
-        </div>
-
-        ${p.description ? `<p class="tg-desc">${p.description}</p>` : ''}
-
-        <div style="display:flex;flex-wrap:wrap;gap:5px;">${catTags}</div>
-
-        <div style="display:flex;align-items:center;justify-content:space-between;
-          padding-top:10px;border-top:1px solid rgba(26,26,26,.07);">
-          <div class="tg-coords">
-            LAT: ${p.latitude.toFixed(6)}<br>LNG: ${p.longitude.toFixed(6)}
-          </div>
-          <a href="${mapsUrl}" target="_blank" rel="noopener noreferrer"
-            class="tg-dir-btn">🗺️ Directions</a>
-        </div>
-      </div>`;
-  }).join('')}</div>`;
-}
-
-// ═══ THEME TOGGLE ════════════════════════════════════════════
-function toggleTheme(){
-  document.body.classList.toggle('dark-mode');
-  const isDark = document.body.classList.contains('dark-mode');
-  localStorage.setItem('theme', isDark ? 'dark' : 'light');
-  updateThemeIcon();
-}
-function updateThemeIcon(){
-  const btn = document.getElementById('theme-toggle');
-  if(!btn) return;
-  btn.textContent = document.body.classList.contains('dark-mode') ? '☀️' : '🌙';
-}
-(function initTheme(){
-  const saved = localStorage.getItem('theme');
-  if(saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches)){
-    document.body.classList.add('dark-mode');
-  }
-  updateThemeIcon();
-})();
-
-// ═══ BACKEND WARM-UP ══════════════════════════════════════════
-// Pings Render immediately on page load so the backend is warm
-// before the user interacts — eliminates cold-start LCP penalty.
-(function warmBackend(){
-  const endpoints = ['/stats', '/get_ghats'];
-  endpoints.forEach(ep => fetch(API_BASE + ep).catch(() => {}));
-})();
-
-// ═══ INIT ═════════════════════════════════════════════════════
-// Defer data fetch to after first paint — reduces TBT on slow connections
-if('requestIdleCallback' in window){
-  requestIdleCallback(() => loadStats(), { timeout: 2000 });
-} else {
-  setTimeout(loadStats, 100);
-}
-</script>
-
-
-<!-- Chatbot FAB button -->
-<button id="cb-fab" onclick="cbToggle()" aria-label="Open TourGO Pushkara AI" title="TourGO Pushkara AI">
-  🪔
-</button>
-
-<!-- Chatbot panel -->
-<div id="cb-panel" role="dialog" aria-modal="true" aria-label="TourGO Pushkara AI Assistant">
-
-  <!-- Header -->
-  <div id="cb-header">
-    <div id="cb-avatar">🪔</div>
-    <div id="cb-header-text">
-      <strong>TourGO Pushkara AI</strong>
-      <span>Pilgrim Assistant · Godavari 2027</span>
-      <span id="cb-powered" style="font-size:9px;color:rgba(255,255,255,.35);font-family:'DM Sans',sans-serif;letter-spacing:.3px;">Powered by TourGO</span>
-    </div>
-    <button id="cb-close" onclick="cbToggle()" aria-label="Close chat">✕</button>
-  </div>
-
-  <!-- Messages -->
-  <div id="cb-msgs" aria-live="polite">
-    <!-- Welcome message injected by JS -->
-  </div>
-
-  <!-- Typing indicator -->
-  <div id="cb-typing" class="cb-msg bot">
-    <div class="cb-msg-icon">🪔</div>
-    <div class="cb-dots">
-      <div class="cb-dot"></div>
-      <div class="cb-dot"></div>
-      <div class="cb-dot"></div>
-    </div>
-  </div>
-
-  <!-- Quick reply chips -->
-  <div id="cb-quick"></div>
-
-  <!-- Powered by TourGO footer -->
-  <div style="text-align:center;padding:4px 12px 0;font-size:10px;color:var(--t3);font-family:'DM Sans',sans-serif;letter-spacing:.3px;flex-shrink:0;">
-    Powered by <strong style="color:var(--saffron);">TourGO</strong> · AI may make mistakes
-  </div>
-
-  <!-- Input -->
-  <div id="cb-input-area">
-    <textarea
-      id="cb-input"
-      placeholder="Ask / అడగండి / पूछें…"
-      rows="1"
-      maxlength="500"
-      aria-label="Type your message"
-    ></textarea>
-    <button id="cb-send" onclick="cbSend()" aria-label="Send message" title="Send">➤</button>
-  </div>
-
-</div>
-
-<script>
-// ── Pushkara AI Chatbot ───────────────────────────────────────────────────
-(function(){
-
-  // Quick replies with 3 languages — EN / Telugu / Hindi
-  const QUICK_REPLIES_EN = [
-    '🌊 Ghat crowd levels',
-    '🚌 How to reach by bus',
-    '🏥 Nearest hospital',
-    '🔱 Pooja timings',
-    '🆘 Emergency numbers',
-    '🚽 Where are toilets',
-  ];
-  const QUICK_REPLIES_TE = [
-    '🌊 ఘాట్ రద్దీ స్థాయి',
-    '🚌 బస్సులో ఎలా చేరాలి',
-    '🏥 సమీప ఆసుపత్రి',
-    '🔱 పూజ సమయాలు',
-    '🆘 అత్యవసర నంబర్లు',
-    '🚽 టాయిలెట్ ఎక్కడ',
-  ];
-  const QUICK_REPLIES_HI = [
-    '🌊 घाट की भीड़',
-    '🚌 बस से कैसे पहुँचें',
-    '🏥 नज़दीकी अस्पताल',
-    '🔱 पूजा का समय',
-    '🆘 आपातकालीन नंबर',
-    '🚽 शौचालय कहाँ है',
-  ];
-  let QUICK_REPLIES = QUICK_REPLIES_EN;
-
-  const WELCOME_EN = `Namaste 🙏 I'm TourGO Pushkara AI, your guide for Godavari Pushkaralu 2027.\n\nAsk me about ghats, transport, facilities, poojas, or emergency help. I reply in Telugu, Hindi, or English — just write in your language!`;
-  const WELCOME_TE = `నమస్కారం 🙏 నేను TourGO పుష్కర AI. గోదావరి పుష్కరాలు 2027కి స్వాగతం!\n\nఘాట్లు, రవాణా, సదుపాయాలు, పూజలు లేదా అత్యవసర సహాయం గురించి అడగండి. మీరు తెలుగులో అడిగితే నేను తెలుగులో సమాధానం ఇస్తాను.`;
-  const WELCOME_HI = `नमस्ते 🙏 मैं TourGO पुष्कर AI हूँ। गोदावरी पुष्करालु 2027 में आपका स्वागत है!\n\nघाट, परिवहन, सुविधाएँ, पूजा या आपातकालीन सहायता के बारे में पूछें। हिंदी में पूछें, हिंदी में जवाब मिलेगा।`;
-  let WELCOME = WELCOME_EN;
-
-  let _history = [];      // [{role, content}]
-  let _isOpen  = false;
-  let _isBusy  = false;
-  let _inited  = false;
-
-  // ── Toggle open/close ──────────────────────────────────────────────────
-  window.cbToggle = function() {
-    _isOpen = !_isOpen;
-    const fab   = document.getElementById('cb-fab');
-    const panel = document.getElementById('cb-panel');
-    fab.classList.toggle('open', _isOpen);
-    panel.classList.toggle('open', _isOpen);
-    if (_isOpen && !_inited) _cbInit();
-    if (_isOpen) setTimeout(() => document.getElementById('cb-input')?.focus(), 250);
-  };
-
-  function _cbInit() {
-    _inited = true;
-    _renderLangPicker();
-  }
-
-  function _renderLangPicker() {
-    const msgs = document.getElementById('cb-msgs');
-    if (!msgs) return;
-    const wrap = document.createElement('div');
-    wrap.id = 'cb-lang-picker';
-    wrap.style.cssText = 'padding:12px 4px 4px;display:flex;flex-direction:column;gap:8px;animation:cb-in .25s ease;';
-    wrap.innerHTML = `
-      <div style="font-family:'DM Sans',sans-serif;font-size:12px;color:var(--t2);text-align:center;margin-bottom:2px;">
-        🌐 Choose your language / భాష ఎంచుకోండి / भाषा चुनें
-      </div>
-      <div style="display:flex;gap:8px;justify-content:center;">
-        <button class="cb-lang-btn" onclick="cbSetLang('en')" style="padding:8px 16px;border-radius:20px;border:1.5px solid var(--navy);background:transparent;color:var(--navy);font-family:'DM Sans',sans-serif;font-weight:700;font-size:13px;cursor:pointer;">English</button>
-        <button class="cb-lang-btn" onclick="cbSetLang('te')" style="padding:8px 16px;border-radius:20px;border:1.5px solid var(--saffron);background:transparent;color:var(--saffron);font-family:'DM Sans',sans-serif;font-weight:700;font-size:13px;cursor:pointer;">తెలుగు</button>
-        <button class="cb-lang-btn" onclick="cbSetLang('hi')" style="padding:8px 16px;border-radius:20px;border:1.5px solid var(--green);background:transparent;color:var(--green);font-family:'DM Sans',sans-serif;font-weight:700;font-size:13px;cursor:pointer;">हिंदी</button>
-      </div>`;
-    msgs.appendChild(wrap);
-  }
-
-  window.cbSetLang = function(lang) {
-    const picker = document.getElementById('cb-lang-picker');
-    if (picker) picker.remove();
-    if (lang === 'te') { WELCOME = WELCOME_TE; QUICK_REPLIES = QUICK_REPLIES_TE; }
-    else if (lang === 'hi') { WELCOME = WELCOME_HI; QUICK_REPLIES = QUICK_REPLIES_HI; }
-    else { WELCOME = WELCOME_EN; QUICK_REPLIES = QUICK_REPLIES_EN; }
-    _appendMsg('bot', WELCOME);
-    _renderQuickReplies();
-  };
-
-  // ── Append a message bubble ────────────────────────────────────────────
-  function _appendMsg(role, text) {
-    const msgs = document.getElementById('cb-msgs');
-    if (!msgs) return;
-
-    const wrap = document.createElement('div');
-    wrap.className = `cb-msg ${role}`;
-
-    const icon = document.createElement('div');
-    icon.className = 'cb-msg-icon';
-    icon.textContent = role === 'bot' ? '🪔' : '🙏';
-
-    const bubble = document.createElement('div');
-    bubble.className = 'cb-bubble';
-    // Preserve newlines
-    bubble.innerHTML = _linkify(_escHtml(text).replace(/\n/g, '<br>'));
-
-    wrap.appendChild(icon);
-    wrap.appendChild(bubble);
-    msgs.appendChild(wrap);
-    _scrollBottom();
-  }
-
-  function _escHtml(s) {
-    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-  }
-
-  // Convert plain URLs in escaped HTML text into clickable anchor tags
-  function _linkify(html) {
-    // Matches http(s):// URLs, stops at whitespace or <br>
-    return html.replace(
-      /(https?:\/\/[^\s<>"']+)/g,
-      '<a href="$1" target="_blank" rel="noopener noreferrer" ' +
-      'style="color:#1a73e8;word-break:break-all;font-size:0.85em;">$1</a>'
-    );
-  }
-
-  function _scrollBottom() {
-    const msgs = document.getElementById('cb-msgs');
-    if (msgs) msgs.scrollTop = msgs.scrollHeight;
-  }
-
-  // ── Quick reply chips ──────────────────────────────────────────────────
-  function _renderQuickReplies() {
-    const qr = document.getElementById('cb-quick');
-    if (!qr) return;
-    qr.innerHTML = '';
-    QUICK_REPLIES.forEach(q => {
-      const btn = document.createElement('button');
-      btn.className = 'cb-qr';
-      btn.textContent = q;
-      btn.addEventListener('click', () => window.cbQuickReply(q));
-      qr.appendChild(btn);
-    });
-  }
-
-  window.cbQuickReply = function(text) {
-    document.getElementById('cb-quick').innerHTML = '';
-    _doSend(text);
-  };
-
-  // ── Send ───────────────────────────────────────────────────────────────
-  window.cbSend = function() {
-    const input = document.getElementById('cb-input');
-    const msg = (input?.value || '').trim();
-    if (!msg || _isBusy) return;
-    input.value = '';
-    input.style.height = 'auto';
-    document.getElementById('cb-quick').innerHTML = '';
-    _doSend(msg);
-  };
-
-  async function _doSend(msg) {
-    if (_isBusy) return;
-    _isBusy = true;
-
-    const sendBtn = document.getElementById('cb-send');
-    if (sendBtn) sendBtn.disabled = true;
-
-    _appendMsg('user', msg);
-    _history.push({ role: 'user', content: msg });
-
-    // Show typing indicator
-    const typing = document.getElementById('cb-typing');
-    if (typing) { typing.classList.add('show'); _scrollBottom(); }
-
-    try {
-      const res = await fetch(`${typeof API_BASE !== 'undefined' ? API_BASE : ''}/api/chat`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: msg,
-          history: _history.slice(-20),  // send last 10 pairs
-        }),
-      });
-
-      if (typing) typing.classList.remove('show');
-
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        const errMsg = err.detail || 'Something went wrong. For emergencies call 112.';
-        _appendMsg('bot', errMsg);
-      } else {
-        const data = await res.json();
-        const reply = data.reply || 'Sorry, I could not process that.';
-        _appendMsg('bot', reply);
-        _history.push({ role: 'assistant', content: reply });
-        // Trim history to avoid memory bloat
-        if (_history.length > 20) _history = _history.slice(-20);
-      }
-    } catch(e) {
-      if (typing) typing.classList.remove('show');
-      _appendMsg('bot', 'Unable to connect. Please check your internet or call the control room: 1800-425-8877');
-    }
-
-    _isBusy = false;
-    if (sendBtn) sendBtn.disabled = false;
-    document.getElementById('cb-input')?.focus();
-  }
-
-  // ── Auto-resize textarea on input ─────────────────────────────────────
-  document.addEventListener('DOMContentLoaded', function() {
-    const input = document.getElementById('cb-input');
-    if (!input) return;
-
-    input.addEventListener('input', function() {
-      this.style.height = 'auto';
-      this.style.height = Math.min(this.scrollHeight, 80) + 'px';
-    });
-
-    input.addEventListener('keydown', function(e) {
-      if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        cbSend();
-      }
-    });
-  });
-
-})();
-</script>
-
-</body>
-</html>
+from __future__ import annotations
+
+import hashlib
+import json
+import logging
+import os
+import re
+import time
+from typing import Optional
+
+import httpx
+from fastapi import APIRouter, HTTPException, Request
+from pydantic import BaseModel
+
+logger = logging.getLogger("pushkaralu.chat")
+
+GROQ_API_KEY      = os.getenv("GROQ_API_KEY", "")
+GROQ_API_URL      = "https://api.groq.com/openai/v1/chat/completions"
+GROQ_MODEL         = "llama-3.3-70b-versatile"
+GROQ_MODEL_FALLBACK = "llama-3.1-8b-instant"   # used when primary hits rate limit (429)
+MAX_HISTORY_TURNS = 10
+CACHE_TTL_SECONDS = 60
+RATE_LIMIT        = 20
+RATE_WINDOW       = 60
+
+router = APIRouter()
+
+_cache: dict[str, tuple[str, float]] = {}
+
+def _cache_get(key: str) -> Optional[str]:
+    entry = _cache.get(key)
+    if entry and (time.time() - entry[1]) < CACHE_TTL_SECONDS:
+        return entry[0]
+    return None
+
+def _cache_set(key: str, value: str) -> None:
+    if len(_cache) > 500:
+        cutoff = time.time() - CACHE_TTL_SECONDS
+        stale = [k for k, (_, t) in _cache.items() if t < cutoff]
+        for k in stale:
+            _cache.pop(k, None)
+    _cache[key] = (value, time.time())
+
+
+# ── OFF-TOPIC PRE-FILTER ──────────────────────────────────────────────────────
+# These words/phrases are ALLOWED — they relate to Pushkaralu
+_ALLOWED_KEYWORDS = {
+    # festival core
+    "pushkar", "pushkara", "godavari", "ghat", "ganga", "bathing", "ritual",
+    "pooja", "puja", "snan", "holy", "sacred", "dip", "pilgrimage", "pilgrim",
+    "festival", "mela", "utsav", "2027", "rajahmundry", "rajamahendravaram",
+    # transport
+    "train", "bus", "auto", "taxi", "cab", "parking", "route", "station",
+    "apsrtc", "irctc", "railway", "transport", "travel", "reach", "how to go",
+    "journey", "schedule", "timing", "departure", "arrival",
+    # facilities & safety
+    "toilet", "washroom", "restroom", "food", "water", "medical", "camp",
+    "ambulance", "hospital", "doctor", "first aid", "luggage", "cloak",
+    "wheelchair", "disabled", "crowd", "safe", "safety", "lost", "found",
+    "missing", "child", "police", "help", "emergency", "sos", "helpline",
+    "hotel", "accommodation", "stay", "lodge", "dharamshala",
+    # Telugu / Hindi terms
+    "స్నానం", "ఘాట్", "పూజ", "పుష్కర", "గోదావరి", "రాజమహేంద్రవరం",
+    "స్నान", "घाट", "पूजा", "पुष्कर", "गोदावरी",
+    # greetings / meta
+    "hello", "hi", "namaste", "namaskar", "నమస్కారం", "నమస్తే",
+    "helo", "hey", "thank", "thanks", "ok", "okay", "yes", "no",
+    "what", "which", "where", "when", "how", "who", "list",
+    "tell me", "show me", "give me", "can you", "please",
+}
+
+# Topics that are clearly off-topic — checked ONLY if no allowed keyword matched
+_BLOCKED_PATTERNS = [
+    r"\bcricket\b", r"\bsachin\b", r"\bvirat\b", r"\bipl\b",
+    r"\brecipe\b", r"\bcook\b", r"\bchicken\b", r"\bbiriyani\b",
+    r"\bpolitics\b", r"\belection\b", r"\bminister\b", r"\bgovernment\b",
+    r"\bweather\b",                        # weather elsewhere; festival weather is ok
+    r"\bgoogle\b", r"\bbing\b", r"\bgpt\b", r"\bchatgpt\b", r"\bai tool\b",
+    r"\bstock\b", r"\bshare price\b", r"\bcrypto\b", r"\bbitcoin\b",
+    r"\bmovie\b", r"\bfilm\b", r"\bsong\b", r"\blyric\b",
+    r"\bjoke\b", r"\bfunny\b",
+    r"\bexam\b", r"\bsyllabus\b", r"\bcollege\b", r"\buniversity\b",
+    r"\bjob\b", r"\bsalary\b", r"\bresume\b", r"\binterview\b",
+]
+_BLOCKED_RE = re.compile("|".join(_BLOCKED_PATTERNS), re.IGNORECASE)
+
+_REFUSAL = (
+    "I can only help with Godavari Pushkaralu 2027. "
+    "Please ask about ghats, transport, facilities, poojas, or emergencies. "
+    "— TourGO Pushkara AI 🕊"
+)
+_REFUSAL_TE = (
+    "నేను కేవలం గోదావరి పుష్కరాలు 2027 గురించి మాత్రమే సహాయం చేయగలను. "
+    "దయచేసి ఘాట్లు, రవాణా, సౌకర్యాలు, పూజలు లేదా అత్యవసర పరిస్థితుల గురించి అడగండి. "
+    "— TourGO Pushkara AI 🕊"
+)
+_REFUSAL_HI = (
+    "मैं केवल गोदावरी पुष्करालु 2027 के बारे में सहायता कर सकता हूँ। "
+    "कृपया घाट, परिवहन, सुविधाएँ, पूजा या आपात स्थिति के बारे में पूछें। "
+    "— TourGO Pushkara AI 🕊"
+)
+
+
+def _is_off_topic(msg: str) -> bool:
+    """Return True if the message is clearly off-topic."""
+    lower = msg.lower()
+    # If any allowed keyword appears → let it through
+    for kw in _ALLOWED_KEYWORDS:
+        if kw in lower:
+            return False
+    # No allowed keyword found — check blocked patterns
+    return bool(_BLOCKED_RE.search(msg))
+
+
+def _detect_lang(msg: str) -> str:
+    """Very rough language detect: te / hi / en."""
+    # Telugu Unicode block: 0C00–0C7F
+    if re.search(r"[\u0C00-\u0C7F]", msg):
+        return "te"
+    # Devanagari: 0900–097F
+    if re.search(r"[\u0900-\u097F]", msg):
+        return "hi"
+    return "en"
+
+
+def _refusal_for_lang(msg: str) -> str:
+    lang = _detect_lang(msg)
+    if lang == "te":
+        return _REFUSAL_TE
+    if lang == "hi":
+        return _REFUSAL_HI
+    return _REFUSAL
+
+
+# ── SYSTEM PROMPT ─────────────────────────────────────────────────────────────
+
+def _build_system_prompt(db: dict) -> str:
+    ghats      = db.get("ghats", [])
+    transport  = db.get("transport_routes", [])
+    helplines  = db.get("helplines", {})
+    hospitals  = db.get("hospitals", [])
+    facilities = db.get("facilities", [])
+    poojas     = db.get("poojas", [])
+    hotels     = db.get("hotels", [])
+
+    # GHATS
+    ghat_lines = []
+    for g in ghats:
+        crowd = g.get("crowd_level", "unknown")
+        crowd_emoji = "🔴" if crowd == "high" else ("🟡" if crowd == "medium" else "🟢")
+        cur = g.get("current_count", 0)
+        cap = g.get("capacity", 0)
+        pct = int(cur / cap * 100) if cap else 0
+        special = ", ".join(g.get("special_dates", []))
+        facs = ", ".join(g.get("facilities", []))
+        ghat_lines.append(
+            f"  • {g['name']} ({g.get('telugu_name','')}) | Zone:{g.get('zone')} | "
+            f"{crowd_emoji} {crowd.upper()} ({cur:,}/{cap:,} = {pct}%) | "
+            f"Timings: {g.get('bathing_timings')} | Near: {g.get('nearest_landmark','')} | "
+            f"Special: {special or 'none'} | Facilities: {facs}"
+        )
+    ghats_block = "\n".join(ghat_lines) or "  Data loading..."
+
+    # TRANSPORT
+    trains = [t for t in transport if t.get("type") == "train"]
+    buses  = [t for t in transport if t.get("type") == "bus"]
+    special_trains = [t for t in trains if t.get("special_pushkaralu")]
+
+    train_lines = []
+    for t in trains[:8]:  # trimmed: free tier TPM limit
+        arr = t.get("arrival_rjy", "")
+        dep = t.get("departure_rjy", "")
+        timing = (f"arr {arr}" if arr else "") + (f" / dep {dep}" if dep else "")
+        tags = " ".join(filter(None, [
+            "🟢 STARTS at RJY" if t.get("originates_rjy") else "",
+            "🔴 ENDS at RJY"   if t.get("terminates_rjy") else "",
+            "✨ PUSHKARALU SPECIAL" if t.get("special_pushkaralu") else "",
+        ]))
+        train_lines.append(
+            f"  • {t.get('train_number','')} {t.get('train_name','')} | "
+            f"{t.get('from','')} → {t.get('to','')} | {timing} {tags}".strip()
+        )
+    sp_names = ", ".join(f"{t.get('train_number')} {t.get('train_name','')}" for t in special_trains[:5])
+    trains_block = (
+        f"Total {len(trains)} trains via Rajahmundry.\n"
+        f"Special Pushkaralu trains: {sp_names or 'none'}\nSample (8 of {len(trains)}):\n" +
+        "\n".join(train_lines)
+    )
+
+    bus_lines = []
+    for b in buses[:5]:  # trimmed: free tier TPM limit
+        times = b.get("departure_times", [])
+        time_str = ", ".join(f"{d['time']} ({d.get('service','')})" for d in times[:3])
+        freq = f"every {b.get('frequency_mins')} min" if b.get("frequency_mins") else ""
+        stops = " → ".join(b.get("stops", []))
+        special = "✨ SPECIAL" if b.get("special_pushkaralu") else ""
+        bus_lines.append(
+            f"  • {b.get('route_number','')} | {b.get('from','')} → {b.get('to','')} | "
+            f"{time_str} {freq} | {b.get('operator','')} {special} | Stops: {stops}"
+        )
+    buses_block = f"Total {len(buses)} APSRTC routes.\n" + "\n".join(bus_lines)
+
+    # FACILITIES
+    fac_by_type: dict = {}
+    for f in facilities:
+        t = f.get("type", "other")
+        fac_by_type.setdefault(t, []).append(
+            f"{f.get('name','')} | Zone:{f.get('zone','')} | {f.get('status','operational')}"
+        )
+    fac_block = ""
+    for ftype, items in fac_by_type.items():
+        fac_block += f"\n  {ftype.upper()} ({len(items)}):\n"
+        for item in items[:2]:  # trimmed: free tier TPM limit
+            fac_block += f"    - {item}\n"
+
+    # POOJAS
+    pooja_lines = [
+        f"  • {p.get('name','')} ({p.get('telugu_name','')}) — {p.get('description','')[:80]}"
+        for p in poojas[:6]  # trimmed for free-tier TPM limit
+    ]
+    poojas_block = "\n".join(pooja_lines) or "  Data loading..."
+
+    # HOTELS
+    hotel_lines = [
+        f"  • {h.get('name')} | {h.get('type')} | {h.get('location')} | Area: {h.get('area')}"
+        for h in hotels[:5]  # trimmed for free-tier TPM limit
+    ]
+    hotels_block = "\n".join(hotel_lines) or "  Data loading..."
+
+    # HOSPITALS
+    seen = set()
+    hospital_lines = []
+    for h in hospitals:
+        key = h.get("name", "") + h.get("location", "")
+        if key not in seen:
+            seen.add(key)
+            hospital_lines.append(
+                f"  • {h.get('location','')} — {h.get('name','')} | "
+                f"Dr. {h.get('doctor','')} | ☎ {h.get('contact','')}"
+            )
+    hospitals_block = "\n".join(hospital_lines[:6]) or "  Data loading..."  # trimmed
+
+    # HELPLINES
+    if isinstance(helplines, dict):
+        helpline_block = "\n".join(f"  {k}: {v}" for k, v in helplines.items())
+    else:
+        helpline_block = "  Police: 100 | Ambulance: 108 | Helpline: 1800-425-0066"
+
+    return f"""You are TourGO Pushkara AI — the official AI assistant for Godavari Pushkaralu 2027.
+Festival: June 26 – July 7, 2027 | Location: Rajahmundry (Rajamahendravaram), Andhra Pradesh
+
+SCOPE: Answer ONLY about Godavari Pushkaralu 2027 — ghats, transport, facilities, poojas, hotels, hospitals, emergencies.
+For ANYTHING else respond ONLY: "I can only help with Godavari Pushkaralu 2027. Please ask about ghats, transport, facilities, poojas, or emergencies. — TourGO Pushkara AI 🕊"
+
+LANGUAGE: Reply entirely in the user's language (Telugu→Telugu, Hindi→Hindi, English→English).
+
+STYLE: Be specific — use actual names, numbers, timings from data below. Keep answers concise.
+For emergencies always include: Police: 100 | Ambulance: 108 | Helpline: 1800-425-0066
+End every on-topic reply with: — TourGO Pushkara AI 🕊
+
+════════════ LIVE FESTIVAL DATA ════════════
+
+── GHATS ({len(ghats)} total) ──
+{ghats_block}
+
+── TRAINS ({len(trains)} total via Rajahmundry) ──
+{trains_block}
+
+── APSRTC BUSES ──
+{buses_block}
+
+── FACILITIES ──
+{fac_block}
+── POOJAS & RITUALS ──
+{poojas_block}
+
+── HOTELS & ACCOMMODATION ──
+{hotels_block}
+
+── HOSPITALS ──
+{hospitals_block}
+
+── HELPLINES ──
+{helpline_block}
+"""
+
+
+# ── REQUEST / RESPONSE MODELS ─────────────────────────────────────────────────
+
+class ChatMessage(BaseModel):
+    role: str
+    content: str
+
+class ChatRequest(BaseModel):
+    message: str
+    history: list[ChatMessage] = []
+
+
+# ── ENDPOINTS ─────────────────────────────────────────────────────────────────
+
+@router.get("/api/health")
+async def health():
+    """Lightweight ping — call on page load to wake Render from cold sleep."""
+    return {"status": "ok"}
+
+
+@router.post("/api/chat")
+async def chat(req: ChatRequest, request: Request):
+    msg = req.message.strip()
+    if not msg:
+        raise HTTPException(status_code=400, detail="Message cannot be empty")
+    if len(msg) > 500:
+        raise HTTPException(status_code=400, detail="Message too long (max 500 chars)")
+
+    if not GROQ_API_KEY:
+        logger.error("[Chat] GROQ_API_KEY not set")
+        raise HTTPException(status_code=503, detail="Chat service not configured. Contact admin.")
+
+    # ── PRE-FILTER: block off-topic before hitting Groq ──────────────────────
+    if _is_off_topic(msg):
+        refusal = _refusal_for_lang(msg)
+        logger.info("[Chat] BLOCKED off-topic | q=%s", msg[:60])
+        return {"reply": refusal, "cached": False, "filtered": True}
+
+    # Rate limiting
+    client_ip = request.client.host
+    try:
+        from app.core.redis_manager import check_rate_limit
+        allowed, _ = await check_rate_limit(
+            f"rate:chat:{client_ip}", limit=RATE_LIMIT, window_seconds=RATE_WINDOW
+        )
+        if not allowed:
+            raise HTTPException(status_code=429, detail="Too many messages. Please wait a moment.")
+    except ImportError:
+        pass
+
+    # Cache check
+    cache_key = hashlib.md5(msg.lower().encode()).hexdigest()
+    cached = _cache_get(cache_key)
+    if cached:
+        return {"reply": cached, "cached": True}
+
+    # Build system prompt with live DB data
+    try:
+        from main import DB
+        system_prompt = _build_system_prompt(DB)
+    except ImportError:
+        system_prompt = _build_system_prompt({})
+
+    history = req.history[-(MAX_HISTORY_TURNS * 2):]
+    messages = [{"role": "system", "content": system_prompt}]
+    for h in history:
+        if h.role in ("user", "assistant"):
+            messages.append({"role": h.role, "content": h.content[:400]})
+    messages.append({"role": "user", "content": msg})
+
+    # Call Groq
+    try:
+        _groq_headers = {
+            "Authorization": f"Bearer {GROQ_API_KEY}",
+            "Content-Type": "application/json",
+        }
+        _groq_body = {
+            "model": GROQ_MODEL,
+            "messages": messages,
+            "max_tokens": 400,
+            "temperature": 0.4,
+        }
+
+        async with httpx.AsyncClient(timeout=25.0) as client:
+            response = await client.post(GROQ_API_URL, headers=_groq_headers, json=_groq_body)
+
+            # Rate-limited on primary model → retry immediately with smaller fallback
+            if response.status_code == 429:
+                logger.warning("[Chat] Primary model rate-limited (429), retrying with fallback model")
+                _groq_body["model"] = GROQ_MODEL_FALLBACK
+                response = await client.post(GROQ_API_URL, headers=_groq_headers, json=_groq_body)
+
+        if response.status_code != 200:
+            logger.error("[Chat] Groq error status=%s body=%s", response.status_code, response.text[:300])
+            if response.status_code == 401:
+                raise HTTPException(status_code=503, detail="Chat service not configured. Contact admin.")
+            raise HTTPException(
+                status_code=502,
+                detail="AI service temporarily unavailable. Please try again shortly."
+            )
+
+        data = response.json()
+        reply = data["choices"][0]["message"]["content"].strip()
+        _cache_set(cache_key, reply)
+        logger.info("[Chat] OK | ip=%s | q=%s", client_ip, msg[:40])
+        return {"reply": reply, "cached": False}
+
+    except httpx.TimeoutException:
+        raise HTTPException(status_code=504, detail="Response took too long. Please try again.")
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.error("[Chat] Unexpected error: %s", exc)
+        raise HTTPException(status_code=500, detail="Something went wrong. For emergencies call 112.")
