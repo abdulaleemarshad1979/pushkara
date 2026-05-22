@@ -42,6 +42,7 @@ def _cache_set(key: str, value: str) -> None:
 
 
 # ── OFF-TOPIC PRE-FILTER ──────────────────────────────────────────────────────
+# These words/phrases are ALLOWED — they relate to Pushkaralu
 _ALLOWED_KEYWORDS = {
     # festival core
     "pushkar", "pushkara", "godavari", "ghat", "ganga", "bathing", "ritual",
@@ -57,24 +58,22 @@ _ALLOWED_KEYWORDS = {
     "wheelchair", "disabled", "crowd", "safe", "safety", "lost", "found",
     "missing", "child", "police", "help", "emergency", "sos", "helpline",
     "hotel", "accommodation", "stay", "lodge", "dharamshala",
-    # location / navigation
-    "location", "map", "directions", "direction", "navigate", "navigation",
-    "where is", "how to reach", "how to get", "address", "coordinates",
     # Telugu / Hindi terms
     "స్నానం", "ఘాట్", "పూజ", "పుష్కర", "గోదావరి", "రాజమహేంద్రవరం",
-    "స్నాన", "घाट", "पूजा", "पुष्कर", "गोदावरी",
+    "స్నान", "घाट", "पूजा", "पुष्कर", "गोदावरी",
     # greetings / meta
     "hello", "hi", "namaste", "namaskar", "నమస్కారం", "నమస్తే",
     "helo", "hey", "thank", "thanks", "ok", "okay", "yes", "no",
-    "what", "which", "where", "when", "how", "who", "list", "all",
+    "what", "which", "where", "when", "how", "who", "list",
     "tell me", "show me", "give me", "can you", "please",
 }
 
+# Topics that are clearly off-topic — checked ONLY if no allowed keyword matched
 _BLOCKED_PATTERNS = [
     r"\bcricket\b", r"\bsachin\b", r"\bvirat\b", r"\bipl\b",
     r"\brecipe\b", r"\bcook\b", r"\bchicken\b", r"\bbiriyani\b",
     r"\bpolitics\b", r"\belection\b", r"\bminister\b", r"\bgovernment\b",
-    r"\bweather\b",
+    r"\bweather\b",                        # weather elsewhere; festival weather is ok
     r"\bgoogle\b", r"\bbing\b", r"\bgpt\b", r"\bchatgpt\b", r"\bai tool\b",
     r"\bstock\b", r"\bshare price\b", r"\bcrypto\b", r"\bbitcoin\b",
     r"\bmovie\b", r"\bfilm\b", r"\bsong\b", r"\blyric\b",
@@ -102,16 +101,22 @@ _REFUSAL_HI = (
 
 
 def _is_off_topic(msg: str) -> bool:
+    """Return True if the message is clearly off-topic."""
     lower = msg.lower()
+    # If any allowed keyword appears → let it through
     for kw in _ALLOWED_KEYWORDS:
         if kw in lower:
             return False
+    # No allowed keyword found — check blocked patterns
     return bool(_BLOCKED_RE.search(msg))
 
 
 def _detect_lang(msg: str) -> str:
+    """Very rough language detect: te / hi / en."""
+    # Telugu Unicode block: 0C00–0C7F
     if re.search(r"[\u0C00-\u0C7F]", msg):
         return "te"
+    # Devanagari: 0900–097F
     if re.search(r"[\u0900-\u097F]", msg):
         return "hi"
     return "en"
@@ -126,15 +131,6 @@ def _refusal_for_lang(msg: str) -> str:
     return _REFUSAL
 
 
-# ── MAPS LINK HELPERS ─────────────────────────────────────────────────────────
-
-def _maps_view(lat: float, lng: float, name: str) -> str:
-    return f"https://www.google.com/maps/search/{name.replace(' ', '+')}/@{lat},{lng},17z"
-
-def _maps_nav(lat: float, lng: float) -> str:
-    return f"https://www.google.com/maps/dir/?api=1&destination={lat},{lng}"
-
-
 # ── SYSTEM PROMPT ─────────────────────────────────────────────────────────────
 
 def _build_system_prompt(db: dict) -> str:
@@ -146,26 +142,21 @@ def _build_system_prompt(db: dict) -> str:
     poojas     = db.get("poojas", [])
     hotels     = db.get("hotels", [])
 
-    # GHATS — include Google Maps links for every ghat
+    # GHATS
     ghat_lines = []
     for g in ghats:
         crowd = g.get("crowd_level", "unknown")
-        crowd_emoji = "🔴" if crowd == "critical" else ("🟠" if crowd == "high" else ("🟡" if crowd == "medium" else "🟢"))
+        crowd_emoji = "🔴" if crowd == "high" else ("🟡" if crowd == "medium" else "🟢")
         cur = g.get("current_count", 0)
         cap = g.get("capacity", 0)
         pct = int(cur / cap * 100) if cap else 0
         special = ", ".join(g.get("special_dates", []))
-        facs = ", ".join(f.replace("_", " ").title() for f in g.get("facilities", []))
-        lat = g.get("latitude")
-        lng = g.get("longitude")
-        maps_view = _maps_view(lat, lng, g["name"]) if lat and lng else "N/A"
-        maps_nav  = _maps_nav(lat, lng) if lat and lng else "N/A"
+        facs = ", ".join(g.get("facilities", []))
         ghat_lines.append(
-            f"  • {g['name']} ({g.get('telugu_name','')}) | Zone: {g.get('zone')} | "
+            f"  • {g['name']} ({g.get('telugu_name','')}) | Zone:{g.get('zone')} | "
             f"{crowd_emoji} {crowd.upper()} ({cur:,}/{cap:,} = {pct}%) | "
-            f"Bathing: {g.get('bathing_timings')} | Near: {g.get('nearest_landmark','')} | "
-            f"Special: {special or 'none'} | Facilities: {facs} | "
-            f"📍 Map: {maps_view} | 🧭 Directions: {maps_nav}"
+            f"Timings: {g.get('bathing_timings')} | Near: {g.get('nearest_landmark','')} | "
+            f"Special: {special or 'none'} | Facilities: {facs}"
         )
     ghats_block = "\n".join(ghat_lines) or "  Data loading..."
 
@@ -258,29 +249,13 @@ def _build_system_prompt(db: dict) -> str:
 Festival: June 26 – July 7, 2027 | Location: Rajahmundry (Rajamahendravaram), Andhra Pradesh
 
 SCOPE: Answer ONLY about Godavari Pushkaralu 2027 — ghats, transport, facilities, poojas, hotels, hospitals, emergencies.
-For ANYTHING else respond ONLY: "I can only help with Godavari Pushkaralu 2027. — TourGO Pushkara AI 🕊"
+For ANYTHING else respond ONLY: "I can only help with Godavari Pushkaralu 2027. Please ask about ghats, transport, facilities, poojas, or emergencies. — TourGO Pushkara AI 🕊"
 
 LANGUAGE: Reply entirely in the user's language (Telugu→Telugu, Hindi→Hindi, English→English).
 
-RESPONSE RULES — follow strictly:
-1. NEVER echo raw data strings verbatim. Write natural, friendly sentences.
-2. FACILITIES: convert underscore_names to plain English (medical_camp → Medical Camp).
-3. CROWD: use plain language — "very crowded (90% full)" not raw pipe strings.
-4. MAPS: every ghat in the data below has a 📍 Map link and 🧭 Directions link. ALWAYS include both when mentioning any ghat.
-5. SINGLE GHAT — reply format:
-   🏛 Name (Telugu name)
-   📍 Zone: ... | Near: ...
-   👥 Crowd: [plain English]
-   🕐 Bathing: [timings]
-   🗓 Special dates: [dates]
-   🏥 Facilities: [plain English list]
-   🗺 View on map: [Map link from data]
-   🧭 Get directions: [Directions link from data]
-   — TourGO Pushkara AI 🕊
-6. ALL GHATS — list ALL {len(ghats)} ghats, numbered 1 to {len(ghats)}, each with its Map and Directions links. Do not skip any.
-7. EMERGENCY — list all numbers: 112 (National), 100 (Police), 108 (Ambulance), 101 (Fire), 1916 (NDRF), 1800-425-0066 (Festival Helpline).
-8. Keep single-ghat answers under 12 lines. All-ghats list must show all {len(ghats)}.
-9. End every reply with: — TourGO Pushkara AI 🕊
+STYLE: Be specific — use actual names, numbers, timings from data below. Keep answers concise.
+For emergencies always include: Police: 100 | Ambulance: 108 | Helpline: 1800-425-0066
+End every on-topic reply with: — TourGO Pushkara AI 🕊
 
 ════════════ LIVE FESTIVAL DATA ════════════
 
@@ -364,7 +339,7 @@ async def chat(req: ChatRequest, request: Request):
     if cached:
         return {"reply": cached, "cached": True}
 
-    # Build system prompt with live DB data (includes all ghat Maps links)
+    # Build system prompt with live DB data
     try:
         from main import DB
         system_prompt = _build_system_prompt(DB)
@@ -380,7 +355,7 @@ async def chat(req: ChatRequest, request: Request):
 
     # Call Groq
     try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
+        async with httpx.AsyncClient(timeout=20.0) as client:
             response = await client.post(
                 GROQ_API_URL,
                 headers={
@@ -390,22 +365,13 @@ async def chat(req: ChatRequest, request: Request):
                 json={
                     "model": GROQ_MODEL,
                     "messages": messages,
-                    "max_tokens": 1500,
+                    "max_tokens": 400,
                     "temperature": 0.4,
                 },
             )
 
         if response.status_code != 200:
-            # Log the real Groq error for debugging
-            try:
-                err = response.json().get("error", {})
-                groq_detail = f"{err.get('type','')}: {err.get('message','')}"
-            except Exception:
-                groq_detail = response.text[:200]
-            logger.error("[Chat] Groq %s | key=...%s | %s",
-                         response.status_code,
-                         GROQ_API_KEY[-6:] if GROQ_API_KEY else "MISSING",
-                         groq_detail)
+            logger.error("[Chat] Groq error %s: %s", response.status_code, response.text[:300])
             raise HTTPException(
                 status_code=502,
                 detail="AI service temporarily unavailable. Please try again shortly."
