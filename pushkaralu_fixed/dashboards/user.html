@@ -3688,8 +3688,9 @@ function initGhatMap(){
   const mapEl = document.getElementById('ghat-map');
   if(!mapEl || _leafletMap) return;
 
-  // Centre on Rajahmundry
-  _leafletMap = L.map('ghat-map', { zoomControl: true, scrollWheelZoom: false }).setView([16.98, 81.775], 13);
+  // Centre on Rajahmundry Godavari riverfront (verified: 17.005°N, 81.777°E)
+  // Zoom 12 shows all 15 ghats from Pattiseema (~81.63E) to Rajahmundry (~81.79E)
+  _leafletMap = L.map('ghat-map', { zoomControl: true, scrollWheelZoom: false }).setView([17.0052, 81.7778], 12);
 
   // Tile layer — OpenStreetMap (free, no API key)
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
