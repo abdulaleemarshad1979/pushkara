@@ -1428,14 +1428,6 @@ async def ingest_telecom(request: Request):
     })
     return {"success": True, "ghat_id": ghat_id}
 
-@app.get("/crowd/risk/{ghat_id}")
-async def get_ghat_risk(ghat_id: str):
-    risk_data = await get_crowd_data(ghat_id)
-    if risk_data: return risk_data
-    ghat = next((g for g in DB["ghats"] if g["id"] == ghat_id), None)
-    if not ghat: raise HTTPException(status_code=404, detail="Ghat not found")  # FIX: removed Windows path from error
-    return evaluate_from_dicts(ghat)
-
 @app.get("/crowd/risk/all")
 async def get_all_risk():
     cached = await cache_get(Keys.RISK_ALL)
@@ -1448,3 +1440,11 @@ async def get_all_risk():
     payload = {"risks": result, "timestamp": time.time()}
     await cache_set(Keys.RISK_ALL, payload, ttl=3)
     return payload
+
+@app.get("/crowd/risk/{ghat_id}")
+async def get_ghat_risk(ghat_id: str):
+    risk_data = await get_crowd_data(ghat_id)
+    if risk_data: return risk_data
+    ghat = next((g for g in DB["ghats"] if g["id"] == ghat_id), None)
+    if not ghat: raise HTTPException(status_code=404, detail="Ghat not found")
+    return evaluate_from_dicts(ghat)
