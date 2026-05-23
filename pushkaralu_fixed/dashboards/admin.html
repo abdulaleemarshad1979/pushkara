@@ -177,6 +177,16 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 .level-high{background:rgba(255,51,85,0.15);color:var(--red);border:1px solid rgba(255,51,85,0.3)}
 .level-critical{background:rgba(170,68,255,0.2);color:var(--purple);border:1px solid rgba(170,68,255,0.4);animation:pulse-red 1s infinite}
 select.level-select{background:var(--bg2);border:1px solid var(--border);color:var(--text);padding:4px 8px;border-radius:4px;font-size:11px;cursor:pointer}
+.ghat-risk-row{display:flex;align-items:center;gap:12px;padding:12px 14px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px;background:rgba(0,0,0,0.2);flex-wrap:wrap}
+.gr-left{min-width:160px;flex:0 0 160px}
+.gr-mid{flex:1;min-width:180px}
+.gr-right{display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+.gr-badges{display:flex;flex-wrap:wrap;gap:4px;margin:3px 0}
+.sensor-badge{display:inline-block;padding:1px 6px;border-radius:3px;font-size:9px;font-weight:700;font-family:'Source Code Pro',monospace;letter-spacing:.5px}
+.sensor-badge.cam{background:rgba(0,200,255,0.15);color:var(--cyan);border:1px solid rgba(0,200,255,0.3)}
+.sensor-badge.off{background:rgba(255,51,85,0.12);color:var(--red);border:1px solid rgba(255,51,85,0.25)}
+.sensor-badge.tel{background:rgba(0,255,136,0.12);color:var(--green);border:1px solid rgba(0,255,136,0.25)}
+.sensor-badge.peak{background:rgba(255,200,0,0.15);color:var(--gold);border:1px solid rgba(255,200,0,0.3)}
 
 /* ── BUTTONS ── */
 .btn{display:inline-flex;align-items:center;gap:6px;padding:7px 16px;border:none;border-radius:4px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;letter-spacing:1px;text-transform:uppercase;transition:all .2s}
@@ -458,10 +468,21 @@ select.level-select{background:var(--bg2);border:1px solid var(--border);color:v
 
 <!-- CROWD MONITORING -->
 <div id="panel-crowd" class="panel">
+  <!-- Summary bar -->
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px">
+    <div class="stat-box red"><div class="val" id="cr-critical">0</div><div class="lbl">Critical Ghats</div></div>
+    <div class="stat-box orange"><div class="val" id="cr-high">0</div><div class="lbl">High Ghats</div></div>
+    <div class="stat-box gold"><div class="val" id="cr-medium">0</div><div class="lbl">Medium Ghats</div></div>
+    <div class="stat-box green"><div class="val" id="cr-low">0</div><div class="lbl">Low Ghats</div></div>
+  </div>
   <div class="card">
     <div class="card-hdr">
-      <div class="card-title">Crowd <span class="accent">Monitoring</span></div>
-      <button class="btn btn-cyan btn-sm" onclick="loadGhats()">↻ Refresh</button>
+      <div class="card-title">Crowd <span class="accent">Risk Intelligence</span></div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <span id="cr-live-dot" style="display:inline-block;width:8px;height:8px;background:var(--green);border-radius:50%;animation:pulse-red 1.2s infinite;opacity:0.8" title="Live polling every 5s"></span>
+        <span style="font-size:10px;color:var(--text-dim);font-family:'Source Code Pro',monospace" id="cr-updated">--</span>
+        <button class="btn btn-cyan btn-sm" onclick="loadRiskData()">&#8635; Refresh</button>
+      </div>
     </div>
     <div id="crowd-ghats-list"></div>
   </div>
@@ -792,9 +813,11 @@ select.level-select{background:var(--bg2);border:1px solid var(--border);color:v
 const S = {
   ghats: [], volunteers: [], issues: [], sos_alerts: [],
   lost: [], contacts: [], medical: [],
+  riskData: {},   // ghat_id → {risk_score, trend, occupancy_pct, sources, peak_hour}
   sosFilter: 'all', issueFilter: 'all', lostFilter: 'all',
   volFilter: 'all', contactFilter: 'all', medFilter: 'all',
 };
+let _crowdPollTimer = null;
 let map = null, mapInited = false;
 const markers = { ghats:[], vols:[], sos:[], lost:[], medical:[], contacts:[] };
 
@@ -931,11 +954,20 @@ function handleWS(msg) {
     case 'CROWD_UPDATE':
       const g = S.ghats.find(x=>x.id===msg.data.ghat_id);
       if (g) g.crowd_level = msg.data.level;
+      // Merge risk data into S.riskData for the crowd panel
+      if (msg.data.risk_score != null) {
+        S.riskData[msg.data.ghat_id] = Object.assign(S.riskData[msg.data.ghat_id]||{}, {
+          crowd_level: msg.data.level, risk_score: msg.data.risk_score,
+          occupancy_pct: msg.data.occupancy_pct, colour: msg.data.colour
+        });
+      }
       renderGhats(); renderOverview(); updateTopbar();
-      // Only toast for HIGH/CRITICAL — not every ghat update (too noisy)
       if (msg.data.level === 'high' || msg.data.level === 'critical') {
         toast('🌊 ' + (msg.data.name||'Ghat') + ' → ' + msg.data.level.toUpperCase(), 'info');
       }
+      break;
+    case 'SURGE_ALERT':
+      toast('🚨 SURGE: ' + (msg.data.name||'Ghat') + ' — crowd rising rapidly!', 'error');
       break;
     case 'LOST_REGISTERED':
       S.lost.unshift(msg.data);
@@ -988,7 +1020,7 @@ function updateItem(arr, item) {
 // render was called on navigation.
 const PANEL_RENDERERS = {
   overview:   () => { renderOverview(); loadStats(); },
-  crowd:      () => renderGhats(),
+  crowd:      () => { startCrowdPoll(); renderGhats(); },
   sos:        () => renderSOS(),
   issues:     () => renderIssues(),
   lost:       () => renderLost(),
@@ -1000,6 +1032,9 @@ const PANEL_RENDERERS = {
 };
 
 function showPanel(el) {
+  // Stop crowd poll when leaving crowd panel
+  const targetPanel = el ? el.dataset.panel : null;
+  if (targetPanel !== 'crowd') stopCrowdPoll();
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   el.classList.add('active');
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
@@ -1119,8 +1154,27 @@ async function loadGhats() {
   try {
     const d = await api('/get_ghats');
     S.ghats = d.ghats || [];
+    await loadRiskData();
     renderGhats();
   } catch(e) { toast('Failed to load ghats','error'); }
+}
+
+async function loadRiskData() {
+  try {
+    const d = await api('/crowd/risk/all');
+    S.riskData = {};
+    (d.risks || []).forEach(r => { S.riskData[r.ghat_id] = r; });
+    renderGhats();
+  } catch(e) { /* risk endpoint optional */ }
+}
+
+function startCrowdPoll() {
+  stopCrowdPoll();
+  loadRiskData();
+  _crowdPollTimer = setInterval(loadRiskData, 5000);
+}
+function stopCrowdPoll() {
+  if (_crowdPollTimer) { clearInterval(_crowdPollTimer); _crowdPollTimer = null; }
 }
 
 // ═══════════════════════════════════════════════════
@@ -1177,26 +1231,75 @@ function renderOverview() {
 
 function renderGhats() {
   const el = document.getElementById('crowd-ghats-list');
-  el.innerHTML = S.ghats.map(g=>`
-    <div class="ghat-row">
-      <div>
-        <div class="ghat-name">${g.name}</div>
-        <div class="ghat-zone">${g.zone||''} · ${g.bathing_timings||''}</div>
-      </div>
-      <div>
-        <div class="crowd-bar-wrap" style="width:100px"><div class="crowd-bar" style="width:${crowdPct(g.crowd_level)}%;background:${crowdColor(g.crowd_level)}"></div></div>
-        <div style="font-size:10px;color:var(--text-dim);margin-top:2px;font-family:'Source Code Pro',monospace">${g.current_count||0} / ${g.capacity||0}</div>
-      </div>
-      <span class="level-badge level-${(g.crowd_level||'medium').toLowerCase()}">${g.crowd_level||'?'}</span>
-      <select class="level-select" onchange="setCrowd('${g.id}', this.value)">
-        <option value="low" ${g.crowd_level==='low'?'selected':''}>🟢 Low</option>
-        <option value="medium" ${g.crowd_level==='medium'?'selected':''}>🟡 Medium</option>
-        <option value="high" ${g.crowd_level==='high'?'selected':''}>🔴 High</option>
-        <option value="critical" ${g.crowd_level==='critical'?'selected':''}>🟣 Critical</option>
-      </select>
-    </div>`).join('') || '<div class="empty-state">No ghats loaded</div>';
-}
+  if (!S.ghats.length) { el.innerHTML = '<div class="empty-state"><div class="icon">&#127754;</div>No ghats loaded</div>'; return; }
 
+  el.innerHTML = S.ghats.map(g => {
+    const r = S.riskData[g.id] || {};
+    const level = r.crowd_level || g.crowd_level || 'medium';
+    const score = r.risk_score != null ? r.risk_score : null;
+    const occ   = r.occupancy_pct != null ? r.occupancy_pct : null;
+    const trend = r.trend != null ? r.trend : null;
+    const src   = r.sources || {};
+    const peak  = r.peak_hour;
+
+    const tArrow = trend == null ? '' :
+      trend > 0.02  ? '<span style="color:#ef4444;font-weight:700" title="Crowd growing">&#8679;</span>' :
+      trend < -0.02 ? '<span style="color:#22c55e;font-weight:700" title="Crowd dispersing">&#8681;</span>' :
+                      '<span style="color:#94a3b8" title="Stable">&#8596;</span>';
+
+    const badges = [];
+    if (src.vision)  badges.push('<span class="sensor-badge cam">&#128247; CAM</span>');
+    else             badges.push('<span class="sensor-badge off">&#128247; NO CAM</span>');
+    if (src.telecom) badges.push('<span class="sensor-badge tel">&#128246; TEL</span>');
+    if (peak)        badges.push('<span class="sensor-badge peak">&#9728; PEAK HR</span>');
+
+    const fillPct   = occ != null ? Math.min(occ, 100) : crowdPct(level);
+    const fillColor = crowdColor(level);
+    const scoreStr  = score != null ? (score * 100).toFixed(0) + '%' : '--';
+    const cnt       = r.estimated_count != null ? r.estimated_count.toLocaleString() : (g.current_count||0).toLocaleString();
+    const cap       = (g.capacity||0).toLocaleString();
+
+    return `<div class="ghat-risk-row">
+      <div class="gr-left">
+        <div class="ghat-name">${g.name}</div>
+        <div class="gr-badges">${badges.join('')}</div>
+        <div class="ghat-zone">${g.zone || ''}</div>
+      </div>
+      <div class="gr-mid">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+          <div class="crowd-bar-wrap" style="flex:1;max-width:180px">
+            <div class="crowd-bar" style="width:${fillPct}%;background:${fillColor};transition:width .5s ease"></div>
+          </div>
+          <span style="font-size:11px;color:var(--text-dim);font-family:'Source Code Pro',monospace;min-width:38px">${occ != null ? occ.toFixed(0)+'%' : ''}</span>
+          ${tArrow}
+        </div>
+        <div style="font-size:10px;color:var(--text-dim);font-family:'Source Code Pro',monospace">
+          Risk: <b style="color:${fillColor}">${scoreStr}</b>
+          &nbsp;&middot;&nbsp; Count: ${cnt} / ${cap}
+        </div>
+      </div>
+      <div class="gr-right">
+        <span class="level-badge level-${level.toLowerCase()}">${level}</span>
+        <select class="level-select" onchange="setCrowd('${g.id}', this.value)">
+          <option value="low"      ${level==='low'      ?'selected':''}>&#x1F7E2; Low</option>
+          <option value="medium"   ${level==='medium'   ?'selected':''}>&#x1F7E1; Medium</option>
+          <option value="high"     ${level==='high'     ?'selected':''}>&#x1F534; High</option>
+          <option value="critical" ${level==='critical' ?'selected':''}>&#x1F7E3; Critical</option>
+        </select>
+      </div>
+    </div>`;
+  }).join('');
+
+  // Update summary counts
+  const levels = S.ghats.map(g => (S.riskData[g.id] || g).crowd_level || 'low');
+  ['critical','high','medium','low'].forEach(l => {
+    const el = document.getElementById('cr-' + l);
+    if (el) el.textContent = levels.filter(x => x === l).length;
+  });
+  const upd = document.getElementById('cr-updated');
+  if (upd) upd.textContent = 'Updated ' + new Date().toLocaleTimeString();
+
+}
 function renderSOS() {
   const el = document.getElementById('sos-list');
   let list = S.sos_alerts;
