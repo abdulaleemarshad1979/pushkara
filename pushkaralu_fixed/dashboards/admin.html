@@ -415,6 +415,9 @@ select.level-select{background:var(--bg2);border:1px solid var(--border);color:v
   <div class="nav-item" data-panel="map" onclick="showPanel(this)">
     <span class="nav-icon">🗺️</span> Map View
   </div>
+  <div class="nav-item" data-panel="analytics" onclick="showPanel(this)">
+    <span class="nav-icon">📊</span> Daily Analytics
+  </div>
 </nav>
 
 <!-- ── MAIN AREA ── -->
@@ -594,6 +597,103 @@ select.level-select{background:var(--bg2);border:1px solid var(--border);color:v
       <div class="legend-item"><div class="legend-dot" style="background:#ff3355"></div> SOS / Lost</div>
       <div class="legend-item"><div class="legend-dot" style="background:#00ff88"></div> Medical</div>
       <div class="legend-item"><div class="legend-dot" style="background:#aa44ff"></div> Police / Contacts</div>
+    </div>
+  </div>
+</div>
+
+<!-- DAILY ANALYTICS -->
+<div id="panel-analytics" class="panel">
+  <div class="card">
+    <div class="card-hdr">
+      <div class="card-title">📊 Daily <span class="accent">Operations Analytics</span></div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <span id="da-date" style="font-size:11px;color:var(--text-dim);font-family:'Source Code Pro',monospace"></span>
+        <button class="btn btn-cyan btn-sm" onclick="loadDailyAnalytics()">↻ Refresh</button>
+      </div>
+    </div>
+
+    <!-- Today's KPIs -->
+    <div class="grid-3" style="margin-bottom:16px">
+      <div class="stat-box red">
+        <div class="val" id="da-sos-today">—</div>
+        <div class="lbl">🆘 SOS Today</div>
+      </div>
+      <div class="stat-box green">
+        <div class="val" id="da-sos-resolved">—</div>
+        <div class="lbl">✅ SOS Resolved Today</div>
+      </div>
+      <div class="stat-box orange">
+        <div class="val" id="da-sos-active">—</div>
+        <div class="lbl">⏳ SOS Still Active</div>
+      </div>
+      <div class="stat-box gold">
+        <div class="val" id="da-lost-today">—</div>
+        <div class="lbl">🔍 Lost & Found Today</div>
+      </div>
+      <div class="stat-box green">
+        <div class="val" id="da-found-today">—</div>
+        <div class="lbl">🎉 Reunited Today</div>
+      </div>
+      <div class="stat-box cyan">
+        <div class="val" id="da-missing-today">—</div>
+        <div class="lbl">❓ Still Missing</div>
+      </div>
+      <div class="stat-box orange">
+        <div class="val" id="da-issues-today">—</div>
+        <div class="lbl">📋 Incidents Today</div>
+      </div>
+      <div class="stat-box green">
+        <div class="val" id="da-issues-resolved">—</div>
+        <div class="lbl">✅ Incidents Resolved</div>
+      </div>
+      <div class="stat-box cyan">
+        <div class="val" id="da-total-sos-resolved">—</div>
+        <div class="lbl">🏆 Total SOS All-Time</div>
+      </div>
+    </div>
+
+    <!-- SOS Resolution Rate bar -->
+    <div style="margin-bottom:20px">
+      <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-dim);margin-bottom:6px">
+        <span>SOS Resolution Rate (Today)</span>
+        <span id="da-sos-rate-pct">—%</span>
+      </div>
+      <div style="background:rgba(255,255,255,.08);border-radius:6px;height:12px;overflow:hidden">
+        <div id="da-sos-rate-bar" style="height:100%;background:linear-gradient(90deg,var(--green),var(--cyan));border-radius:6px;width:0%;transition:width .6s ease"></div>
+      </div>
+    </div>
+
+    <!-- Lost & Found Resolution Rate bar -->
+    <div style="margin-bottom:24px">
+      <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-dim);margin-bottom:6px">
+        <span>Lost & Found Reunion Rate (Today)</span>
+        <span id="da-lost-rate-pct">—%</span>
+      </div>
+      <div style="background:rgba(255,255,255,.08);border-radius:6px;height:12px;overflow:hidden">
+        <div id="da-lost-rate-bar" style="height:100%;background:linear-gradient(90deg,var(--gold),var(--orange));border-radius:6px;width:0%;transition:width .6s ease"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Hourly activity charts side by side -->
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-hdr"><div class="card-title">🆘 SOS <span class="accent">Hourly Activity</span></div></div>
+      <div id="da-sos-chart" style="padding:0 4px 8px"></div>
+    </div>
+    <div class="card">
+      <div class="card-hdr"><div class="card-title">📋 Incidents <span class="accent">Hourly Activity</span></div></div>
+      <div id="da-issues-chart" style="padding:0 4px 8px"></div>
+    </div>
+  </div>
+
+  <!-- All-time summary -->
+  <div class="card" style="margin-top:14px">
+    <div class="card-hdr"><div class="card-title">🏅 All-Time <span class="accent">Volunteer Achievements</span></div></div>
+    <div class="grid-3">
+      <div class="stat-box green"><div class="val" id="da-alltime-sos">—</div><div class="lbl">SOS Cases Resolved</div></div>
+      <div class="stat-box gold"><div class="val" id="da-alltime-lost">—</div><div class="lbl">People Reunited</div></div>
+      <div class="stat-box cyan"><div class="val" id="da-alltime-issues">—</div><div class="lbl">Incidents Closed</div></div>
     </div>
   </div>
 </div>
@@ -896,6 +996,7 @@ const PANEL_RENDERERS = {
   contacts:   () => { renderContacts(); renderEmergencyServices(); },
   medical:    () => renderMedical(),
   map:        () => { initMap(); refreshMap(); },
+  analytics:  () => loadDailyAnalytics(),
 };
 
 function showPanel(el) {
@@ -949,6 +1050,69 @@ function updateTopbar() {
   document.getElementById('stat-avol').textContent = avol;
   document.getElementById('stat-ghats').textContent = S.ghats.length;
   document.getElementById('stat-medical').textContent = S.medical.length;
+}
+
+// ─── DAILY ANALYTICS ─────────────────────────────────
+async function loadDailyAnalytics() {
+  try {
+    const d = await api('/daily_analytics');
+
+    // Set date
+    const el = document.getElementById('da-date');
+    if (el) el.textContent = 'Date: ' + (d.date || new Date().toISOString().slice(0,10));
+
+    // KPI boxes
+    const set = (id, val) => { const e = document.getElementById(id); if(e) e.textContent = val ?? '—'; };
+    set('da-sos-today',        d.sos_today);
+    set('da-sos-resolved',     d.sos_resolved_today);
+    set('da-sos-active',       d.sos_active_today);
+    set('da-lost-today',       d.lost_registered_today);
+    set('da-found-today',      d.lost_found_today);
+    set('da-missing-today',    d.lost_missing_today);
+    set('da-issues-today',     d.issues_today);
+    set('da-issues-resolved',  d.issues_resolved_today);
+    set('da-total-sos-resolved', d.total_sos_resolved);
+    set('da-alltime-sos',      d.total_sos_resolved);
+    set('da-alltime-lost',     d.total_lost_resolved);
+    set('da-alltime-issues',   d.resolved_issues || '—');
+
+    // SOS resolution rate bar
+    const sosPct = d.sos_today > 0 ? Math.round((d.sos_resolved_today / d.sos_today) * 100) : 0;
+    const sosRatePct = document.getElementById('da-sos-rate-pct');
+    const sosRateBar = document.getElementById('da-sos-rate-bar');
+    if (sosRatePct) sosRatePct.textContent = sosPct + '%';
+    if (sosRateBar) sosRateBar.style.width = sosPct + '%';
+
+    // Lost & Found reunion rate bar
+    const lostPct = d.lost_registered_today > 0 ? Math.round((d.lost_found_today / d.lost_registered_today) * 100) : 0;
+    const lostRatePct = document.getElementById('da-lost-rate-pct');
+    const lostRateBar = document.getElementById('da-lost-rate-bar');
+    if (lostRatePct) lostRatePct.textContent = lostPct + '%';
+    if (lostRateBar) lostRateBar.style.width = lostPct + '%';
+
+    // Render hourly bar charts
+    _renderHourlyChart('da-sos-chart',    d.sos_hourly    || [], '#ff3355');
+    _renderHourlyChart('da-issues-chart', d.issues_hourly || [], '#f4b942');
+
+  } catch(e) {
+    console.error('[DailyAnalytics]', e);
+    toast('Failed to load daily analytics', 'error');
+  }
+}
+
+function _renderHourlyChart(containerId, data, color) {
+  const container = document.getElementById(containerId);
+  if (!container || !data.length) return;
+  const max = Math.max(1, ...data.map(d => d.count));
+  container.innerHTML = `
+    <div style="display:flex;align-items:flex-end;gap:3px;height:80px;padding:4px 0">
+      ${data.map(d => `
+        <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px" title="${d.hour}: ${d.count} events">
+          <span style="font-size:9px;color:var(--text-dim)">${d.count||''}</span>
+          <div style="width:100%;border-radius:3px 3px 0 0;background:${color};opacity:${d.count?0.85:0.15};height:${Math.max(4, Math.round((d.count/max)*60))}px;transition:height .4s"></div>
+          <span style="font-size:8px;color:var(--text-dim);writing-mode:vertical-rl;transform:rotate(180deg);letter-spacing:.5px">${d.hour.slice(0,5)}</span>
+        </div>`).join('')}
+    </div>`;
 }
 
 async function loadGhats() {
