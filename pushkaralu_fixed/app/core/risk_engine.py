@@ -25,10 +25,10 @@ logger = logging.getLogger("pushkaralu.risk")
 
 # ── Thresholds (tunable via env without code change) ────────────────────────
 # Occupancy ratio → crowd level string (matches existing DB schema)
-THRESHOLD_LOW      = 0.40   # < 40%  → "low"
-THRESHOLD_MEDIUM   = 0.65   # 40-65% → "medium"
-THRESHOLD_HIGH     = 0.85   # 65-85% → "high"
-# anything ≥ 85%            → "critical"
+THRESHOLD_LOW      = 0.20   # < 20%  → "low"   (sparse, comfortable)
+THRESHOLD_MEDIUM   = 0.65   # 20-65% → "medium" (busy but manageable)
+THRESHOLD_HIGH     = 0.85   # 65-85% → "high"   (crowded, slow movement)
+# anything ≥ 85%            → "critical" (near capacity, safety risk)
 
 # Trend weight: how much the recent change affects risk
 TREND_WEIGHT       = 0.15   # 15% of final score from trend
@@ -168,24 +168,27 @@ class RiskEngine:
     ) -> float:
         """
         Final risk score in [0.0, 1.0].
-        Combines: occupancy ratio + trend influence + time-of-day.
+        Primary signal = occupancy ratio (count/capacity).
+        raw_density (from sensor fusion) acts as a secondary confirmation.
         All arithmetic — no external calls.
         """
-        # Base occupancy ratio (0–1)
+        # Primary: occupancy ratio (always available, most meaningful)
         if capacity > 0:
             occupancy = min(current_count / capacity, 1.0)
         else:
-            occupancy = raw_density   # fallback if capacity unknown
+            occupancy = raw_density
 
-        # Blend sensor density with occupancy
-        base = 0.70 * occupancy + 0.30 * raw_density
+        # raw_density is now calibrated to equal occupancy when frame_area = capacity/4
+        # So blending them gives a robust combined signal
+        base = 0.80 * occupancy + 0.20 * min(raw_density, 1.0)
 
         # Trend: growing crowd increases risk, shrinking decreases it
-        trend_factor = max(-0.20, min(0.20, trend * TREND_WEIGHT))
+        trend_factor = max(-0.15, min(0.15, trend * TREND_WEIGHT))
         adjusted = base + trend_factor
 
-        # Time-of-day multiplier
-        adjusted *= RiskEngine.time_multiplier()
+        # Time-of-day multiplier (capped so it can't push low into medium alone)
+        mult = RiskEngine.time_multiplier()
+        adjusted = adjusted * mult
 
         return max(0.0, min(1.0, adjusted))
 
@@ -368,13 +371,13 @@ class AdaptiveThresholds:
     def get_thresholds(cls, date_str: str = None) -> tuple[float, float, float]:
         """
         Returns (low, medium, high) threshold tuple for current date.
-        Normal days: (0.40, 0.65, 0.85)
-        High-traffic: (0.30, 0.55, 0.75) — triggers 10 pts earlier
+        Normal days: (0.20, 0.65, 0.85)
+        High-traffic: (0.10, 0.50, 0.70) — triggers ~15% earlier on Maha Pushkar
         """
         from datetime import date
         today = date_str or date.today().isoformat()
         if today in cls.HIGH_TRAFFIC_DATES:
-            return (0.30, 0.55, 0.75)
+            return (0.10, 0.50, 0.70)
         return (THRESHOLD_LOW, THRESHOLD_MEDIUM, THRESHOLD_HIGH)
 
     @classmethod
