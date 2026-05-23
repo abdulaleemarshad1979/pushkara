@@ -858,37 +858,91 @@ html,body{max-width:100%;overflow-x:hidden}
   }
 }
 
-/* ═══ GHAT DETAIL MODAL ═══════════════════════════════════════════ */
-#ghat-modal-overlay{position:fixed;inset:0;z-index:8000;background:rgba(0,0,0,.65);backdrop-filter:blur(4px);display:none;align-items:flex-end;justify-content:center;padding:0}
-#ghat-modal-overlay.open{display:flex;animation:fadeInOverlay .2s ease}
-@keyframes fadeInOverlay{from{opacity:0}to{opacity:1}}
-.ghat-modal-sheet{background:var(--card);width:100%;max-width:680px;border-radius:20px 20px 0 0;max-height:92vh;overflow-y:auto;box-shadow:0 -8px 40px rgba(0,0,0,.35);animation:slideUp .28s cubic-bezier(.22,.9,.32,1)}
-@keyframes slideUp{from{transform:translateY(60px);opacity:0}to{transform:translateY(0);opacity:1}}
-.gm-handle{width:40px;height:4px;background:#CBD5E1;border-radius:2px;margin:12px auto 0}
-.gm-stripe{height:6px;width:100%;margin-bottom:0}
+/* ═══ GHAT DETAIL MODAL — v2 ════════════════════════════════════════ */
+#ghat-modal-overlay{position:fixed;inset:0;z-index:8000;background:rgba(11,17,40,.72);backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px);display:none;align-items:flex-end;justify-content:center;padding:0}
+#ghat-modal-overlay.open{display:flex;animation:gmFadeIn .22s ease}
+@keyframes gmFadeIn{from{opacity:0}to{opacity:1}}
+.ghat-modal-sheet{background:var(--card);width:100%;max-width:700px;border-radius:18px 18px 0 0;max-height:94vh;overflow-y:auto;box-shadow:0 -10px 48px rgba(0,0,0,.22);animation:gmSlideUp .3s cubic-bezier(.22,.9,.32,1);-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+@keyframes gmSlideUp{from{transform:translateY(70px);opacity:0}to{transform:translateY(0);opacity:1}}
+
+/* drag handle */
+.gm-handle-wrap{padding:10px 0 4px;display:flex;justify-content:center}
+.gm-handle{width:36px;height:4px;background:#CBD5E1;border-radius:2px}
+.dark-mode .gm-handle{background:#334155}
+
+/* top colour stripe */
+.gm-stripe{height:5px;width:100%}
 .gm-stripe.high{background:linear-gradient(90deg,var(--danger),#E74C3C)}
 .gm-stripe.medium{background:linear-gradient(90deg,var(--gold),var(--gold2))}
 .gm-stripe.low{background:linear-gradient(90deg,var(--green),var(--green2))}
-.gm-header{padding:16px 18px 10px;display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
-.gm-title{font-family:'DM Serif Display',serif;font-size:1.25rem;color:var(--navy);line-height:1.2}
-.gm-te{font-size:.8rem;color:var(--t3);margin-top:3px;font-family:'Noto Serif Telugu',serif}
-.gm-close{background:var(--bg);border:var(--border);border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;flex-shrink:0;transition:background .15s}
-.gm-close:hover{background:var(--danger-bg);color:var(--danger)}
-.gm-crowd{padding:0 18px 12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-.gm-body{padding:4px 18px 24px}
-.gm-section{margin-bottom:16px}
-.gm-sec-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:var(--t3);margin-bottom:7px;display:flex;align-items:center;gap:5px}
-.gm-importance{background:linear-gradient(135deg,var(--info-bg),rgba(14,165,233,.05));border:1px solid rgba(14,165,233,.2);border-radius:8px;padding:11px 13px;font-size:13px;color:var(--t1);line-height:1.6}
-.gm-ritual{background:var(--bg);border-radius:6px;padding:9px 11px;font-size:12.5px;color:var(--t2);display:flex;gap:8px;align-items:flex-start;margin-bottom:6px;border-left:3px solid var(--saffron)}
-.gm-tip{background:linear-gradient(135deg,rgba(245,158,11,.08),transparent);border:1px solid rgba(245,158,11,.2);border-radius:8px;padding:11px 13px;font-size:12.5px;color:var(--t2);line-height:1.6;display:flex;gap:8px}
-.gm-pills-row{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:4px}
-.gm-pill{font-size:11px;background:var(--bg);border:1px solid #E5E7EB;padding:4px 9px;border-radius:4px;color:var(--t2)}
-.dark-mode .gm-pill{border-color:#1E293B}
-.gm-dir-btn{display:block;width:100%;background:var(--navy);color:white;text-decoration:none;text-align:center;padding:13px;border-radius:var(--r);font-family:'DM Sans',sans-serif;font-size:14px;font-weight:700;margin-top:16px;transition:background .15s}
+
+/* header */
+.gm-header{padding:14px 18px 6px;display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.gm-title{font-family:'DM Serif Display',Georgia,serif;font-size:1.28rem;color:var(--navy);line-height:1.25;font-weight:400}
+.gm-te{font-size:.78rem;color:var(--t3);margin-top:3px;font-family:'Noto Serif Telugu',serif}
+.gm-close{background:var(--bg);border:var(--border);border-radius:50%;width:34px;height:34px;min-width:34px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:15px;color:var(--t2);flex-shrink:0;transition:all .15s}
+.gm-close:hover{background:var(--danger-bg);color:var(--danger);border-color:rgba(192,57,43,.3)}
+
+/* live crowd row */
+.gm-crowd-row{padding:6px 18px 10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.gm-crowd-bar{padding:0 18px 12px}
+.gm-crowd-nums{display:flex;justify-content:space-between;font-size:11px;color:var(--t3);margin-bottom:4px}
+.gm-crowd-nums strong{color:var(--t1)}
+
+/* body */
+.gm-body{padding:4px 18px 32px}
+.gm-section{margin-bottom:18px}
+.gm-sec-label{font-family:'DM Sans',sans-serif;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--t3);margin-bottom:8px;padding-bottom:5px;border-bottom:1px solid #F0F2F5;display:flex;align-items:center;gap:5px}
+.dark-mode .gm-sec-label{border-bottom-color:#1E293B}
+
+/* importance callout */
+.gm-callout{background:var(--info-bg);border-left:3px solid var(--info);border-radius:0 var(--r) var(--r) 0;padding:11px 14px;font-size:13.5px;color:var(--t1);line-height:1.65;font-family:'DM Sans',sans-serif}
+.dark-mode .gm-callout{background:rgba(14,165,233,.08)}
+
+/* ritual rows */
+.gm-ritual-row{display:flex;align-items:flex-start;gap:10px;padding:9px 12px;background:var(--bg);border-radius:var(--r);margin-bottom:6px}
+.gm-ritual-row:last-child{margin-bottom:0}
+.gm-ritual-icon{width:28px;height:28px;min-width:28px;background:linear-gradient(135deg,var(--saffron),var(--saffron2));border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px}
+.gm-ritual-text{flex:1}
+.gm-ritual-name{font-size:13px;font-weight:600;color:var(--t1);line-height:1.3}
+.gm-ritual-desc{font-size:11.5px;color:var(--t3);margin-top:2px;line-height:1.4}
+
+/* detail grid */
+.gm-detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+@media(max-width:400px){.gm-detail-grid{grid-template-columns:1fr}}
+.gm-detail-cell{background:var(--bg);border-radius:var(--r);padding:9px 11px}
+.gm-detail-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--t3);margin-bottom:3px}
+.gm-detail-val{font-size:13px;color:var(--t1);font-weight:500;line-height:1.35}
+
+/* facility chips */
+.gm-fac-row{display:flex;flex-wrap:wrap;gap:7px}
+.gm-fac-chip{display:flex;align-items:center;gap:5px;background:var(--bg);border:var(--border);border-radius:var(--r);padding:6px 10px;font-size:12px;color:var(--t2);font-weight:500}
+
+/* tip / transport box */
+.gm-info-box{display:flex;gap:10px;background:var(--bg);border-radius:var(--r);padding:11px 13px;font-size:13px;color:var(--t2);line-height:1.65}
+.gm-info-box-icon{font-size:16px;flex-shrink:0;margin-top:1px}
+
+/* special dates */
+.gm-special-dates{background:linear-gradient(135deg,rgba(232,96,10,.07),transparent);border:1px solid rgba(232,96,10,.2);border-radius:var(--r);padding:9px 13px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.gm-date-badge{background:var(--saffron);color:white;font-size:11px;font-weight:700;padding:3px 9px;border-radius:3px}
+
+/* emergency strip */
+.gm-emg-strip{background:var(--danger-bg);border:1px solid rgba(192,57,43,.15);border-radius:var(--r);padding:10px 13px;display:flex;gap:14px;flex-wrap:wrap;align-items:center}
+.gm-emg-item{display:flex;flex-direction:column;align-items:center}
+.gm-emg-num{font-family:'Source Code Pro',monospace;font-size:15px;font-weight:700;color:var(--danger)}
+.gm-emg-lbl{font-size:10px;color:var(--t3);margin-top:1px}
+
+/* directions button */
+.gm-dir-btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;background:var(--navy);color:white;text-decoration:none;padding:14px;border-radius:var(--r);font-family:'DM Sans',sans-serif;font-size:14px;font-weight:700;margin-top:4px;transition:background .15s;letter-spacing:.2px}
 .gm-dir-btn:hover{background:var(--navy2)}
-/* Card clickable cursor */
-.gc{cursor:pointer}
-.gc-importance{font-size:11px;color:var(--info);font-weight:600;margin-bottom:6px;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+
+/* card changes */
+.gc{cursor:pointer;transition:all .2s}
+.gc:hover{box-shadow:var(--sh3);transform:translateY(-3px)}
+.gc-badge-row{display:flex;align-items:center;gap:6px;margin-bottom:7px;flex-wrap:wrap}
+.gc-tag{font-size:10px;background:var(--saffron);color:white;padding:2px 7px;border-radius:3px;font-weight:700;letter-spacing:.3px}
+.gc-importance{font-size:12px;color:var(--t2);line-height:1.5;margin-bottom:8px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.gc-tap-hint{font-size:10.5px;color:var(--t3);text-align:right;margin-top:4px;display:flex;align-items:center;justify-content:flex-end;gap:3px}
 
 </style>
 </head>
@@ -1989,180 +2043,387 @@ async function loadTrans(){
 // ═══ GHAT MINI (homepage) ════════════════════════════════════
 const FI={toilet:'🚻',medical_camp:'🏥',parking:'🅿️',food_stall:'🍽️',enquiry_counter:'❓',drinking_water:'💧',luggage_counter:'🧳',bus_stop:'🚌',hotel:'🏨',petrol_bunk:'⛽'};
 
-// ═══ STATIC GHAT ENRICHMENT DATA ═══════════════════════════════════
+// ═══ STATIC GHAT ENRICHMENT DATA v2 ════════════════════════════════
 const GHAT_INFO = {
   g01: {
-    importance: "Main festival ghat — the most sacred bathing spot during Pushkaralu. Largest official arrangements including medical teams, police, and NDRF are concentrated here.",
-    rituals: ["Pushkara Snanam (main holy dip)", "Godavari Ārati (evening lamp offering)", "Pitru Tarpanam (ancestral offering)"],
-    tip: "Arrive before 8:00 AM to avoid peak crowds. Boat rides available at sunset. Use the dedicated entry lanes on the north side.",
-    transport: "~1 km from Rajahmundry Railway Station. Frequent city buses and autos from station. Near Old Godavari Bridge."
+    tag: "Main Festival Ghat",
+    importance: "The most sacred bathing spot during Pushkaralu — all major official arrangements (NDRF, medical teams, 24×7 police) are concentrated here. This is where the first holy dip of the festival takes place.",
+    rituals: [
+      {name:"Pushkara Snanam",desc:"The main holy dip — most auspicious on Mahapushkaram (June 26)"},
+      {name:"Godavari Ārati",desc:"Evening lamp offering on the river, spectacular at sunset"},
+      {name:"Pitru Tarpanam",desc:"Water offerings to ancestors — priests available all day"}
+    ],
+    bring: "Dhoti/saree (change room available), sesame seeds, flowers, coconut. Carry ID proof.",
+    tip: "Arrive before 7 AM on auspicious dates. Use dedicated entry lanes on the north side. Boat rides available at sunset.",
+    transport: "~1 km from Rajahmundry Railway Station. City buses and autos run from the station every few minutes. Near Old Godavari Bridge.",
+    best_time: "4 AM – 8 AM"
   },
   g02: {
-    importance: "Longest ghat in Rajamahendravaram with the highest crowd capacity. Strongly associated with Shiva worship — the Kotilingala Temple sits right at the waterfront.",
-    rituals: ["Pushkara Snanam", "Shivābhishek (Shiva worship)", "Pitru Tarpanam & Pinda Pradanam (ancestral rites)"],
-    tip: "Reach via Kadiam road. Use the cooperative bathing sections to avoid overcrowding. Best visited in the early morning hours.",
-    transport: "~6 km from RJY city centre. Take Kotilingala Road or Seethanagaram Road. Nearest major hub: Rajahmundry Airport and Railway Station."
+    tag: "Largest Ghat",
+    importance: "Longest ghat in Rajamahendravaram with massive crowd capacity. The ancient Kotilingala temple sits right at the waterfront — sacred for Shiva devotees and for Pitru rites.",
+    rituals: [
+      {name:"Pushkara Snanam",desc:"Holy dip — highest capacity ghat in the area"},
+      {name:"Shivābhishek",desc:"Ritual bathing of Shiva lingam at Kotilingala temple"},
+      {name:"Pitru Tarpanam & Pinda Pradanam",desc:"Full ancestral ceremony — dedicated platforms available"}
+    ],
+    bring: "Shiva offering items (bilva leaves, milk, flowers), change clothes. Sesame seeds for Tarpanam.",
+    tip: "Reach early via Kadiam Road. Use the cooperative bathing sections on the south wing to avoid overcrowding near the temple.",
+    transport: "~6 km from RJY city centre. Buses via Kotilingala Road or Seethanagaram Road. Closest hub: Rajahmundry Railway Station.",
+    best_time: "4 AM – 9 AM"
   },
   g03: {
-    importance: "Named after Goddess Saraswati. Famous for Aksharabhyasam (children's initiation into learning) and Vidyarambham. Quieter and ideal for families.",
-    rituals: ["Aksharabhyasam / Vidyarambham (education initiation for children)", "Pitru Tarpanam (ancestral offerings)", "Saraswati Puja"],
-    tip: "Best visited at sunrise with offerings for ancestors. Close to city hotels. Carry flowers and sesame seeds for rituals.",
-    transport: "Central city area near the Stadium. ~2 km from RJY Railway Station. Frequent city buses on Giant Road/Bambamma Station route."
+    tag: "Saraswati & Children",
+    importance: "Named after Goddess Saraswati — the go-to ghat for Aksharabhyasam (a child's first writing ritual) and Vidyarambham. Quieter and well-shaded, ideal for families with young children.",
+    rituals: [
+      {name:"Aksharabhyasam / Vidyarambham",desc:"Child's initiation into learning — priests assist with the writing ceremony"},
+      {name:"Saraswati Puja",desc:"Worship of Goddess Saraswati for knowledge and wisdom"},
+      {name:"Pitru Tarpanam",desc:"Ancestral water offerings — morning priests available"}
+    ],
+    bring: "New slate/book for Aksharabhyasam, flowers, sesame seeds. Carry change of clothes for children.",
+    tip: "Visit at sunrise for the calmest experience. Very close to city hotels — a good choice for a first-morning holy dip.",
+    transport: "Central city near the Stadium. ~2 km from RJY Railway Station. City buses frequent on Giant Road / Bambamma Station route.",
+    best_time: "5 AM – 9 AM"
   },
   g04: {
-    importance: "Important ghat on the Gowthami branch of Godavari. Known for Pitru Karmas — it has 40+ dedicated Tarpanam platforms, making it the preferred ghat for ancestral rites.",
-    rituals: ["Pitru Tarpanam (ancestral water offerings)", "Pinda Pradanam (ancestral rice-ball ceremony)", "Family bathing rituals"],
-    tip: "Use the north bank where priests and large tents are set up. Carry plain water and sesame seeds. Usually less congested than Pushkar Ghat.",
-    transport: "~2 km south of RJY Railway Station via Jaihind Street and Government Hospital Road. City buses available."
+    tag: "Pitru Tarpanam Hub",
+    importance: "The most important ghat for Pitru Karmas (ancestral rites). It has 40+ dedicated Tarpanam platforms on the Gowthami branch of Godavari — the preferred spot for family ancestral ceremonies.",
+    rituals: [
+      {name:"Pitru Tarpanam",desc:"Water and sesame seed offerings to ancestors — 40+ platforms"},
+      {name:"Pinda Pradanam",desc:"Rice-ball ceremony for ancestors, most effective at this ghat"},
+      {name:"Family Snanam",desc:"Group bathing for families during the 12 sacred days"}
+    ],
+    bring: "Sesame seeds (til), kusha grass, black sesame laddus, white flowers. Dhoti for men, saree for women.",
+    tip: "Use the north bank tents where priests are available. This ghat is usually less crowded than Pushkar Ghat — good alternative on peak days.",
+    transport: "~2 km south of RJY Railway Station via Jaihind Street and Government Hospital Road. City buses available.",
+    best_time: "5 AM – 10 AM"
   },
   g05: {
-    importance: "Traditional bathing ghat managed by the Tummalapalli family with historic local significance. Good secondary option for pilgrims in the Krishna Nagar area.",
-    rituals: ["General Pushkara Snanam (holy dip)", "Local prayers and offerings"],
-    tip: "Minimal special services — bring your own snacks, water, and carry ID proof. Usually less crowded than main ghats.",
-    transport: "~5 km southeast of city centre in Krishna Nagar area. Autos and buses available via Krishna Road."
+    tag: "Historic Family Ghat",
+    importance: "Traditional ghat managed by the Tummalapalli family for generations. Good secondary option for pilgrims in Krishna Nagar — usually calm with shorter wait times.",
+    rituals: [
+      {name:"Pushkara Snanam",desc:"General holy dip on all 12 auspicious days"},
+      {name:"Local Offerings",desc:"Simple prayer and flower offerings at the riverbank"}
+    ],
+    bring: "Basic puja items. ID proof. Bring your own water and snacks — limited stalls.",
+    tip: "No special arrangements — best suited for pilgrims who want a simple, uncrowded holy dip without the crowds of main ghats.",
+    transport: "~5 km southeast of city centre in Krishna Nagar. Autos and local buses via Krishna Road.",
+    best_time: "5 AM – 8 AM"
   },
   g06: {
-    importance: "Residential colony ghat serving Narasimha Nagar and nearby areas. Good option for a less crowded and peaceful holy dip, especially during off-peak hours.",
-    rituals: ["Personal Snanam (holy bathing)", "Local Narasimha prayers"],
-    tip: "Usually very less crowded — ideal for elderly pilgrims or those who prefer a calm experience. Visit early morning.",
-    transport: "In Rajahmundry suburbs near Dwarakanagar. Road links available from Narasimha Nagar Colony."
+    tag: "Peaceful & Less Crowded",
+    importance: "Residential colony ghat serving Narasimha Nagar. Excellent option for elderly pilgrims or those who prefer a calm, unhurried holy dip without the chaos of the main ghats.",
+    rituals: [
+      {name:"Personal Snanam",desc:"Peaceful individual holy dip at any time during the 12 days"},
+      {name:"Narasimha Prayers",desc:"Local prayers to Lord Narasimha at the colony temple"}
+    ],
+    bring: "Basic puja items. Comfortable footwear — gentle steps to the water.",
+    tip: "Best for elderly, families with young children, or anyone who finds main ghats too crowded. Early morning is ideal.",
+    transport: "Rajahmundry suburbs near Dwarakanagar / Narasimha Nagar Colony. Autos available from the main road.",
+    best_time: "5 AM – 8 AM"
   },
   g07: {
-    importance: "Historic ghat near the famous Dowleswaram Barrage — an iconic Godavari landmark. Important for devotees coming from the downstream side and for those interested in the Ramapadala heritage.",
-    rituals: ["Sri Rama Padalu Puja (worship of Lord Rama's footprints)", "Rathotsavam (ceremonial chariot procession)", "Holy dip at the barrage waterfront"],
-    tip: "Witness the Rathotsavam procession if visiting on special dates. Use the side ramps for easy river access. Ample open space available.",
-    transport: "~15 km NW of city via NH-16. Dowleswaram Railway Station nearby. Mobile 108 ambulance vans stationed here."
+    tag: "Historic Barrage Ghat",
+    importance: "Ghat at the iconic Dowleswaram Barrage — a landmark of Godavari. Associated with Lord Rama's footprints (Ramapadala). Important for pilgrims coming from downstream areas.",
+    rituals: [
+      {name:"Sri Rama Padalu Puja",desc:"Worship of Lord Rama's footprints preserved at the barrage"},
+      {name:"Rathotsavam",desc:"Ceremonial chariot procession on special festival days"},
+      {name:"Pushkara Snanam",desc:"Holy dip with the barrage dam as a spectacular backdrop"}
+    ],
+    bring: "Flowers and tulsi leaves for Rama puja. Comfortable sandals — barrage deck is long.",
+    tip: "Witness the Rathotsavam procession on June 26 and July 7. Use the side ramps for easier river access. Ample open space — good for groups.",
+    transport: "~15 km NW of city via NH-16. Dowleswaram Railway Station is nearby. 108 ambulance vans are stationed here.",
+    best_time: "4 AM – 8 AM"
   },
   g08: {
-    importance: "Dedicated to Lord Venkateswara (Balaji), managed by TTD. Popular among Tirumala devotees combining Pushkaralu pilgrimage with Balaji darshan.",
-    rituals: ["Daily Venkateswara Pujas (TTD-managed)", "Annadanam (free community food offering)", "Bhajan and devotional programs"],
-    tip: "Enjoy free Annadanam and bhajans at the temple complex. Parking available at the dedicated TTD complex. Adjacent to Kotilingala Ghat.",
-    transport: "Situated at Kotagummam, connected via AP Paper Mill Road. Adjacent to Kotilingala area."
+    tag: "TTD Venkateswara Ghat",
+    importance: "Dedicated to Lord Venkateswara (Balaji), managed by Tirumala Tirupati Devasthanams (TTD). Popular among Balaji devotees who combine Pushkaralu pilgrimage with Venkateswara darshan.",
+    rituals: [
+      {name:"Venkateswara Archana",desc:"Daily pujas managed by TTD — very organised"},
+      {name:"Annadanam",desc:"Free community meal (prasadam) served by TTD — all are welcome"},
+      {name:"Bhajan & Devotional Programs",desc:"Evening bhajans and vedic chanting at the temple"}
+    ],
+    bring: "Standard Balaji offerings (coconut, flowers, camphor). No special items needed — TTD provides most things.",
+    tip: "Enjoy the free Annadanam (prasadam lunch) at the temple complex. Dedicated parking at the TTD complex. Adjacent to Kotilingala Ghat.",
+    transport: "At Kotagummam, connected via AP Paper Mill Road. Adjacent to Kotilingala area.",
+    best_time: "6 AM – 9 PM (temple hours)"
   },
   g09: {
-    importance: "Primary ghat at Kovvur — Goshpada Kshetram is one of the holiest spots across the river. Main ghat for pilgrims staying on the West Godavari side.",
-    rituals: ["Pushkara Snanam", "Bala Krishna tradition and worship", "Local Subramanya idol immersion rituals"],
-    tip: "Reach via Kovvur Bridge. Assist the priests by donating for pujas of Lord Bala Krishna. Kovvur Fort is nearby.",
-    transport: "Kovvur town. Take Kovvur Railway (KVR) or buses from Rajahmundry via the bridge."
+    tag: "Main Kovvur Ghat",
+    importance: "Primary ghat at Kovvur — Goshpada Kshetram is one of the holiest spots on the western bank of Godavari. The go-to ghat for pilgrims staying on the Kovvur side.",
+    rituals: [
+      {name:"Pushkara Snanam",desc:"Main holy dip on the Kovvur side — well organised"},
+      {name:"Bala Krishna Worship",desc:"Traditional rituals at the Goshpada temple"},
+      {name:"Subramanya Rituals",desc:"Local idol immersion and prayer ceremonies"}
+    ],
+    bring: "Bala Krishna offerings (butter, flowers). Change clothes for the dip. ID proof.",
+    tip: "Reach via Kovvur Bridge. Kovvur Fort is nearby for sightseeing after the dip. Police and volunteers are present for guidance.",
+    transport: "Kovvur town. Take Kovvur Railway (KVR) or buses from Rajahmundry via the Godavari Bridge.",
+    best_time: "4 AM – 10 PM"
   },
   g10: {
-    importance: "Kovvur's important Shiva ghat (also known as Subbayyamma Ghat). Good for Shiva devotees seeking a quieter alternative to the main ghats.",
-    rituals: ["Rudrābhishekam (Shiva worship ritual)", "Local Subrahmanya Swami puja", "Navagraha prayers (shrine on-site)"],
-    tip: "Participate in the Rudrabhisheka ceremony. Parking near Kovvur Tank bund. Best visited in the morning.",
-    transport: "Near Kovvur College on a local road. Accessible from Kovvur town centre."
+    tag: "Shiva Ghat – Kovvur",
+    importance: "Kovvur's important Shiva ghat (also known as Subbayyamma Ghat). Best for Shiva devotees who want a quieter alternative to the main ghats, with a Navagraha shrine on site.",
+    rituals: [
+      {name:"Rudrābhishekam",desc:"Elaborate Shiva worship ritual — priests chant Rudra"},
+      {name:"Subrahmanya Puja",desc:"Local Lord Subrahmanya prayers at the adjacent shrine"},
+      {name:"Navagraha Prayers",desc:"Planetary deity worship at the Navagraha shrine on site"}
+    ],
+    bring: "Bilva leaves, milk, holy ash (vibhuti) for Shiva abhishekam. Comfortable footwear.",
+    tip: "Participate in the Rudrabhisheka ceremony — an immersive experience. Parking near Kovvur Tank bund.",
+    transport: "Near Kovvur College on a local road. Accessible from Kovvur town centre.",
+    best_time: "5 AM – 9 AM"
   },
   g11: {
-    importance: "Community ghat associated with Naga (serpent deity) and Shiva worship. Used mainly by local devotees in the NW Kovvur area.",
-    rituals: ["Naga Devata (serpent deity) worship", "Local Shiva puja and bathing"],
-    tip: "Respect local customs and rituals. Use caution at the river's edge. Best reached via NH-16/NH-216.",
-    transport: "Northwest of Kovvur. Accessible via NH-16 (NH-216). Ambulances available via the highway."
+    tag: "Naga Devata Ghat",
+    importance: "Community ghat associated with Naga (serpent deity) and Shiva worship. Used mainly by local devotees — a culturally unique ghat on the northwest edge of Kovvur.",
+    rituals: [
+      {name:"Naga Devata Worship",desc:"Offerings to serpent deity — important for family wellbeing"},
+      {name:"Local Shiva Puja",desc:"Simple Shiva worship and river bathing"}
+    ],
+    bring: "Milk and turmeric for Naga puja. Carry ID and water — limited facilities here.",
+    tip: "Respect local customs and traditions. Use caution at the river's edge — currents can be stronger here. Reach via NH-16/NH-216.",
+    transport: "Northwest of Kovvur. Accessible via NH-16 (NH-216). 108 ambulance cover via the highway.",
+    best_time: "5 AM – 7 AM"
   },
   g12: {
-    importance: "Ramapadala Revu on the West Godavari side — significant for Pitru Tarpanam (Rama Padalu). Boat services ferry pilgrims for a unique river crossing experience.",
-    rituals: ["Pitru Tarpanam at Ramapadala (Lord Rama's footprints)", "Early morning Rama Tarpanam", "Boat-based Pallaki procession"],
-    tip: "Join the early morning Rama Tarpanam. Boats ferry pilgrims across — check service timings. Bring food and water as facilities are limited.",
-    transport: "West Godavari side, road via Tadepalligudem. No railway station nearby; use road transport from Kovvur or Undi."
+    tag: "Ramapadala Revu",
+    importance: "West Godavari's Ramapadala Ghat — significant for Pitru Tarpanam at the site of Lord Rama's footprints. Boat services create a unique river-crossing pilgrimage experience.",
+    rituals: [
+      {name:"Pitru Tarpanam at Ramapadala",desc:"Ancestral offerings at Lord Rama's sacred footprint site"},
+      {name:"Rama Tarpanam",desc:"Early morning ceremony — most auspicious at sunrise"},
+      {name:"Pallaki Procession by Boat",desc:"Ceremonial boat procession on festival days"}
+    ],
+    bring: "Sesame seeds and kusha grass for Tarpanam. Water and snacks — limited stalls. Sunscreen for the boat ride.",
+    tip: "Join the early morning Rama Tarpanam — most auspicious. Check boat service timings before visiting. Come prepared as facilities are basic.",
+    transport: "West Godavari side, road via Tadepalligudem. No railway station nearby — use road transport from Kovvur or Undi.",
+    best_time: "4 AM – 8 AM"
   },
   g13: {
-    importance: "Village ghat serving Seethanagaram and nearby mandals. Mainly for local holy dip. Useful for pilgrims coming from the south and southeast areas.",
-    rituals: ["Local village bathing rituals", "Minor Godavari puja ceremonies"],
-    tip: "Visit at dawn for the best experience. Minimal facilities — bring sufficient water and sun shade. Avoid visiting at night.",
-    transport: "~10 km SSE of Rajahmundry. Buses via Amalapuram Road. Nearest emergency support from Rajahmundry."
+    tag: "Village Ghat",
+    importance: "Village ghat serving Seethanagaram and nearby mandals. Useful for pilgrims coming from the south and southeast who want to avoid travelling into the busy city.",
+    rituals: [
+      {name:"Pushkara Snanam",desc:"Simple holy dip — local village setting"},
+      {name:"Minor Godavari Puja",desc:"Local priest-led prayers at the riverbank"}
+    ],
+    bring: "All essentials — water, food, sunscreen. Minimal facilities here.",
+    tip: "Visit at dawn for the best experience and coolest temperature. Avoid visiting at night — very minimal lighting.",
+    transport: "~10 km SSE of Rajahmundry. Buses via Amalapuram Road. Nearest emergency support from Rajahmundry (108 ambulance).",
+    best_time: "4 AM – 7 AM"
   },
   g14: {
-    importance: "Island temple ghat — Pattiseema's Sri Veerabhadra Swami temple is boat-access only. Unique pilgrimage experience combining river crossing and temple worship.",
-    rituals: ["Veerabhadra Swami Puja (priest-managed)", "Brahmotsavam (temple festival)", "Sangam bath (Ganges-Yamuna tradition of offerings)"],
-    tip: "Only accessible by ferry — check boat timings before visiting. Carry warm clothes for Brahmotsavam. APTDC guest rooms available nearby.",
-    transport: "~50 km NW of Rajahmundry. Boat access from West Godavari (Molagavalli jetty). Monsoon restrictions may apply."
+    tag: "Island Temple Ghat",
+    importance: "Island ghat — Pattiseema's Sri Veerabhadra Swami temple is accessible only by ferry. A unique pilgrimage combining a river boat ride with ancient temple worship.",
+    rituals: [
+      {name:"Veerabhadra Swami Puja",desc:"Main temple ritual — priests perform detailed abhishekam"},
+      {name:"Brahmotsavam",desc:"Grand temple festival during Pushkaralu — spectacular to witness"},
+      {name:"Sangam Snanam",desc:"Sacred bath combining offerings of Ganga-Yamuna tradition"}
+    ],
+    bring: "Warm shawl or light jacket (breezy on the river). Modest clothing for temple. Motion sickness tablet if needed for the boat.",
+    tip: "Only accessible by ferry — check boat timings before visiting. No bridge access. APTDC guest rooms available nearby for overnight stay.",
+    transport: "~50 km NW of Rajahmundry. Boat from West Godavari (Molagavalli jetty). Monsoon restrictions may apply — verify before travel.",
+    best_time: "5 AM – 6 PM (ferry-dependent)"
   },
   g15: {
-    importance: "Newer riverside ghat on the East bank (south). A quieter alternative for pilgrims coming from nearby mandals south of Rajahmundry.",
-    rituals: ["Pushkara Snanam (holy dip)", "Minor local puja ceremonies"],
-    tip: "Use this as a quieter alternative. Limited stalls — stock up on food and snacks beforehand. Gentle slope; good for elderly.",
-    transport: "~20 km south on NH-16. Nearest town: Dharmavaram. Highway patrol and 108 ambulance cover available."
+    tag: "Quiet East Bank Ghat",
+    importance: "Newer riverside ghat on the East bank south of the city. A calm, less-crowded alternative for pilgrims arriving from mandals south of Rajahmundry.",
+    rituals: [
+      {name:"Pushkara Snanam",desc:"Holy dip in a peaceful, uncrowded setting"},
+      {name:"Simple River Puja",desc:"Basic flower and lamp offerings at the waterfront"}
+    ],
+    bring: "All essentials — water, food, snacks. Very limited stalls.",
+    tip: "Good choice if you want to avoid the main ghat rush. Gentle slope — accessible for elderly pilgrims. Stock up on food before arriving.",
+    transport: "~20 km south of city on NH-16. Nearest town: Dharmavaram. Highway patrol and 108 ambulance cover available.",
+    best_time: "5 AM – 8 AM"
   }
 };
 
-// ═══ GHAT DETAIL MODAL ══════════════════════════════════════════════
+// ═══ GHAT DETAIL MODAL v2 ════════════════════════════════════════════
 function showGhatDetail(ghatId) {
   const g = allGhats.find(x => x.id === ghatId);
   if (!g) return;
   const info = GHAT_INFO[ghatId] || {};
   const pct = Math.min(100, Math.round((g.current_count / g.capacity) * 100));
-  const cl = g.crowd_level === 'high' ? `🔴 ${tr('hi_crowd')}` : g.crowd_level === 'medium' ? `🟡 ${tr('med_crowd')}` : `🟢 ${tr('low_crowd')}`;
-  const facs = (g.facilities || []).map(f => FI[f] || '').filter(Boolean).join('  ');
-  const rituals = (info.rituals || []).map(r => `<div class="gm-ritual"><span>🙏</span><span>${r}</span></div>`).join('');
+  const cl = g.crowd_level === 'high'
+    ? `<span style="color:var(--danger)">🔴 Very Crowded</span>`
+    : g.crowd_level === 'medium'
+    ? `<span style="color:var(--warn)">🟡 Moderate</span>`
+    : `<span style="color:var(--ok)">🟢 Less Crowded</span>`;
   const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${g.latitude},${g.longitude}`;
+
+  // facilities with full labels
+  const FAC_LABELS = {
+    toilet:'Toilets', medical_camp:'Medical Camp', parking:'Parking',
+    food_stall:'Food Stalls', enquiry_counter:'Enquiry', drinking_water:'Drinking Water',
+    luggage_counter:'Luggage', bus_stop:'Bus Stop', hotel:'Hotel', petrol_bunk:'Petrol'
+  };
+  const FAC_ICONS = {
+    toilet:'🚻', medical_camp:'🏥', parking:'🅿️', food_stall:'🍽️',
+    enquiry_counter:'❓', drinking_water:'💧', luggage_counter:'🧳',
+    bus_stop:'🚌', hotel:'🏨', petrol_bunk:'⛽'
+  };
+  const facChips = (g.facilities||[]).map(f =>
+    `<span class="gm-fac-chip">${FAC_ICONS[f]||'•'} ${FAC_LABELS[f]||f}</span>`
+  ).join('');
+
+  // rituals
+  const ritualIcons = ['🪔','🙏','🌸','🫧','🌼','📿'];
+  const ritualRows = (info.rituals||[]).map((r,i) => `
+    <div class="gm-ritual-row">
+      <div class="gm-ritual-icon">${ritualIcons[i%ritualIcons.length]}</div>
+      <div class="gm-ritual-text">
+        <div class="gm-ritual-name">${r.name}</div>
+        ${r.desc ? `<div class="gm-ritual-desc">${r.desc}</div>` : ''}
+      </div>
+    </div>`).join('');
+
+  // special dates badges
+  const dateBadges = (g.special_dates||[]).map(d =>
+    `<span class="gm-date-badge">${d}</span>`
+  ).join('');
 
   document.getElementById('ghat-modal-content').innerHTML = `
     <div class="gm-stripe ${g.crowd_level}"></div>
-    <div class="gm-handle"></div>
+    <div class="gm-handle-wrap"><div class="gm-handle"></div></div>
+
     <div class="gm-header">
-      <div>
+      <div style="flex:1;min-width:0">
+        ${info.tag ? `<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--saffron);margin-bottom:4px">${info.tag}</div>` : ''}
         <div class="gm-title">${g.name}</div>
         ${g.telugu_name ? `<div class="gm-te">${g.telugu_name}</div>` : ''}
       </div>
       <button class="gm-close" onclick="closeGhatModal()" aria-label="Close">✕</button>
     </div>
 
-    <div class="gm-crowd">
+    <!-- LIVE CROWD STATUS -->
+    <div class="gm-crowd-row">
       <span class="crowd-badge ${g.crowd_level}">${cl}</span>
-      <span style="font-size:12px;color:var(--t3)">${(g.current_count||0).toLocaleString()} / ${(g.capacity||0).toLocaleString()} pilgrims &nbsp;(${pct}% capacity)</span>
+      <span style="font-size:12px;color:var(--t3)">Live crowd status</span>
     </div>
-    <div style="padding:0 18px 10px"><div class="cb-track"><div class="cb-fill ${g.crowd_level}" style="width:${pct}%"></div></div></div>
+    <div class="gm-crowd-bar">
+      <div class="gm-crowd-nums">
+        <span><strong>${(g.current_count||0).toLocaleString()}</strong> pilgrims now</span>
+        <span>${pct}% of ${(g.capacity||0).toLocaleString()} capacity</span>
+      </div>
+      <div class="cb-track"><div class="cb-fill ${g.crowd_level}" style="width:${pct}%"></div></div>
+    </div>
 
     <div class="gm-body">
+
+      <!-- WHY THIS GHAT -->
       ${info.importance ? `
       <div class="gm-section">
-        <div class="gm-sec-title">ℹ️ Why Visit This Ghat</div>
-        <div class="gm-importance">${info.importance}</div>
+        <div class="gm-sec-label">ℹ️ About This Ghat</div>
+        <div class="gm-callout">${info.importance}</div>
       </div>` : ''}
 
-      ${rituals ? `
+      <!-- QUICK DETAILS GRID -->
       <div class="gm-section">
-        <div class="gm-sec-title">🪔 Rituals & Ceremonies</div>
-        ${rituals}
-      </div>` : ''}
-
-      ${info.tip ? `
-      <div class="gm-section">
-        <div class="gm-sec-title">💡 Pilgrim Tip</div>
-        <div class="gm-tip"><span>💡</span><span>${info.tip}</span></div>
-      </div>` : ''}
-
-      <div class="gm-section">
-        <div class="gm-sec-title">📋 Ghat Details</div>
-        <div class="gm-pills-row">
-          ${g.location_group ? `<span class="gm-pill">📍 ${g.location_group}</span>` : ''}
-          <span class="gm-pill">⏰ ${g.bathing_timings}</span>
-          <span class="gm-pill">🗺️ ${g.zone}</span>
-          ${g.nearest_landmark ? `<span class="gm-pill">🏛️ ${g.nearest_landmark}</span>` : ''}
-          ${facs ? `<span class="gm-pill">${facs}</span>` : ''}
-          ${g.special_dates?.length ? `<span class="gm-pill" style="color:var(--saffron);border-color:rgba(245,158,11,.3)">✨ Special: ${g.special_dates.join(', ')}</span>` : ''}
+        <div class="gm-sec-label">📋 Ghat Details</div>
+        <div class="gm-detail-grid">
+          <div class="gm-detail-cell">
+            <div class="gm-detail-label">⏰ Bathing Timings</div>
+            <div class="gm-detail-val">${g.bathing_timings}</div>
+          </div>
+          ${info.best_time ? `<div class="gm-detail-cell">
+            <div class="gm-detail-label">🌅 Best Time to Visit</div>
+            <div class="gm-detail-val">${info.best_time}</div>
+          </div>` : ''}
+          ${g.location_group ? `<div class="gm-detail-cell">
+            <div class="gm-detail-label">📍 Area</div>
+            <div class="gm-detail-val">${g.location_group}</div>
+          </div>` : ''}
+          ${g.nearest_landmark ? `<div class="gm-detail-cell">
+            <div class="gm-detail-label">🏛️ Nearest Landmark</div>
+            <div class="gm-detail-val">${g.nearest_landmark}</div>
+          </div>` : ''}
+          <div class="gm-detail-cell">
+            <div class="gm-detail-label">🗺️ Zone</div>
+            <div class="gm-detail-val">${g.zone}</div>
+          </div>
         </div>
       </div>
 
-      ${info.transport ? `
-      <div class="gm-section">
-        <div class="gm-sec-title">🚌 How to Reach</div>
-        <div class="gm-tip"><span>🚌</span><span>${info.transport}</span></div>
+      <!-- SPECIAL DATES -->
+      ${dateBadges ? `<div class="gm-section">
+        <div class="gm-sec-label">✨ Special Pushkaralu Dates</div>
+        <div class="gm-special-dates">
+          <span style="font-size:12px;color:var(--saffron);font-weight:600">Most auspicious on:</span>
+          ${dateBadges}
+        </div>
       </div>` : ''}
 
-      <a href="${mapsUrl}" target="_blank" rel="noopener" class="gm-dir-btn">🗺️ Get Directions</a>
+      <!-- RITUALS -->
+      ${ritualRows ? `<div class="gm-section">
+        <div class="gm-sec-label">🪔 Rituals & Ceremonies</div>
+        ${ritualRows}
+      </div>` : ''}
+
+      <!-- WHAT TO BRING -->
+      ${info.bring ? `<div class="gm-section">
+        <div class="gm-sec-label">🎒 What to Bring</div>
+        <div class="gm-info-box"><span class="gm-info-box-icon">🎒</span><span>${info.bring}</span></div>
+      </div>` : ''}
+
+      <!-- PILGRIM TIP -->
+      ${info.tip ? `<div class="gm-section">
+        <div class="gm-sec-label">💡 Pilgrim Tip</div>
+        <div class="gm-info-box" style="background:linear-gradient(135deg,rgba(200,133,13,.07),transparent);border:1px solid rgba(200,133,13,.18)">
+          <span class="gm-info-box-icon">💡</span><span>${info.tip}</span>
+        </div>
+      </div>` : ''}
+
+      <!-- FACILITIES -->
+      ${facChips ? `<div class="gm-section">
+        <div class="gm-sec-label">🏗️ Available Facilities</div>
+        <div class="gm-fac-row">${facChips}</div>
+      </div>` : ''}
+
+      <!-- HOW TO REACH -->
+      ${info.transport ? `<div class="gm-section">
+        <div class="gm-sec-label">🚌 How to Reach</div>
+        <div class="gm-info-box"><span class="gm-info-box-icon">🚌</span><span>${info.transport}</span></div>
+      </div>` : ''}
+
+      <!-- EMERGENCY NUMBERS -->
+      <div class="gm-section">
+        <div class="gm-sec-label">🚨 Emergency Numbers</div>
+        <div class="gm-emg-strip">
+          <div class="gm-emg-item"><div class="gm-emg-num">108</div><div class="gm-emg-lbl">Ambulance</div></div>
+          <div class="gm-emg-item"><div class="gm-emg-num">100</div><div class="gm-emg-lbl">Police</div></div>
+          <div class="gm-emg-item"><div class="gm-emg-num">101</div><div class="gm-emg-lbl">Fire</div></div>
+          <div class="gm-emg-item"><div class="gm-emg-num">1916</div><div class="gm-emg-lbl">NDRF</div></div>
+          <div class="gm-emg-item"><div class="gm-emg-num" style="font-size:12px">1800-425-0066</div><div class="gm-emg-lbl">Pushkara Helpline</div></div>
+        </div>
+      </div>
+
+      <!-- DIRECTIONS BUTTON -->
+      <a href="${mapsUrl}" target="_blank" rel="noopener" class="gm-dir-btn">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
+        Get Directions to ${g.name}
+      </a>
     </div>
   `;
   const overlay = document.getElementById('ghat-modal-overlay');
   overlay.style.display = 'flex';
-  requestAnimationFrame(() => overlay.classList.add('open'));
+  overlay.style.opacity = '0';
+  requestAnimationFrame(() => {
+    overlay.style.transition = 'opacity .22s';
+    overlay.style.opacity = '1';
+    overlay.classList.add('open');
+  });
   document.body.style.overflow = 'hidden';
 }
 
 function closeGhatModal() {
   const overlay = document.getElementById('ghat-modal-overlay');
   overlay.classList.remove('open');
-  overlay.style.opacity = '0';
   overlay.style.transition = 'opacity .2s';
-  setTimeout(() => { overlay.style.display = 'none'; overlay.style.opacity = ''; overlay.style.transition = ''; }, 220);
+  overlay.style.opacity = '0';
+  setTimeout(() => {
+    overlay.style.display = 'none';
+    overlay.style.opacity = '';
+    overlay.style.transition = '';
+  }, 210);
   document.body.style.overflow = '';
 }
 
@@ -2297,28 +2558,37 @@ function renderGhats(){
     const cl=g.crowd_level==='high'?`🔴 ${tr('hi_crowd')}`:g.crowd_level==='medium'?`🟡 ${tr('med_crowd')}`:`🟢 ${tr('low_crowd')}`;
     const facs=(g.facilities||[]).map(f=>FI[f]||'').filter(Boolean).join(' ');
     const info=GHAT_INFO[g.id]||{};
-    const impSnippet=info.importance?`<div class="gc-importance">ℹ️ ${info.importance}</div>`:'';
+    // Top ritual preview (first ritual name only)
+    const firstRitual=info.rituals&&info.rituals[0]?info.rituals[0].name:'';
+    // Importance 2-line preview
+    const impSnippet=info.importance?`<div class="gc-importance">${info.importance}</div>`:'';
     return `<div class="gc" onclick="showGhatDetail('${g.id}')" role="button" tabindex="0" aria-label="View details for ${g.name}" onkeydown="if(event.key==='Enter')showGhatDetail('${g.id}')">
       <div class="gc-stripe ${g.crowd_level}"></div>
       <div class="gc-body">
         <div class="gc-top">
-          <div><div class="gc-name">${g.name}</div><div class="gc-te">${g.telugu_name}</div></div>
-          <span class="crowd-badge ${g.crowd_level}">${cl}</span>
+          <div style="min-width:0;flex:1">
+            ${info.tag?`<div style="font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--saffron);margin-bottom:3px">${info.tag}</div>`:''}
+            <div class="gc-name">${g.name}</div>
+            <div class="gc-te">${g.telugu_name||''}</div>
+          </div>
+          <span class="crowd-badge ${g.crowd_level}" style="flex-shrink:0">${cl}</span>
         </div>
         <div class="crowd-bar-wrap">
-          <div class="cb-labels"><span>${(g.current_count||0).toLocaleString()} / ${(g.capacity||0).toLocaleString()}</span><span>${pct}%</span></div>
+          <div class="cb-labels">
+            <span>${(g.current_count||0).toLocaleString()} / ${(g.capacity||0).toLocaleString()}</span>
+            <span>${pct}% full</span>
+          </div>
           <div class="cb-track"><div class="cb-fill ${g.crowd_level}" style="width:${pct}%"></div></div>
         </div>
         ${impSnippet}
         <div class="gc-pills">
           ${g.location_group?`<span class="gp" style="background:var(--info-bg);color:var(--info);font-weight:600">📍 ${g.location_group}</span>`:''}
           <span class="gp">⏰ ${g.bathing_timings}</span>
-          <span class="gp">🗺️ ${g.zone}</span>
+          ${firstRitual?`<span class="gp" style="color:var(--saffron);border-color:rgba(232,96,10,.2)">🪔 ${firstRitual}</span>`:''}
           ${facs?`<span class="gp">${facs}</span>`:''}
-          ${g.nearest_landmark?`<span class="gp">🏛️ ${g.nearest_landmark}</span>`:''}
         </div>
         ${g.special_dates?.length?`<div class="gc-special">✨ Special: ${g.special_dates.join(', ')}</div>`:''}
-        <div style="font-size:11px;color:var(--t3);margin-top:6px;text-align:right">Tap for full details →</div>
+        <div class="gc-tap-hint">View full details &amp; directions <span>→</span></div>
       </div>
     </div>`;}).join('');
 }
