@@ -341,3 +341,107 @@ def evaluate_from_dicts(
         )
 
     return RiskEngine.evaluate(state, vision, telecom)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# SCALE IMPROVEMENTS — added for 10-lakh pilgrim scenarios
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class AdaptiveThresholds:
+    """
+    Tighten risk thresholds on known high-traffic festival days.
+    On Maha Pushkar (Day 1) and Karthika Pournami bathing dates, the system
+    lowers the 'medium' and 'high' triggers so warnings fire earlier.
+
+    No DB or network calls — pure date arithmetic (O(1)).
+    """
+
+    # Known Pushkaralu 2027 high-traffic dates (YYYY-MM-DD)
+    # Maha Pushkar = first 2 days, Ardha Pushkar = days 5-6, Uttara = last 2 days
+    HIGH_TRAFFIC_DATES = {
+        "2027-07-25", "2027-07-26",  # Maha Pushkar (Day 1-2) — highest footfall
+        "2027-07-29", "2027-07-30",  # Ardha Pushkar
+        "2027-08-03", "2027-08-04",  # Uttara Pushkar (final days)
+    }
+
+    @classmethod
+    def get_thresholds(cls, date_str: str = None) -> tuple[float, float, float]:
+        """
+        Returns (low, medium, high) threshold tuple for current date.
+        Normal days: (0.40, 0.65, 0.85)
+        High-traffic: (0.30, 0.55, 0.75) — triggers 10 pts earlier
+        """
+        from datetime import date
+        today = date_str or date.today().isoformat()
+        if today in cls.HIGH_TRAFFIC_DATES:
+            return (0.30, 0.55, 0.75)
+        return (THRESHOLD_LOW, THRESHOLD_MEDIUM, THRESHOLD_HIGH)
+
+    @classmethod
+    def score_to_level_adaptive(cls, score: float, date_str: str = None) -> str:
+        low, medium, high = cls.get_thresholds(date_str)
+        if score < low:    return "low"
+        if score < medium: return "medium"
+        if score < high:   return "high"
+        return "critical"
+
+
+class SurgeDetector:
+    """
+    Ring-buffer based per-ghat surge detector.
+    Fires when crowd density jumps > SURGE_THRESHOLD in a short window.
+    Used for inter-ghat flow management: divert pilgrims to less-busy ghats.
+
+    All operations O(1) per call (fixed ring buffer size).
+    """
+    SURGE_THRESHOLD   = 0.20   # 20% density jump in one reading window
+    SPIKE_WINDOW      = 3      # check across last 3 readings
+
+    def __init__(self):
+        self._histories: dict[str, list] = {}  # ghat_id → recent density list
+
+    def update(self, ghat_id: str, density: float) -> bool:
+        """
+        Push new density reading.  Returns True if a surge is detected.
+        """
+        h = self._histories.setdefault(ghat_id, [])
+        h.append(density)
+        if len(h) > self.SPIKE_WINDOW + 1:
+            h.pop(0)
+        if len(h) < 2:
+            return False
+        # Maximum single-step jump in the recent window
+        max_jump = max(h[i] - h[i-1] for i in range(1, len(h)))
+        return max_jump >= self.SURGE_THRESHOLD
+
+    def clear(self, ghat_id: str):
+        self._histories.pop(ghat_id, None)
+
+
+# Singleton for the broadcast loop to use
+_surge_detector = SurgeDetector()
+
+
+def evaluate_from_dicts_adaptive(
+    ghat: dict,
+    vision_data:  Optional[dict] = None,
+    telecom_data: Optional[dict] = None,
+    density_history: list = None,
+    date_str: str = None,
+) -> dict:
+    """
+    Like evaluate_from_dicts() but uses adaptive thresholds for festival days.
+    Drop-in replacement — same return format.
+    """
+    result = evaluate_from_dicts(ghat, vision_data, telecom_data, density_history)
+
+    # Override level with adaptive threshold
+    adaptive_level = AdaptiveThresholds.score_to_level_adaptive(result["risk_score"], date_str)
+    result["crowd_level"] = adaptive_level
+    result["colour"]      = RiskEngine.score_to_colour(adaptive_level)
+
+    # Add surge flag
+    surge = _surge_detector.update(ghat["id"], result["fused_density"])
+    result["surge_detected"] = surge
+
+    return result
