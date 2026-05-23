@@ -56,7 +56,7 @@ from app.core.redis_manager import (
     check_rate_limit, redis_health, close_redis, get_redis,
 )
 from app.core.ws_manager import manager, HEARTBEAT_INTERVAL
-from app.core.risk_engine import evaluate_from_dicts
+from app.core.risk_engine import evaluate_from_dicts, evaluate_from_dicts_adaptive
 from app.core.ai_predictor import start_monitor, collect_telemetry
 from app.core.redis_manager import start_reconnect_loop
 from app.healing.orchestrator import start_all_guardians, stop_all_guardians, get_health_summary, register_db_accessor
@@ -274,7 +274,7 @@ async def crowd_broadcast_loop():
                     vision_data  = await get_crowd_data(f"cctv:{ghat_id}")
                     telecom_data = await get_crowd_data(f"telecom:{ghat_id}")
                     history      = await get_crowd_history(ghat_id, 10)
-                    result       = evaluate_from_dicts(ghat, vision_data, telecom_data, history)
+                    result       = evaluate_from_dicts_adaptive(ghat, vision_data, telecom_data, history)
                     ghat["crowd_level"]   = result["crowd_level"]
                     ghat["current_count"] = result["estimated_count"]
                     await set_crowd_data(ghat_id, result)
@@ -293,6 +293,16 @@ async def crowd_broadcast_loop():
                             }
                         })
                     _prev_scores[ghat_id] = result["risk_score"]
+                    if result.get("surge_detected"):
+                        await publish_to_ghat(ghat_id, {
+                            "type": "SURGE_ALERT",
+                            "data": {
+                                "ghat_id":   ghat_id,
+                                "name":      ghat.get("name", ""),
+                                "message":   f"🚨 SURGE at {ghat.get('name','')} — crowd rising rapidly",
+                                "risk_score": result["risk_score"],
+                            }
+                        })
                     await publish_to_ghat(ghat_id, {
                         "type": "CROWD_UPDATE",
                         "data": {
