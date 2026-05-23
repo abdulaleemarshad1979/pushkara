@@ -260,6 +260,11 @@ async def _am_leader() -> bool:
 # Background tasks  (unchanged)
 # ═══════════════════════════════════════════════════════════════════════════════
 _prev_scores: dict = {}
+# Manual override lock: {ghat_id: expiry_timestamp}
+# When admin sets a crowd level manually, the broadcast loop skips that ghat
+# for MANUAL_OVERRIDE_TTL seconds so the auto-engine doesn't immediately undo it.
+_manual_overrides: dict = {}
+MANUAL_OVERRIDE_TTL = 300  # 5 minutes
 
 async def crowd_broadcast_loop():
     from app.core.risk_engine import RiskEngine
@@ -271,6 +276,22 @@ async def crowd_broadcast_loop():
             for ghat in DB["ghats"]:
                 ghat_id = ghat["id"]
                 try:
+                    # Skip auto-evaluation if admin has manually set this ghat's level
+                    if _manual_overrides.get(ghat_id, 0) > time.time():
+                        # Still broadcast the current manual level so late-joining clients get it
+                        await publish_to_ghat(ghat_id, {
+                            "type": "CROWD_UPDATE",
+                            "data": {
+                                "ghat_id":   ghat_id,
+                                "level":     ghat["crowd_level"],
+                                "name":      ghat.get("name", ""),
+                                "risk_score": _prev_scores.get(ghat_id, 0.0),
+                                "occupancy_pct": round((ghat.get("current_count", 0) / max(ghat.get("capacity", 1), 1)) * 100, 1),
+                                "colour":    {"low": "green", "medium": "orange", "high": "red", "critical": "purple"}.get(ghat["crowd_level"], "grey"),
+                                "manual": True,
+                            }
+                        })
+                        continue
                     vision_data  = await get_crowd_data(f"cctv:{ghat_id}")
                     telecom_data = await get_crowd_data(f"telecom:{ghat_id}")
                     history      = await get_crowd_history(ghat_id, 10)
@@ -688,14 +709,42 @@ async def update_crowd(
     ghat_id: str, level: str = Form(...),
     _auth: dict = Depends(require_volunteer_or_admin),
 ):
+    valid_levels = {"low", "medium", "high", "critical"}
+    if level not in valid_levels:
+        raise HTTPException(status_code=400, detail=f"level must be one of {valid_levels}")
     for ghat in DB["ghats"]:
         if ghat["id"] == ghat_id:
             ghat["crowd_level"] = level
-            msg = {"type": "CROWD_UPDATE", "data": {"ghat_id": ghat_id, "level": level, "name": ghat.get("name", ""), "manual": True}}
-            await cache_delete(Keys.GHATS_ALL, Keys.GHAT_ONE.format(ghat_id=ghat_id))
+            # Lock this ghat so broadcast loop won't overwrite for 5 minutes
+            _manual_overrides[ghat_id] = time.time() + MANUAL_OVERRIDE_TTL
+            logger.info("[ManualOverride] ghat=%s level=%s locked for %ds by admin", ghat_id, level, MANUAL_OVERRIDE_TTL)
+            # Build a synthetic risk result so /crowd/risk/all reflects the manual level
+            capacity = ghat.get("capacity", 1000)
+            current = ghat.get("current_count", 0)
+            colour_map = {"low": "green", "medium": "orange", "high": "red", "critical": "purple"}
+            score_map  = {"low": 0.2, "medium": 0.5, "high": 0.75, "critical": 0.95}
+            risk_result = {
+                "ghat_id":       ghat_id,
+                "crowd_level":   level,
+                "risk_score":    score_map.get(level, 0.5),
+                "occupancy_pct": round((current / max(capacity, 1)) * 100, 1),
+                "estimated_count": current,
+                "colour":        colour_map.get(level, "grey"),
+                "manual":        True,
+                "timestamp":     time.time(),
+            }
+            await set_crowd_data(ghat_id, risk_result)
+            await cache_delete(Keys.GHATS_ALL, Keys.GHAT_ONE.format(ghat_id=ghat_id), Keys.RISK_ALL)
+            msg = {"type": "CROWD_UPDATE", "data": {
+                "ghat_id": ghat_id, "level": level, "name": ghat.get("name", ""),
+                "risk_score": risk_result["risk_score"],
+                "occupancy_pct": risk_result["occupancy_pct"],
+                "colour": risk_result["colour"],
+                "manual": True,
+            }}
             await publish_to_ghat(ghat_id, msg)
             await manager._local_broadcast(msg, ghat_id)
-            return {"success": True}
+            return {"success": True, "locked_until": _manual_overrides[ghat_id], "override_ttl_seconds": MANUAL_OVERRIDE_TTL}
     raise HTTPException(status_code=404, detail="Ghat not found")
 
 @app.get("/get_transport")
