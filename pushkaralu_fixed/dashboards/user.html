@@ -269,7 +269,7 @@ button, .action-btn {
 .gmc-count{font-size:11px;color:var(--t3);margin-bottom:6px}
 .prog-track{height:5px;background:rgba(0,0,0,.08);border-radius:3px;overflow:hidden}
 .prog-fill{height:100%;border-radius:3px;transition:width .5s ease}
-.prog-fill.high{background:var(--danger)}.prog-fill.medium{background:var(--gold)}.prog-fill.low{background:var(--green)}
+.prog-fill.high{background:var(--danger)}.prog-fill.medium{background:var(--gold)}.prog-fill.low{background:var(--green)}.prog-fill.critical{background:#8B00FF}
 .view-all-link{font-size:13px;font-weight:700;color:var(--navy);text-decoration:none;display:inline-flex;align-items:center;gap:4px;margin-top:10px;margin-bottom:24px}
 .view-all-link:hover{color:var(--saffron)}
 
@@ -311,6 +311,7 @@ button, .action-btn {
 .gc-stripe.high{background:linear-gradient(90deg,var(--danger),#E74C3C)}
 .gc-stripe.medium{background:linear-gradient(90deg,var(--gold),var(--gold2))}
 .gc-stripe.low{background:linear-gradient(90deg,var(--green),var(--green2))}
+.gc-stripe.critical{background:linear-gradient(90deg,#8B00FF,#6A0DAD)}
 .gc-body{padding:14px}
 .gc-top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:8px}
 .gc-name{font-family:'DM Serif Display',serif;font-size:.9rem;color:var(--navy);line-height:1.2}
@@ -319,11 +320,12 @@ button, .action-btn {
 .crowd-badge.high{background:var(--danger-bg);color:var(--danger)}
 .crowd-badge.medium{background:var(--warn-bg);color:var(--warn)}
 .crowd-badge.low{background:var(--ok-bg);color:var(--ok)}
+.crowd-badge.critical{background:rgba(139,0,255,.15);color:#8B00FF}
 .crowd-bar-wrap{margin-bottom:10px}
 .cb-labels{display:flex;justify-content:space-between;font-size:10px;color:var(--t3);margin-bottom:3px}
 .cb-track{height:5px;background:var(--bg);border-radius:3px;overflow:hidden}
 .cb-fill{height:100%;border-radius:3px;transition:width .5s}
-.cb-fill.high{background:var(--danger)}.cb-fill.medium{background:var(--gold)}.cb-fill.low{background:var(--green)}
+.cb-fill.high{background:var(--danger)}.cb-fill.medium{background:var(--gold)}.cb-fill.low{background:var(--green)}.cb-fill.critical{background:#8B00FF}
 .gc-pills{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px}
 .gp{font-size:10px;background:var(--bg);border:1px solid #E5E7EB;padding:2px 7px;border-radius:3px;color:var(--t2)}
 .gc-special{font-size:10px;color:var(--saffron);font-weight:700;margin-bottom:8px}
@@ -2442,7 +2444,9 @@ function showGhatDetail(ghatId) {
   if (!g) return;
   const info = GHAT_INFO[ghatId] || {};
   const pct = Math.min(100, Math.round((g.current_count / g.capacity) * 100));
-  const cl = g.crowd_level === 'high'
+  const cl = g.crowd_level === 'critical'
+    ? `<span style="color:#8B00FF">🟣 CRITICAL — Avoid</span>`
+    : g.crowd_level === 'high'
     ? `<span style="color:var(--danger)">🔴 Very Crowded</span>`
     : g.crowd_level === 'medium'
     ? `<span style="color:var(--warn)">🟡 Moderate</span>`
@@ -2632,7 +2636,7 @@ function renderGhatMini(){
   if(!data.length){el.innerHTML='';return;}
   el.innerHTML=data.map(g=>{
     const pct=Math.min(100,Math.round((g.current_count/g.capacity)*100));
-    const cl=g.crowd_level==='high'?`🔴 ${tr('hi_crowd')}`:g.crowd_level==='medium'?`🟡 ${tr('med_crowd')}`:`🟢 ${tr('low_crowd')}`;
+    const cl=g.crowd_level==='critical'?`🟣 CRITICAL`:g.crowd_level==='high'?`🔴 ${tr('hi_crowd')}`:g.crowd_level==='medium'?`🟡 ${tr('med_crowd')}`:`🟢 ${tr('low_crowd')}`;
     return `<div class="gmc ${g.crowd_level}">
       <div class="gmc-top"><div class="gmc-name">${g.name}</div><span class="crowd-tag ${g.crowd_level}">${cl}</span></div>
       <div class="gmc-count">${(g.current_count||0).toLocaleString()} / ${(g.capacity||0).toLocaleString()} · ${g.zone}</div>
@@ -2754,7 +2758,7 @@ function renderGhats(){
   if(!data.length){el.innerHTML=`<div class="empty"><div class="empty-ico">🌊</div><p>No ghats</p></div>`;return;}
   el.innerHTML=data.map(g=>{
     const pct=Math.min(100,Math.round((g.current_count/g.capacity)*100));
-    const cl=g.crowd_level==='high'?`🔴 ${tr('hi_crowd')}`:g.crowd_level==='medium'?`🟡 ${tr('med_crowd')}`:`🟢 ${tr('low_crowd')}`;
+    const cl=g.crowd_level==='critical'?`🟣 CRITICAL`:g.crowd_level==='high'?`🔴 ${tr('hi_crowd')}`:g.crowd_level==='medium'?`🟡 ${tr('med_crowd')}`:`🟢 ${tr('low_crowd')}`;
     const facs=(g.facilities||[]).map(f=>FI[f]||'').filter(Boolean).join(' ');
     const info=GHAT_INFO[g.id]||{};
     // Top ritual preview (first ritual name only)
@@ -3703,7 +3707,7 @@ function initGhatMap(){
 }
 
 function _markerIcon(level){
-  const colors = { high:'#C0392B', medium:'#C8850D', low:'#0B6B30' };
+  const colors = { critical:'#8B00FF', high:'#C0392B', medium:'#C8850D', low:'#0B6B30' };
   const c = colors[level] || '#1A4080';
   return L.divIcon({
     className: '',
@@ -3723,9 +3727,10 @@ function _placeGhatMarkers(){
   allGhats.forEach(g=>{
     if(!g.latitude || !g.longitude) return;
     const pct = Math.min(100,Math.round((g.current_count/g.capacity)*100));
-    const cl = g.crowd_level === 'high' ? '🔴 Very Crowded'
+    const cl = g.crowd_level === 'critical' ? '🟣 CRITICAL — Avoid'
+             : g.crowd_level === 'high' ? '🔴 Very Crowded'
              : g.crowd_level === 'medium' ? '🟡 Moderate' : '🟢 Less Crowded';
-    const fillColor = g.crowd_level==='high'?'var(--danger)':g.crowd_level==='medium'?'var(--gold)':'var(--green)';
+    const fillColor = g.crowd_level==='critical'?'#8B00FF':g.crowd_level==='high'?'var(--danger)':g.crowd_level==='medium'?'var(--gold)':'var(--green)';
     const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${g.latitude},${g.longitude}`;
     const info = (typeof GHAT_INFO !== 'undefined' && GHAT_INFO[g.id]) || {};
     const popupHtml = `
@@ -3832,21 +3837,23 @@ function handleUserWSMessage(msg) {
   switch(msg.type) {
     case 'CROWD_UPDATE': {
       // Update the ghat in memory and re-render cards + map marker
-      const { ghat_id, level } = msg.data || {};
+      const { ghat_id, level, occupancy_pct, risk_score } = msg.data || {};
       if(!ghat_id || !level) break;
       const ghat = (window.allGhats || []).find(g => g.id === ghat_id);
       if(ghat) {
         ghat.crowd_level = level;
+        if(occupancy_pct !== undefined) ghat._occupancy_pct = occupancy_pct;
+        if(risk_score !== undefined) ghat._risk_score = risk_score;
         // Re-render ghats section if it's visible
         if(document.getElementById('sec-ghats')?.classList.contains('on')) {
           if(typeof renderGhats === 'function') renderGhats();
         }
         // Refresh map markers
         if(typeof _refreshMapMarkers === 'function') _refreshMapMarkers();
-        // Show a subtle toast
-        const crowdEmoji = level === 'high' ? '🔴' : level === 'medium' ? '🟡' : '🟢';
+        // Show a subtle toast (critical = purple, high = red, etc.)
+        const crowdEmoji = level === 'critical' ? '🟣' : level === 'high' ? '🔴' : level === 'medium' ? '🟡' : '🟢';
         const ghatName = ghat.name || ghat_id;
-        if(typeof toast === 'function') toast(crowdEmoji, `${ghatName}: ${level.toUpperCase()} crowd`, 'info');
+        if(typeof toast === 'function') toast(crowdEmoji, `${ghatName}: ${level.toUpperCase()} crowd`, level === 'critical' ? 'error' : 'info');
       }
       break;
     }
