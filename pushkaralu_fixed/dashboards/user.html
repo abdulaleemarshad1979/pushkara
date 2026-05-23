@@ -32,7 +32,31 @@ const ADMIN_API_KEY= '64de5b5ae7863eee64aa9a2c7e54455d2b74e46e7b7536fb15807b9521
 <noscript><link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@400;500;600;700&display=optional" rel="stylesheet"></noscript>
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Noto+Serif+Telugu&display=optional" onload="this.onload=null;this.rel='stylesheet'">
 <noscript><link href="https://fonts.googleapis.com/css2?family=Noto+Serif+Telugu&display=optional" rel="stylesheet"></noscript>
+<!-- Leaflet CSS (map) — loaded only when Ghats section opens -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
 <style>
+/* ═══ PARTNER / BRANDING STRIP ══════════════════════════════ */
+.partner-strip{background:#fff;border-bottom:1px solid #E5E7EB;padding:6px 12px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;overflow:hidden}
+.partner-strip-label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#9CA3AF;white-space:nowrap}
+.partner-logos{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.partner-logo-item{display:flex;align-items:center;gap:6px;text-decoration:none;color:inherit;transition:opacity .15s}
+.partner-logo-item:hover{opacity:.75}
+.partner-logo-icon{width:28px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+.partner-logo-text{font-size:10px;font-weight:700;color:#374151;line-height:1.2;max-width:80px}
+.partner-logo-sub{font-size:8.5px;color:#9CA3AF;font-weight:400}
+.dark-mode .partner-strip{background:#0F172A;border-bottom-color:#1E293B}
+.dark-mode .partner-logo-text{color:#CBD5E1}
+/* TourGO powered-by badge */
+.tg-powered{display:inline-flex;align-items:center;gap:5px;background:linear-gradient(135deg,rgba(232,96,10,.1),rgba(200,133,13,.1));border:1px solid rgba(232,96,10,.25);border-radius:20px;padding:3px 10px;font-size:10px;font-weight:700;color:var(--saffron);font-family:'DM Sans',sans-serif;text-decoration:none;transition:all .15s;white-space:nowrap}
+.tg-powered:hover{background:linear-gradient(135deg,rgba(232,96,10,.18),rgba(200,133,13,.18))}
+.tg-powered-dark{background:linear-gradient(135deg,#1a0a00,#0d0800);border-color:rgba(232,96,10,.4);color:#FF8C2A}
+/* footer branding row */
+.footer-partners{display:flex;align-items:center;justify-content:center;gap:16px;flex-wrap:wrap;margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid rgba(255,255,255,.1)}
+.fp-item{display:flex;align-items:center;gap:5px;text-decoration:none;color:rgba(255,255,255,.55);font-size:10px;font-weight:600;transition:color .15s}
+.fp-item:hover{color:rgba(255,255,255,.85)}
+/* OTP hint banner */
+.otp-demo-hint{background:linear-gradient(135deg,#FFF8E7,#FFF3CD);border:1px solid #F59E0B;border-radius:var(--r);padding:8px 12px;font-size:11px;color:#92400E;display:flex;align-items:center;gap:7px;margin-bottom:10px}
+
 /* Size-adjust fallback metrics — eliminates layout shift when web fonts arrive */
 @font-face{font-family:'DM Sans Fallback';src:local('Arial');size-adjust:100%;ascent-override:95%;descent-override:20%;line-gap-override:0%}
 @font-face{font-family:'DM Serif Fallback';src:local('Georgia');size-adjust:98%;ascent-override:90%;descent-override:22%;line-gap-override:0%}
@@ -895,6 +919,45 @@ html,body{max-width:100%;overflow-x:hidden}
 .gm-sec-label{font-family:'DM Sans',sans-serif;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--t3);margin-bottom:8px;padding-bottom:5px;border-bottom:1px solid #F0F2F5;display:flex;align-items:center;gap:5px}
 .dark-mode .gm-sec-label{border-bottom-color:#1E293B}
 
+/* ═══ GHAT MAP ═══════════════════════════════════════════════ */
+#ghat-map-wrap{background:var(--card);border:var(--border);border-radius:var(--r2);overflow:hidden;margin-bottom:18px;box-shadow:var(--sh2)}
+#ghat-map-header{background:linear-gradient(135deg,var(--navy3) 0%,var(--navy) 100%);padding:12px 16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;border-bottom:2px solid var(--saffron)}
+#ghat-map-header h3{font-family:'DM Serif Display',serif;color:var(--gold2);font-size:.95rem;font-weight:400}
+#ghat-map{height:320px;width:100%;z-index:1}
+@media(min-width:600px){#ghat-map{height:420px}}
+.map-legend{display:flex;gap:12px;flex-wrap:wrap;padding:10px 16px;background:var(--bg);border-top:var(--border);font-size:11px;color:var(--t2)}
+.map-legend-item{display:flex;align-items:center;gap:5px;font-weight:600}
+.map-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.map-dot.high{background:var(--danger)}.map-dot.medium{background:var(--gold)}.map-dot.low{background:var(--green)}
+/* map view toggle */
+.map-view-chips{display:flex;gap:6px}
+.mvc{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);color:rgba(255,255,255,.75);padding:4px 11px;border-radius:4px;font-size:11px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .15s}
+.mvc.on,.mvc:hover{background:var(--saffron);border-color:var(--saffron);color:white}
+/* Leaflet popup override */
+.leaflet-popup-content-wrapper{border-radius:10px!important;box-shadow:var(--sh3)!important;border:var(--border)!important;padding:0!important;overflow:hidden}
+.leaflet-popup-content{margin:0!important;width:220px!important}
+.lp-body{padding:12px 14px}
+.lp-name{font-family:'DM Serif Display',serif;font-size:.88rem;color:var(--navy);margin-bottom:4px}
+.lp-crowd{font-size:11px;margin-bottom:4px}
+.lp-bar{height:4px;background:#E5E7EB;border-radius:2px;overflow:hidden;margin-bottom:8px}
+.lp-fill.high{background:var(--danger)}.lp-fill.medium{background:var(--gold)}.lp-fill.low{background:var(--green)}
+.lp-btn{display:block;text-align:center;background:var(--navy);color:white;text-decoration:none;padding:7px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;border:none;width:100%;font-family:'DM Sans',sans-serif}
+.lp-btn:hover{background:var(--navy2)}
+
+/* ═══ OTP VERIFICATION ════════════════════════════════════════ */
+.otp-wrap{background:var(--info-bg);border:1px solid rgba(21,88,168,.2);border-radius:var(--r);padding:13px 14px;margin-top:8px}
+.otp-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px}
+.otp-inputs{display:flex;gap:6px;margin-top:10px}
+.otp-digit{width:40px;height:44px;border:2px solid #D1D5DB;border-radius:var(--r);text-align:center;font-size:18px;font-family:'Source Code Pro',monospace;font-weight:700;color:var(--t1);background:var(--card);outline:none;transition:border-color .15s}
+.otp-digit:focus{border-color:var(--navy);box-shadow:0 0 0 3px rgba(11,46,110,.1)}
+.otp-digit.filled{border-color:var(--ok);background:var(--ok-bg)}
+.otp-digit.error{border-color:var(--danger);background:var(--danger-bg)}
+.otp-verified-badge{display:inline-flex;align-items:center;gap:5px;background:var(--ok-bg);border:1px solid rgba(11,107,48,.2);border-radius:var(--r);padding:6px 12px;font-size:12px;font-weight:700;color:var(--ok)}
+.btn-send-otp{padding:9px 14px;background:var(--navy);color:white;border:none;border-radius:var(--r);cursor:pointer;font-size:12px;font-weight:700;font-family:'DM Sans',sans-serif;transition:all .15s;white-space:nowrap}
+.btn-send-otp:hover:not(:disabled){background:var(--navy2)}
+.btn-send-otp:disabled{opacity:.55;cursor:not-allowed}
+.otp-timer{font-size:11px;color:var(--t3);margin-top:5px}
+
 /* importance callout */
 .gm-callout{background:var(--info-bg);border-left:3px solid var(--info);border-radius:0 var(--r) var(--r) 0;padding:11px 14px;font-size:13.5px;color:var(--t1);line-height:1.65;font-family:'DM Sans',sans-serif}
 .dark-mode .gm-callout{background:rgba(14,165,233,.08)}
@@ -970,6 +1033,35 @@ html,body{max-width:100%;overflow-x:hidden}
 <div class="topbar">
   <span id="t-govbar">🇮🇳 Government of Andhra Pradesh — Official Portal</span>
   <span id="t-helpbar">Helpline: <strong>1800-425-8877</strong></span>
+</div>
+
+<!-- PARTNER / BRANDING STRIP -->
+<div class="partner-strip">
+  <span class="partner-strip-label">In Partnership With</span>
+  <div class="partner-logos">
+    <!-- Rajamahendravaram Municipal Corporation -->
+    <a href="https://rmc.ap.gov.in/" target="_blank" rel="noopener" class="partner-logo-item" title="Rajamahendravaram Municipal Corporation">
+      <div class="partner-logo-icon" style="background:#0B2E6E;color:white">🏛️</div>
+      <div>
+        <div class="partner-logo-text">RMC</div>
+        <div class="partner-logo-sub">Rajamahendravaram<br>Municipal Corp</div>
+      </div>
+    </a>
+    <div style="width:1px;height:28px;background:#E5E7EB"></div>
+    <!-- Aditya University -->
+    <a href="https://www.adityauniversity.in/" target="_blank" rel="noopener" class="partner-logo-item" title="Aditya University">
+      <div class="partner-logo-icon" style="background:linear-gradient(135deg,#1a1a6e,#2d2d9f);color:white;font-size:12px">🎓</div>
+      <div>
+        <div class="partner-logo-text">Aditya University</div>
+        <div class="partner-logo-sub">Tech Partner · Surampalem</div>
+      </div>
+    </a>
+    <div style="width:1px;height:28px;background:#E5E7EB"></div>
+    <!-- TourGO -->
+    <a href="#" onclick="goSec('tourgo');return false" class="tg-powered" title="Powered by TourGO">
+      🌐 Powered by <strong style="margin-left:3px">TourGO</strong>
+    </a>
+  </div>
 </div>
 
 <!-- HEADER -->
@@ -1239,6 +1331,14 @@ html,body{max-width:100%;overflow-x:hidden}
         <span style="font-size:18px">🏨</span>
         <div><div style="font-weight:600">Hotels List</div><div style="font-size:11px;color:var(--t3)">East Godavari District — Official Accommodation</div></div>
       </a>
+      <a href="https://rmc.ap.gov.in/" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--bg);border-radius:8px;text-decoration:none;color:var(--t1);font-size:13px">
+        <span style="font-size:18px">🏛️</span>
+        <div><div style="font-weight:600">Rajamahendravaram Municipal Corporation</div><div style="font-size:11px;color:var(--t3)">rmc.ap.gov.in — City services &amp; infrastructure for Pushkaralu</div></div>
+      </a>
+      <a href="https://www.adityauniversity.in/" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:linear-gradient(135deg,rgba(26,26,110,.06),transparent);border-radius:8px;text-decoration:none;color:var(--t1);font-size:13px;border:1px solid rgba(26,26,110,.1)">
+        <span style="font-size:18px">🎓</span>
+        <div><div style="font-weight:600">Aditya University — Technology Partner</div><div style="font-size:11px;color:var(--t3)">adityauniversity.in · Portal built by Aditya University students, Surampalem</div></div>
+      </a>
       <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--bg);border-radius:8px;font-size:13px;color:var(--t2)">
         <span style="font-size:18px">📞</span>
         <div><div style="font-weight:600">Helpline: 1800-425-0066</div><div style="font-size:11px;color:var(--t3)">Toll-free · 24×7 during festival</div></div>
@@ -1280,13 +1380,36 @@ html,body{max-width:100%;overflow-x:hidden}
     <div class="st">🌊 <span class="t" data-k="ghats_title">Live Ghat Status</span></div>
     <button class="chip" onclick="loadGhats()">↻</button>
   </div>
-  <div class="filter-row">
-    <button class="chip on" onclick="fGhats('all',this)" data-k="all">All</button>
-    <button class="chip" onclick="fGhats('low',this)">🟢 <span class="t" data-k="low_crowd">Less Crowded</span></button>
-    <button class="chip" onclick="fGhats('medium',this)">🟡 <span class="t" data-k="med_crowd">Moderate</span></button>
-    <button class="chip" onclick="fGhats('high',this)">🔴 <span class="t" data-k="hi_crowd">Very Crowded</span></button>
+
+  <!-- ── MAP VIEW ── -->
+  <div id="ghat-map-wrap">
+    <div id="ghat-map-header">
+      <h3>🗺️ All 15 Ghats — Live Crowd Map</h3>
+      <div class="map-view-chips">
+        <button class="mvc on" onclick="switchMapView('map',this)">🗺️ Map</button>
+        <button class="mvc" onclick="switchMapView('cards',this)">📋 Cards</button>
+      </div>
+    </div>
+    <div id="ghat-map"></div>
+    <div class="map-legend">
+      <span style="font-weight:700;color:var(--t2);margin-right:4px">Crowd:</span>
+      <span class="map-legend-item"><span class="map-dot high"></span> Very Crowded</span>
+      <span class="map-legend-item"><span class="map-dot medium"></span> Moderate</span>
+      <span class="map-legend-item"><span class="map-dot low"></span> Less Crowded</span>
+      <span style="margin-left:auto;color:var(--t3);font-style:italic">Tap a pin to see details</span>
+    </div>
   </div>
-  <div id="ghats-list" class="ghat-grid"></div>
+
+  <!-- ── CARDS VIEW ── -->
+  <div id="ghat-cards-view">
+    <div class="filter-row">
+      <button class="chip on" onclick="fGhats('all',this)" data-k="all">All</button>
+      <button class="chip" onclick="fGhats('low',this)">🟢 <span class="t" data-k="low_crowd">Less Crowded</span></button>
+      <button class="chip" onclick="fGhats('medium',this)">🟡 <span class="t" data-k="med_crowd">Moderate</span></button>
+      <button class="chip" onclick="fGhats('high',this)">🔴 <span class="t" data-k="hi_crowd">Very Crowded</span></button>
+    </div>
+    <div id="ghats-list" class="ghat-grid"></div>
+  </div>
 </div>
 
 <!-- ===== FACILITIES (full page) ===== -->
@@ -1372,13 +1495,59 @@ html,body{max-width:100%;overflow-x:hidden}
       <div class="form-head">
         <h2 class="t" data-k="report_h2">📝 Submit Issue Report</h2>
         <p class="t" data-k="report_sub">Your report goes directly to on-ground volunteers · Response within 10 minutes</p>
+        <div style="margin-top:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <span style="font-size:9px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.5px">Powered by</span>
+          <span style="font-size:10px;font-weight:700;color:var(--gold2)">🌐 TourGO</span>
+          <span style="color:rgba(255,255,255,.2)">·</span>
+          <a href="https://www.adityauniversity.in/" target="_blank" rel="noopener" style="font-size:10px;color:rgba(255,255,255,.5);text-decoration:none">🎓 Aditya University</a>
+        </div>
       </div>
       <div class="form-body">
+        <!-- Demo OTP hint -->
+        <div class="otp-demo-hint">
+          🔐 <span><strong>Demo Mode:</strong> After entering your phone number, the OTP will always be <strong>1 · 2 · 3 · 4 · 5 · 6</strong>. This will be replaced with real SMS in production.</span>
+        </div>
         <div class="alert a-ok" id="r-ok">✅ <span class="t" data-k="r_ok">Issue reported! Volunteers have been notified.</span></div>
         <div class="alert a-err" id="r-err">❌ <span class="t" data-k="r_err">Failed to submit. Please try again or call 1800-425-8877.</span></div>
         <div class="fg">
           <label class="fl t" data-k="your_name">Your Name (Optional)</label>
           <input class="fc-input" type="text" id="r-name" placeholder="e.g. Rama Rao" autocomplete="name">
+        </div>
+
+        <!-- PHONE + OTP VERIFICATION -->
+        <div class="fg">
+          <label class="fl">📱 Mobile Number <span style="color:var(--danger);font-size:10px">* Required to prevent fake reports</span></label>
+          <div id="otp-section">
+            <!-- Step 1: Enter phone + send OTP -->
+            <div id="otp-step1">
+              <div class="otp-row">
+                <input class="fc-input" type="tel" id="r-phone" placeholder="e.g. 9848012345" maxlength="10" autocomplete="tel" style="flex:1" oninput="this.value=this.value.replace(/\D/g,'')">
+                <button class="btn-send-otp" id="otp-send-btn" onclick="sendOTP()" type="button">Send OTP</button>
+              </div>
+              <div style="font-size:11px;color:var(--t3);margin-top:5px">A 6-digit OTP will be sent to verify your number. This prevents spam reports.</div>
+            </div>
+            <!-- Step 2: Enter OTP digits -->
+            <div id="otp-step2" style="display:none">
+              <div style="font-size:12px;color:var(--info);margin-bottom:8px">📲 OTP sent to <strong id="otp-phone-display"></strong> — enter it below</div>
+              <div class="otp-inputs" id="otp-inputs-row">
+                <input class="otp-digit" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]" id="otp-d1" oninput="otpInput(this,1)" onkeydown="otpBack(this,1,event)">
+                <input class="otp-digit" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]" id="otp-d2" oninput="otpInput(this,2)" onkeydown="otpBack(this,2,event)">
+                <input class="otp-digit" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]" id="otp-d3" oninput="otpInput(this,3)" onkeydown="otpBack(this,3,event)">
+                <input class="otp-digit" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]" id="otp-d4" oninput="otpInput(this,4)" onkeydown="otpBack(this,4,event)">
+                <input class="otp-digit" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]" id="otp-d5" oninput="otpInput(this,5)" onkeydown="otpBack(this,5,event)">
+                <input class="otp-digit" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]" id="otp-d6" oninput="otpInput(this,6)" onkeydown="otpBack(this,6,event)">
+              </div>
+              <div id="otp-err-msg" style="display:none;font-size:11px;color:var(--danger);margin-top:5px"></div>
+              <div class="otp-timer" id="otp-timer-txt"></div>
+              <button class="btn-send-otp" onclick="verifyOTP()" id="otp-verify-btn" type="button" style="margin-top:10px;background:var(--green)">✅ Verify OTP</button>
+              <button onclick="resetOTP()" type="button" style="background:none;border:none;font-size:11px;color:var(--t3);cursor:pointer;margin-left:10px;font-family:'DM Sans',sans-serif">Change number</button>
+            </div>
+            <!-- Step 3: Verified badge -->
+            <div id="otp-step3" style="display:none;margin-top:8px">
+              <span class="otp-verified-badge">✅ Mobile Verified — <span id="otp-verified-num"></span></span>
+              <button onclick="resetOTP()" type="button" style="background:none;border:none;font-size:11px;color:var(--t3);cursor:pointer;margin-left:10px;font-family:'DM Sans',sans-serif">Change</button>
+            </div>
+          </div>
         </div>
         <div class="fg">
           <label class="fl t" data-k="category">Issue Category</label>
@@ -1585,10 +1754,14 @@ html,body{max-width:100%;overflow-x:hidden}
       <div id="tg-status-dot" style="display:flex;align-items:center;gap:6px;
         background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);
         border-radius:20px;padding:6px 14px;font-family:'Source Code Pro',monospace;
-        font-size:10px;color:rgba(253,252,251,.45);text-transform:uppercase;letter-spacing:.15em;white-space:nowrap;">
-        <span style="width:7px;height:7px;border-radius:50%;background:#22c55e;
-          animation:tg-pulse 2s ease infinite;"></span>
-        System Operational
+        font-size:10px;color:rgba(253,252,251,.45);text-transform:uppercase;letter-spacing:.15em;white-space:nowrap;flex-direction:column;align-items:flex-end;gap:4px">
+        <div style="display:flex;align-items:center;gap:6px">
+          <span style="width:7px;height:7px;border-radius:50%;background:#22c55e;animation:tg-pulse 2s ease infinite;"></span>
+          System Operational
+        </div>
+        <div style="font-size:8px;color:rgba(253,252,251,.3);text-transform:none;letter-spacing:0">
+          by <a href="https://www.adityauniversity.in/" target="_blank" rel="noopener" style="color:rgba(253,252,251,.4);text-decoration:none">Aditya University</a> · <a href="https://rmc.ap.gov.in/" target="_blank" rel="noopener" style="color:rgba(253,252,251,.4);text-decoration:none">RMC</a>
+        </div>
       </div>
     </div>
   </div>
@@ -1621,8 +1794,18 @@ html,body{max-width:100%;overflow-x:hidden}
 </div><!-- /sec-tourgo -->
 
 <footer class="site-footer">
+  <div class="footer-partners">
+    <a href="https://rmc.ap.gov.in/" target="_blank" rel="noopener" class="fp-item">🏛️ Rajamahendravaram Municipal Corporation</a>
+    <span style="color:rgba(255,255,255,.2)">·</span>
+    <a href="https://www.adityauniversity.in/" target="_blank" rel="noopener" class="fp-item">🎓 Aditya University</a>
+    <span style="color:rgba(255,255,255,.2)">·</span>
+    <a href="#" onclick="goSec('tourgo');return false" class="fp-item">🌐 Powered by TourGO</a>
+  </div>
   <span class="t" data-k="footer">Godavari Pushkaralu 2027 · Pilgrim Information Portal · Government of Andhra Pradesh · District Administration, East Godavari</span><br>
   <span style="margin-top:4px;display:block">Emergency: 1800-425-8877 &nbsp;|&nbsp; Police: 100 &nbsp;|&nbsp; Ambulance: 108</span>
+  <div style="margin-top:8px;font-size:9px;color:rgba(255,255,255,.25)">
+    Built with ❤️ by <a href="https://www.adityauniversity.in/" target="_blank" rel="noopener" style="color:rgba(255,255,255,.4);text-decoration:none">Aditya University</a> students · AI by <a href="#" onclick="goSec('tourgo');return false" style="color:rgba(255,255,255,.4);text-decoration:none">TourGO</a> · In association with <a href="https://rmc.ap.gov.in/" target="_blank" rel="noopener" style="color:rgba(255,255,255,.4);text-decoration:none">RMC</a>
+  </div>
 </footer>
 <div class="toast-stack" id="ts"></div>
 <script>
@@ -1834,7 +2017,22 @@ function goSec(id){
   // Always load+render the section; if data is already in memory the fetch
   // is a tiny no-op because we cache results in module-level arrays.
   if(id==='ghats'){
-    if(allGhats.length) renderGhats(); else loadGhats();
+    // Default: show map view, hide cards
+    const mapWrap = document.getElementById('ghat-map-wrap');
+    const cardsView = document.getElementById('ghat-cards-view');
+    if(mapWrap) mapWrap.style.display = '';
+    if(cardsView) cardsView.style.display = 'none';
+    // Reset chips
+    document.querySelectorAll('.mvc').forEach(b=>b.classList.remove('on'));
+    const mapChip = document.querySelector('.mvc');
+    if(mapChip) mapChip.classList.add('on');
+    _mapView = 'map';
+    if(allGhats.length){
+      renderGhats();
+      if(!_leafletLoaded) _loadLeaflet(()=>initGhatMap());
+      else if(!_leafletMap) initGhatMap();
+      else { setTimeout(()=>_leafletMap.invalidateSize(),100); _placeGhatMarkers(); }
+    } else loadGhats();
   }
   if(id==='fac'){
     if(allFac.length){ buildFacBtns(); renderFacFull(); } else loadFac();
@@ -1955,6 +2153,7 @@ async function loadStats(){
     if(document.getElementById('h-ghats'))document.getElementById('h-ghats').textContent=allGhats.length;
     renderGhatMini(); populateGhatSelector();
     if(document.getElementById('sec-ghats')?.classList.contains('on')) renderGhats();
+    _refreshMapMarkers();
   }
 }
 
@@ -2016,9 +2215,9 @@ function renderLostUser(){
     </div>`).join('');
 }
 async function loadGhats(){
-  const el=document.getElementById('ghats-list');el.innerHTML=loading();
-  try{const d=await(await fetch(`${API_BASE}/get_ghats`)).json();allGhats=d.ghats||[];renderGhats();populateGhatSelector();}
-  catch(e){el.innerHTML=errMsg();}
+  const el=document.getElementById('ghats-list');if(el)el.innerHTML=loading();
+  try{const d=await(await fetch(`${API_BASE}/get_ghats`)).json();allGhats=d.ghats||[];renderGhats();populateGhatSelector();_refreshMapMarkers();}
+  catch(e){if(el)el.innerHTML=errMsg();}
 }
 async function loadFac(){
   const el=document.getElementById('fac-full');el.innerHTML=loading();
@@ -2877,28 +3076,155 @@ dd.addEventListener('dragleave',()=>dd.classList.remove('over'));
 dd.addEventListener('drop',e=>{e.preventDefault();dd.classList.remove('over');const f=e.dataTransfer.files[0];if(f&&f.type.startsWith('image/')){const dt=new DataTransfer();dt.items.add(f);document.getElementById('r-img').files=dt.files;handleImg(document.getElementById('r-img'));}});
 
 // ═══ SUBMIT REPORT ════════════════════════════════════════════
+// ═══ OTP VERIFICATION ════════════════════════════════════════
+let _otpVerified = false;
+let _otpPhone = '';
+let _otpCode = '';   // server-generated (simulated client-side for demo)
+let _otpTimer = null;
+let _otpExpiry = 0;
+
+function sendOTP(){
+  const phone = document.getElementById('r-phone').value.trim();
+  if(!/^[6-9]\d{9}$/.test(phone)){
+    toast('⚠️','Enter a valid 10-digit Indian mobile number','info');
+    document.getElementById('r-phone').focus();
+    return;
+  }
+  const btn = document.getElementById('otp-send-btn');
+  btn.disabled = true; btn.textContent = 'Sending…';
+
+  // DEMO MODE — OTP is always 1-2-3-4-5-6
+  _otpCode = '123456';
+  _otpPhone = phone;
+  _otpExpiry = Date.now() + 120000; // 2 minutes
+
+  setTimeout(()=>{
+    document.getElementById('otp-step1').style.display = 'none';
+    document.getElementById('otp-step2').style.display = 'block';
+    document.getElementById('otp-phone-display').textContent = '+91 ' + phone.slice(0,5) + 'XXXXX';
+    document.getElementById('otp-d1').focus();
+    startOTPTimer();
+    toast('📲','Demo OTP sent! Enter 1 2 3 4 5 6 to verify','info');
+  }, 600);
+}
+
+function startOTPTimer(){
+  clearInterval(_otpTimer);
+  _otpTimer = setInterval(()=>{
+    const left = Math.max(0, Math.ceil((_otpExpiry - Date.now()) / 1000));
+    const el = document.getElementById('otp-timer-txt');
+    if(el) el.textContent = left > 0 ? `⏱️ OTP expires in ${left}s` : '⏱️ OTP expired — resend';
+    if(left === 0){
+      clearInterval(_otpTimer);
+      // Re-enable send
+      const s1 = document.getElementById('otp-step1');
+      const s2 = document.getElementById('otp-step2');
+      if(s1) s1.style.display = 'block';
+      if(s2) s2.style.display = 'none';
+      const btn = document.getElementById('otp-send-btn');
+      if(btn){ btn.disabled = false; btn.textContent = 'Resend OTP'; }
+      document.getElementById('r-phone').value = _otpPhone;
+    }
+  }, 1000);
+}
+
+function otpInput(el, idx){
+  el.value = el.value.replace(/\D/g,'');
+  el.classList.toggle('filled', el.value !== '');
+  el.classList.remove('error');
+  if(el.value && idx < 6){
+    document.getElementById('otp-d'+(idx+1))?.focus();
+  }
+  // Auto-verify when all 6 filled
+  const full = [1,2,3,4,5,6].map(i=>document.getElementById('otp-d'+i)?.value||'').join('');
+  if(full.length === 6) setTimeout(verifyOTP, 200);
+}
+
+function otpBack(el, idx, e){
+  if(e.key === 'Backspace' && !el.value && idx > 1){
+    const prev = document.getElementById('otp-d'+(idx-1));
+    if(prev){ prev.value=''; prev.classList.remove('filled'); prev.focus(); }
+  }
+}
+
+function verifyOTP(){
+  const entered = [1,2,3,4,5,6].map(i=>document.getElementById('otp-d'+i)?.value||'').join('');
+  if(entered.length < 6){
+    toast('⚠️','Enter all 6 digits','info'); return;
+  }
+  const errEl = document.getElementById('otp-err-msg');
+  if(Date.now() > _otpExpiry){
+    if(errEl){ errEl.textContent = '❌ OTP expired. Please request a new one.'; errEl.style.display='block'; }
+    [1,2,3,4,5,6].forEach(i=>document.getElementById('otp-d'+i)?.classList.add('error'));
+    return;
+  }
+  if(entered !== _otpCode){
+    if(errEl){ errEl.textContent = '❌ Incorrect OTP. Try again.'; errEl.style.display='block'; }
+    [1,2,3,4,5,6].forEach(i=>document.getElementById('otp-d'+i)?.classList.add('error'));
+    return;
+  }
+  // Verified!
+  clearInterval(_otpTimer);
+  _otpVerified = true;
+  document.getElementById('otp-step2').style.display = 'none';
+  document.getElementById('otp-step3').style.display = 'block';
+  document.getElementById('otp-verified-num').textContent = '+91 ' + _otpPhone;
+  toast('✅','Mobile number verified!','ok');
+}
+
+function resetOTP(){
+  _otpVerified = false; _otpPhone = ''; _otpCode = '';
+  clearInterval(_otpTimer);
+  document.getElementById('otp-step1').style.display = 'block';
+  document.getElementById('otp-step2').style.display = 'none';
+  document.getElementById('otp-step3').style.display = 'none';
+  document.getElementById('r-phone').value = '';
+  const btn = document.getElementById('otp-send-btn');
+  if(btn){ btn.disabled = false; btn.textContent = 'Send OTP'; }
+  [1,2,3,4,5,6].forEach(i=>{
+    const d = document.getElementById('otp-d'+i);
+    if(d){ d.value=''; d.classList.remove('filled','error'); }
+  });
+}
+
 async function submitReport(){
   const desc=document.getElementById('r-desc').value.trim();
   if(!desc){toast('⚠️','Please describe the issue','info');return;}
+  if(!_otpVerified){
+    toast('⚠️','Verify your mobile number first — this prevents fake reports','info');
+    document.getElementById('r-phone')?.scrollIntoView({behavior:'smooth',block:'center'});
+    return;
+  }
   const btn=document.getElementById('sub-btn');const orig=btn.innerHTML;
   btn.innerHTML='<span class="spin"></span> Submitting...';btn.disabled=true;
   document.getElementById('r-ok').style.display='none';document.getElementById('r-err').style.display='none';
   try{
     const fd=new FormData();
-    fd.append('description',desc);fd.append('category',document.getElementById('r-cat').value);
+    fd.append('description',desc);
+    fd.append('category',document.getElementById('r-cat').value);
     fd.append('user_name',document.getElementById('r-name').value||'Pilgrim');
+    fd.append('user_phone',_otpPhone);  // verified phone
     fd.append('latitude',document.getElementById('r-lat').value||uLat);
     fd.append('longitude',document.getElementById('r-lon').value||uLon);
     const img=document.getElementById('r-img').files[0];if(img)fd.append('image',img);
     const resp=await fetch(`${API_BASE}/report_issue`,{method:'POST',body:fd});
-    const data=await resp.json();if(!resp.ok||!data.success)throw new Error(data.detail||'err');
-    myReports.unshift({id:data.issue_id,description:desc,category:document.getElementById('r-cat').value,user_name:document.getElementById('r-name').value||'Pilgrim',status:'pending',timestamp:new Date().toISOString(),image:img?URL.createObjectURL(img):null});
+    const data=await resp.json();
+    if(!resp.ok||!data.success)throw new Error(data.detail||'Server error');
+    myReports.unshift({id:data.issue_id,description:desc,category:document.getElementById('r-cat').value,user_name:document.getElementById('r-name').value||'Pilgrim',status:'pending',timestamp:new Date().toISOString()});
     try{localStorage.setItem('pr',JSON.stringify(myReports.slice(0,20)));}catch(e){}
     document.getElementById('r-ok').style.display='block';
     toast('✅',tr('r_ok'),'ok');
-    document.getElementById('r-desc').value='';document.getElementById('r-name').value='';clearImg();
+    // Reset form
+    document.getElementById('r-desc').value='';
+    document.getElementById('r-name').value='';
+    clearImg();
+    resetOTP();
     setTimeout(()=>document.getElementById('r-ok').style.display='none',6000);
-  }catch(e){document.getElementById('r-err').style.display='block';toast('❌',tr('r_err'),'err');}
+  }catch(e){
+    console.error('[Report] Submit error:',e);
+    document.getElementById('r-err').style.display='block';
+    toast('❌',tr('r_err'),'err');
+  }
   finally{btn.innerHTML=orig;btn.disabled=false;}
 }
 
@@ -3323,6 +3649,112 @@ function renderTourGoPlaces(){
   }).join('')}</div>`;
 }
 
+// ═══ GHAT MAP (Leaflet — no API key needed) ══════════════════
+let _leafletMap = null;
+let _leafletMarkers = [];
+let _mapView = 'map'; // 'map' | 'cards'
+let _leafletLoaded = false;
+
+function switchMapView(view, btn){
+  _mapView = view;
+  document.querySelectorAll('.mvc').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  const mapWrap = document.getElementById('ghat-map-wrap');
+  const cardsView = document.getElementById('ghat-cards-view');
+  if(view === 'map'){
+    mapWrap.style.display = '';
+    cardsView.style.display = 'none';
+    // Init map on first show
+    if(!_leafletLoaded) _loadLeaflet(()=>initGhatMap());
+    else if(!_leafletMap) initGhatMap();
+    else setTimeout(()=>_leafletMap.invalidateSize(), 100);
+  } else {
+    mapWrap.style.display = 'none';
+    cardsView.style.display = '';
+    renderGhats();
+  }
+}
+
+function _loadLeaflet(cb){
+  if(window.L){ _leafletLoaded=true; cb(); return; }
+  const s = document.createElement('script');
+  s.src = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js';
+  s.onload = ()=>{ _leafletLoaded=true; cb(); };
+  document.head.appendChild(s);
+}
+
+function initGhatMap(){
+  if(!window.L) return;
+  const mapEl = document.getElementById('ghat-map');
+  if(!mapEl || _leafletMap) return;
+
+  // Centre on Rajahmundry
+  _leafletMap = L.map('ghat-map', { zoomControl: true, scrollWheelZoom: false }).setView([16.98, 81.775], 13);
+
+  // Tile layer — OpenStreetMap (free, no API key)
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    maxZoom: 18
+  }).addTo(_leafletMap);
+
+  // Place markers if data already loaded, else wait
+  if(allGhats.length) _placeGhatMarkers();
+}
+
+function _markerIcon(level){
+  const colors = { high:'#C0392B', medium:'#C8850D', low:'#0B6B30' };
+  const c = colors[level] || '#1A4080';
+  return L.divIcon({
+    className: '',
+    html: `<div style="width:28px;height:28px;background:${c};border:3px solid white;border-radius:50%;box-shadow:0 2px 8px rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;font-size:13px;">🌊</div>`,
+    iconSize: [28,28],
+    iconAnchor: [14,14],
+    popupAnchor: [0,-16]
+  });
+}
+
+function _placeGhatMarkers(){
+  if(!_leafletMap || !window.L) return;
+  // Clear existing
+  _leafletMarkers.forEach(m=>_leafletMap.removeLayer(m));
+  _leafletMarkers = [];
+
+  allGhats.forEach(g=>{
+    if(!g.latitude || !g.longitude) return;
+    const pct = Math.min(100,Math.round((g.current_count/g.capacity)*100));
+    const cl = g.crowd_level === 'high' ? '🔴 Very Crowded'
+             : g.crowd_level === 'medium' ? '🟡 Moderate' : '🟢 Less Crowded';
+    const fillColor = g.crowd_level==='high'?'var(--danger)':g.crowd_level==='medium'?'var(--gold)':'var(--green)';
+    const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${g.latitude},${g.longitude}`;
+    const info = (typeof GHAT_INFO !== 'undefined' && GHAT_INFO[g.id]) || {};
+    const popupHtml = `
+      <div>
+        <div style="background:#0B2E6E;padding:8px 12px;display:flex;align-items:center;justify-content:space-between;gap:8px">
+          <div style="font-family:'DM Serif Display',Georgia,serif;color:#F0A830;font-size:.83rem">${g.name}</div>
+          ${info.tag?`<span style="font-size:9px;background:rgba(232,96,10,.9);color:white;padding:2px 6px;border-radius:3px;font-weight:700">${info.tag}</span>`:''}
+        </div>
+        <div class="lp-body">
+          <div class="lp-crowd">${cl} · <strong>${(g.current_count||0).toLocaleString()}</strong> pilgrims</div>
+          <div class="lp-bar"><div class="lp-fill ${g.crowd_level}" style="height:4px;border-radius:2px;width:${pct}%;background:${fillColor}"></div></div>
+          ${info.importance?`<div style="font-size:11px;color:#3D4558;margin-bottom:8px;line-height:1.5">${info.importance.substring(0,110)}…</div>`:''}
+          <div style="display:flex;gap:6px;margin-bottom:8px">
+            <button class="lp-btn" style="flex:1" onclick="closeGhatModal&&closeGhatModal();showGhatDetail('${g.id}')">📋 Full Details</button>
+            <a href="${mapsUrl}" target="_blank" class="lp-btn" style="flex:1;display:block;text-align:center">🗺️ Directions</a>
+          </div>
+        </div>
+      </div>`;
+    const marker = L.marker([g.latitude, g.longitude], { icon: _markerIcon(g.crowd_level) })
+      .bindPopup(popupHtml, { maxWidth:240, minWidth:220 })
+      .addTo(_leafletMap);
+    _leafletMarkers.push(marker);
+  });
+}
+
+// Called after ghats load — update markers if map is open
+function _refreshMapMarkers(){
+  if(_leafletMap && _leafletLoaded) _placeGhatMarkers();
+}
+
 // ═══ THEME TOGGLE ════════════════════════════════════════════
 function toggleTheme(){
   document.body.classList.toggle('dark-mode');
@@ -3375,7 +3807,7 @@ if('requestIdleCallback' in window){
     <div id="cb-header-text">
       <strong>TourGO Pushkara AI</strong>
       <span>Pilgrim Assistant · Godavari 2027</span>
-      <span id="cb-powered" style="font-size:9px;color:rgba(255,255,255,.35);font-family:'DM Sans',sans-serif;letter-spacing:.3px;">Powered by TourGO</span>
+      <span id="cb-powered" style="font-size:9px;color:rgba(255,255,255,.35);font-family:'DM Sans',sans-serif;letter-spacing:.3px;">🌐 TourGO · 🎓 <a href="https://www.adityauniversity.in/" target="_blank" rel="noopener" style="color:rgba(255,255,255,.35);text-decoration:none">Aditya University</a></span>
     </div>
     <button id="cb-close" onclick="cbToggle()" aria-label="Close chat">✕</button>
   </div>
@@ -3400,7 +3832,7 @@ if('requestIdleCallback' in window){
 
   <!-- Powered by TourGO footer -->
   <div style="text-align:center;padding:4px 12px 0;font-size:10px;color:var(--t3);font-family:'DM Sans',sans-serif;letter-spacing:.3px;flex-shrink:0;">
-    Powered by <strong style="color:var(--saffron);">TourGO</strong> · AI may make mistakes
+    🌐 <strong style="color:var(--saffron);">TourGO</strong> · 🎓 <a href="https://www.adityauniversity.in/" target="_blank" rel="noopener" style="color:var(--t3);text-decoration:none">Aditya University</a> · AI may make mistakes
   </div>
 
   <!-- Input -->
