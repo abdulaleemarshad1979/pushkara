@@ -3850,6 +3850,15 @@ function handleUserWSMessage(msg) {
       }
       break;
     }
+    case 'SURGE_ALERT': {
+      // Prominent banner for rapid crowd surge
+      const { name, message } = msg.data || {};
+      if(typeof toast === 'function') toast('🚨', message || `SURGE at ${name}`, 'error');
+      // Flash the page header red briefly
+      const hdr = document.querySelector('header, .topbar, nav');
+      if(hdr) { hdr.style.transition='background .2s'; hdr.style.background='rgba(220,38,38,.35)'; setTimeout(()=>hdr.style.background='',2500); }
+      break;
+    }
     case 'INIT':
     case 'PING':
       break; // ignore
