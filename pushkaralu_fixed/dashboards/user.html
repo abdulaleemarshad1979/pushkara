@@ -3791,6 +3791,75 @@ if('requestIdleCallback' in window){
 } else {
   setTimeout(loadStats, 100);
 }
+
+// ─── REAL-TIME CROWD UPDATES via WebSocket ─────────────────
+// Connects as a read-only listener so crowd changes from admin
+// instantly update ghat cards and the map without page reload.
+let _userWs = null;
+let _userWsRetries = 0;
+const USER_WS_URL = 'wss://pushkara.onrender.com/ws/public'; // public read-only endpoint
+
+function connectUserWS() {
+  try {
+    _userWs = new WebSocket(USER_WS_URL);
+
+    _userWs.onopen = () => {
+      _userWsRetries = 0;
+      console.log('[WS] Connected for real-time crowd updates');
+    };
+
+    _userWs.onmessage = (event) => {
+      try {
+        const msg = JSON.parse(event.data);
+        handleUserWSMessage(msg);
+      } catch(e) { /* ignore malformed frames */ }
+    };
+
+    _userWs.onclose = () => {
+      // Reconnect with exponential backoff (max 30s)
+      const delay = Math.min(30000, 2000 * Math.pow(1.5, _userWsRetries++));
+      setTimeout(connectUserWS, delay);
+    };
+
+    _userWs.onerror = () => { _userWs.close(); };
+  } catch(e) {
+    // WebSocket not available — silent fallback to polling
+    console.warn('[WS] Could not connect, using polling fallback');
+  }
+}
+
+function handleUserWSMessage(msg) {
+  switch(msg.type) {
+    case 'CROWD_UPDATE': {
+      // Update the ghat in memory and re-render cards + map marker
+      const { ghat_id, level } = msg.data || {};
+      if(!ghat_id || !level) break;
+      const ghat = (window.allGhats || []).find(g => g.id === ghat_id);
+      if(ghat) {
+        ghat.crowd_level = level;
+        // Re-render ghats section if it's visible
+        if(document.getElementById('sec-ghats')?.classList.contains('on')) {
+          if(typeof renderGhats === 'function') renderGhats();
+        }
+        // Refresh map markers
+        if(typeof _refreshMapMarkers === 'function') _refreshMapMarkers();
+        // Show a subtle toast
+        const crowdEmoji = level === 'high' ? '🔴' : level === 'medium' ? '🟡' : '🟢';
+        const ghatName = ghat.name || ghat_id;
+        if(typeof toast === 'function') toast(crowdEmoji, `${ghatName}: ${level.toUpperCase()} crowd`, 'info');
+      }
+      break;
+    }
+    case 'INIT':
+    case 'PING':
+      break; // ignore
+    default:
+      break;
+  }
+}
+
+// Start WS connection after a short delay (don't block first paint)
+setTimeout(connectUserWS, 3000);
 </script>
 
 
