@@ -747,7 +747,25 @@ async def update_crowd(
             return {"success": True, "locked_until": _manual_overrides[ghat_id], "override_ttl_seconds": MANUAL_OVERRIDE_TTL}
     raise HTTPException(status_code=404, detail="Ghat not found")
 
-@app.get("/get_transport")
+@app.post("/crowd/override/clear/{ghat_id}")
+async def clear_crowd_override(
+    ghat_id: str,
+    _auth: dict = Depends(require_volunteer_or_admin),
+):
+    """Release a manual crowd level override so the auto-engine takes back over."""
+    removed = _manual_overrides.pop(ghat_id, None)
+    logger.info("[ManualOverride] Cleared override for ghat=%s (was locked until %s)", ghat_id, removed)
+    return {"success": True, "ghat_id": ghat_id, "was_locked": removed is not None}
+
+@app.post("/crowd/override/clear_all")
+async def clear_all_crowd_overrides(_auth: dict = Depends(require_volunteer_or_admin)):
+    """Release ALL manual crowd overrides — useful after testing."""
+    count = len(_manual_overrides)
+    _manual_overrides.clear()
+    logger.info("[ManualOverride] Cleared ALL %d overrides", count)
+    return {"success": True, "cleared_count": count}
+
+
 async def get_transport(type: Optional[str] = None):
     key = Keys.TRANSPORT if not type else f"cache:transport:type:{type}"
     cached = await cache_get(key)
@@ -1444,12 +1462,23 @@ async def ingest_cctv(request: Request):
     body = await request.json()
     ghat_id = body.get("ghat_id")
     if not ghat_id: raise HTTPException(status_code=400, detail="ghat_id required")
+    person_count = int(body.get("person_count", 0))
+    # Auto-derive frame_area_sq_m from ghat capacity if not supplied by sender.
+    # At Fruin Level F (stampede), density = 4 persons/m².
+    # So "full capacity" area = capacity / 4.  This means occupancy maps linearly to density.
+    ghat = next((g for g in DB["ghats"] if g["id"] == ghat_id), None)
+    default_area = (ghat["capacity"] / 4.0) if ghat and ghat.get("capacity") else 500.0
     vision_data = {
-        "person_count":    int(body.get("person_count", 0)),
-        "frame_area_sq_m": float(body.get("frame_area_sq_m", 500.0)),
+        "person_count":    person_count,
+        "frame_area_sq_m": float(body.get("frame_area_sq_m", default_area)),
         "camera_id":       body.get("camera_id", "unknown"),
         "timestamp":       float(body.get("timestamp", time.time())),
     }
+    # Also update ghat current_count in memory so it stays fresh for user portal
+    if ghat:
+        ghat["current_count"] = person_count
+    # Clear manual override when real sensor data arrives (sensor > admin)
+    _manual_overrides.pop(ghat_id, None)
     await set_crowd_data(f"cctv:{ghat_id}", vision_data)
     await stream_publish(Keys.STREAM_CCTV, {
         "ghat_id": ghat_id,
@@ -1463,12 +1492,21 @@ async def ingest_telecom(request: Request):
     body = await request.json()
     ghat_id = body.get("ghat_id")
     if not ghat_id: raise HTTPException(status_code=400, detail="ghat_id required")
+    active_devices = int(body.get("active_devices", 0))
+    tower_baseline = int(body.get("tower_baseline", 1000))
     telecom_data = {
-        "active_devices": int(body.get("active_devices", 0)),
-        "tower_baseline": int(body.get("tower_baseline", 1000)),
+        "active_devices": active_devices,
+        "tower_baseline": tower_baseline,
         "tower_id":       body.get("tower_id", "unknown"),
         "timestamp":      float(body.get("timestamp", time.time())),
     }
+    # Estimate count from telecom ratio and update ghat current_count
+    ghat = next((g for g in DB["ghats"] if g["id"] == ghat_id), None)
+    if ghat and ghat.get("capacity") and not body.get("cctv_active"):
+        ratio = min(active_devices / max(tower_baseline, 1), 5.0) / 5.0
+        ghat["current_count"] = int(ratio * ghat["capacity"])
+    # Clear manual override when real sensor data arrives
+    _manual_overrides.pop(ghat_id, None)
     await set_crowd_data(f"telecom:{ghat_id}", telecom_data)
     await stream_publish(Keys.STREAM_TELECOM, {
         "ghat_id": ghat_id,
