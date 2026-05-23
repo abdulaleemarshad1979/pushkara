@@ -947,6 +947,69 @@ async def get_stats():
     await cache_set(Keys.STATS, result, ttl=3)
     return result
 
+@app.get("/daily_analytics")
+async def get_daily_analytics(_auth: dict = Depends(require_volunteer_or_admin)):
+    """Daily operational analytics: SOS and Lost & Found counts for today."""
+    today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
+    # SOS counts for today
+    sos_today       = [a for a in DB["sos_alerts"] if (a.get("timestamp") or a.get("created_at",""))[:10] == today_str]
+    sos_resolved_today = [a for a in sos_today if a.get("status") == "resolved"]
+    sos_active_today   = [a for a in sos_today if a.get("status") == "active"]
+
+    # Lost & Found counts for today
+    lost_today       = [p for p in DB["lost_persons"] if (p.get("timestamp") or p.get("created_at",""))[:10] == today_str]
+    lost_found_today = [p for p in lost_today if p.get("status") == "found"]
+    lost_missing_today = [p for p in lost_today if p.get("status") == "missing"]
+
+    # Issues for today
+    issues_today      = [i for i in DB["issues"] if (i.get("timestamp") or i.get("created_at",""))[:10] == today_str]
+    issues_resolved_today = [i for i in issues_today if i.get("status") == "resolved"]
+
+    # Total resolved all time (historical tally)
+    total_sos_resolved  = len([a for a in DB["sos_alerts"] if a.get("status") == "resolved"])
+    total_lost_resolved = len([p for p in DB["lost_persons"] if p.get("status") == "found"])
+
+    return {
+        "date": today_str,
+        # Today's numbers
+        "sos_today":            len(sos_today),
+        "sos_resolved_today":   len(sos_resolved_today),
+        "sos_active_today":     len(sos_active_today),
+        "lost_registered_today": len(lost_today),
+        "lost_found_today":     len(lost_found_today),
+        "lost_missing_today":   len(lost_missing_today),
+        "issues_today":         len(issues_today),
+        "issues_resolved_today": len(issues_resolved_today),
+        # All-time resolved
+        "total_sos_resolved":   total_sos_resolved,
+        "total_lost_resolved":  total_lost_resolved,
+        # Hourly breakdown for the chart (last 12 hours, SOS events)
+        "sos_hourly": _hourly_buckets(sos_today, 12),
+        "issues_hourly": _hourly_buckets(issues_today, 12),
+    }
+
+def _hourly_buckets(records: list, hours: int) -> list:
+    """Build a list of {hour, count} for the last N hours."""
+    now = datetime.now(timezone.utc)
+    buckets = {}
+    for h in range(hours - 1, -1, -1):
+        label = (now.replace(minute=0, second=0, microsecond=0).hour - h) % 24
+        buckets[label] = 0
+    for r in records:
+        ts_str = r.get("timestamp") or r.get("created_at", "")
+        try:
+            ts = datetime.fromisoformat(ts_str.replace("Z", "+00:00"))
+            diff_h = int((now - ts).total_seconds() // 3600)
+            if diff_h < hours:
+                h_label = ts.hour
+                if h_label in buckets:
+                    buckets[h_label] += 1
+        except Exception:
+            pass
+    return [{"hour": f"{h:02d}:00", "count": c} for h, c in sorted(buckets.items())]
+
+
 @app.get("/volunteer/stats")
 async def get_volunteer_stats(_auth: dict = Depends(require_volunteer)):
     cached = await cache_get(Keys.ADMIN_STATS)
@@ -1211,6 +1274,24 @@ async def websocket_volunteer(websocket: WebSocket):
         await manager.disconnect(websocket, ghat_id="all")
 
 # NOTE: /ws/admin WebSocket is removed — admin portal is handled by govt officials.
+
+@app.websocket("/ws/public")
+async def websocket_public(websocket: WebSocket):
+    """Read-only WebSocket for pilgrims — receives CROWD_UPDATE broadcasts only.
+    No auth required; sends a minimal INIT with ghat data then listens."""
+    if not await manager.connect(websocket, ghat_id="all"): return
+    try:
+        # Send only ghat data (no sensitive SOS/lost person info)
+        await websocket.send_json({"type": "INIT", "data": {
+            "ghats": DB["ghats"],
+        }})
+        while True:
+            try:
+                await asyncio.wait_for(websocket.receive_text(), timeout=HEARTBEAT_INTERVAL)
+            except asyncio.TimeoutError:
+                await websocket.send_json({"type": "PING"})
+    except WebSocketDisconnect:
+        await manager.disconnect(websocket, ghat_id="all")
 
 @app.websocket("/ws/pilgrim/{ghat_id}")
 async def websocket_pilgrim(websocket: WebSocket, ghat_id: str):
