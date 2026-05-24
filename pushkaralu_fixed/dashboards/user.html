@@ -431,16 +431,22 @@ html,body{max-width:100%;overflow-x:hidden}
   display: none; /* desktop: hidden */
   flex-direction: column; justify-content: center; align-items: center;
   gap: 5px; width: 38px; height: 38px; padding: 6px;
-  background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.2);
+  /* Light mode default: dark bars on a subtle navy-tinted background so it's
+     visible against the white header. Dark mode overrides below. */
+  background: rgba(11,46,110,.08); border: 1px solid rgba(11,46,110,.18);
   border-radius: 8px; cursor: pointer; flex-shrink: 0;
-  transition: background .15s;
+  transition: background .15s, border-color .15s;
 }
-.ham-btn:hover { background: rgba(255,255,255,.22); }
+.ham-btn:hover { background: rgba(11,46,110,.16); }
 .ham-bar {
   display: block; width: 20px; height: 2px;
-  background: white; border-radius: 2px;
-  transition: transform .25s ease, opacity .25s ease;
+  background: var(--navy); border-radius: 2px;
+  transition: transform .25s ease, opacity .25s ease, background .15s;
 }
+/* Dark mode: header is dark, so use the original white-on-translucent look */
+.dark-mode .ham-btn { background: rgba(255,255,255,.12); border-color: rgba(255,255,255,.2); }
+.dark-mode .ham-btn:hover { background: rgba(255,255,255,.22); }
+.dark-mode .ham-bar { background: white; }
 /* Animated X when open */
 .ham-btn.open .ham-bar:nth-child(1) { transform: translateY(7px) rotate(45deg); }
 .ham-btn.open .ham-bar:nth-child(2) { opacity: 0; transform: scaleX(0); }
