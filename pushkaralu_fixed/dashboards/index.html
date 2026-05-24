@@ -613,6 +613,92 @@ code, pre, .cred-row, .form-control, .ws-badge {
   .dash-tab { padding: 10px 14px; font-size: 12px; }
   .a-href-vol { display: none; }
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+   TYPOGRAPHY & CONTRAST IMPROVEMENTS — readability for volunteers on
+   long shifts & older eyes. Conservative additions — design preserved.
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* Lift contrast of "muted" greys to WCAG-AA */
+:root{
+  --gray-400: #4B5563;     /* was #5C6370 — about 4.7:1 on white */
+  --gray-600: #374151;
+}
+body.dark-mode{
+  --gray-400: #94A3B8;
+}
+
+/* Bump tiny labels to 11px floor for legibility */
+.brand-titles .title-sub,
+.vol-info-zone,
+.dash-footer,
+.stat-label,
+.card-meta,
+.activity-time,
+.time-ago,
+.toast-body,
+.gov-status-bar,
+.assigned-chip,
+.empty-state{
+  font-size: 11.5px;
+}
+
+/* Login credentials block — don't make people squint */
+.login-credentials{ font-size: 12px; }
+.login-credentials strong{ font-size: 12px; }
+.cred-row{ font-size: 12px; line-height: 1.6; padding: 3px 0; }
+
+/* Chips and badges */
+.meta-tag{ font-size: 11.5px; }
+.ws-badge{ font-size: 12px; }
+
+/* Headings rhythm */
+.login-gov-header h1{ line-height: 1.25; }
+.title-main, .sec-title, .login-box-header h2{ line-height: 1.3; }
+
+/* Form labels — bigger and clearer */
+.form-label{ font-size: 12px; letter-spacing: 0.6px; color: var(--gray-600); font-weight: 700; }
+.form-control{ font-size: 14.5px; padding: 11px 13px; }
+
+/* Stat values — slightly more presence */
+.stat-val{ line-height: 1.05; }
+.stat-label{ letter-spacing: 0.7px; font-weight: 700; }
+
+/* Buttons */
+.btn-login{ font-size: 14.5px; padding: 13px; letter-spacing: 0.4px; }
+.btn-logout{ font-size: 13px; padding: 7px 14px; }
+.action-btn{ font-weight: 700; }
+
+/* Improve focus accessibility everywhere */
+button:focus-visible, a:focus-visible,
+input:focus-visible, select:focus-visible, textarea:focus-visible,
+.dash-tab:focus-visible, .filter-chip:focus-visible{
+  outline: 3px solid var(--saffron);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px rgba(255,107,0,0.18);
+  border-radius: var(--radius);
+}
+
+/* Strengthen the contrast of secondary text in dark mode */
+body.dark-mode .stat-label,
+body.dark-mode .activity-time,
+body.dark-mode .card-meta,
+body.dark-mode .time-ago{
+  color: #CBD5E1;
+}
+
+/* Footer was barely visible — bump it */
+.dash-footer{ color: rgba(255,255,255,0.72); font-size: 12px; padding: 14px; letter-spacing: 0.3px; }
+
+/* Reduced motion preference */
+@media (prefers-reduced-motion: reduce){
+  *, *::before, *::after{
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+  .ws-dot.live, .a-href-vol{ animation: none !important; }
+}
+
 </style>
 </head>
 <body>
