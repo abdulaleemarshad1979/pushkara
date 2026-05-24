@@ -336,6 +336,111 @@ select.level-select{background:var(--bg2);border:1px solid var(--border);color:v
   #admin-map{height:300px}
   .topbar-stats{order:3;width:100%;justify-content:space-around}
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+   TYPOGRAPHY & CONTRAST IMPROVEMENTS — better readability for all
+   reviewers, including night-shift operators and older eyes.
+   Conservative additions only; original look preserved.
+   ═══════════════════════════════════════════════════════════════════ */
+:root{
+  /* Lift dim text from 0.55 → 0.78 alpha for WCAG-AA contrast on dark bg */
+  --text-dim: rgba(208,228,255,0.78);
+}
+.light-mode{
+  --text-dim: #334155;   /* deeper grey for light mode (was #475569) */
+}
+
+/* Slightly larger small-text where legibility matters most */
+.topbar-sub, .ts-label, .nav-section, .stat-box .lbl,
+.alert-meta, .person-detail, .vol-meta, .contact-meta,
+.ws-badge, .form-group label, .legend-item{
+  font-size: 11px;
+  letter-spacing: 0.6px;
+}
+.ghat-zone, .nav-badge, .toast-msg{ font-size: 12px; }
+.btn-xs{ font-size: 11px; padding: 4px 9px; }
+.btn-sm{ font-size: 12px; padding: 5px 11px; }
+
+/* Improve heading rhythm */
+.card-title{ letter-spacing: 1.2px; line-height: 1.4; }
+.modal-title{ line-height: 1.4; }
+
+/* Raise body line-height a touch — eases scanning long alert lists */
+.alert-card, .person-card, .vol-card, .contact-card, .med-card{
+  line-height: 1.55;
+}
+.person-name, .alert-name, .vol-name, .contact-name{
+  font-size: 14.5px;
+}
+
+/* Labels in forms — bigger and bolder so operators don't squint */
+.form-group label{
+  color: var(--text-dim);
+  font-weight: 700;
+}
+
+/* Sensor / level badges need higher legibility */
+.sensor-badge{ font-size: 10.5px; padding: 2px 7px; letter-spacing: .6px; }
+.level-badge{ font-size: 11px; padding: 4px 11px; letter-spacing: .8px; }
+
+/* Strengthen buttons — uppercase with kerning was harsh; soften it */
+.btn{ font-weight: 700; letter-spacing: 0.7px; }
+
+/* Strong, visible focus ring everywhere — keyboard accessibility */
+button:focus-visible, a:focus-visible,
+input:focus-visible, select:focus-visible, textarea:focus-visible,
+.nav-item:focus-visible, .filter-btn:focus-visible{
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px rgba(244,185,66,0.2);
+  border-radius: 4px;
+}
+.light-mode button:focus-visible, .light-mode a:focus-visible,
+.light-mode input:focus-visible, .light-mode select:focus-visible{
+  outline-color: #D97706;
+  box-shadow: 0 0 0 4px rgba(217,119,6,0.18);
+}
+
+/* Make light-mode actually high-contrast (was a bit washed out) */
+.light-mode{
+  --bg0:#F1F5F9;
+  --text:#0B1220;
+  --border: rgba(15,23,42,0.14);
+  --border-bright: rgba(15,23,42,0.30);
+}
+.light-mode .nav-item{ color:#1E293B; }
+.light-mode .nav-item.active{ color:#0B1220; background: rgba(15,23,42,0.10); border-left-color:#0B1220; }
+.light-mode .card-title{ color:#0B1220; }
+.light-mode .btn-cyan{ background:#0B1220; color:#fff; border-color:#0B1220; }
+.light-mode .btn-cyan:hover{ background:#000; }
+
+/* Ghat row — give "level select" a bit more breathing room and bigger text */
+select.level-select{ font-size: 12px; padding: 5px 10px; }
+.ghat-row{ padding: 12px 14px; }
+
+/* Topbar time — slightly bigger so it's readable from across the room */
+.topbar-time{ font-size: 14px; }
+
+/* Stat box lift */
+.stat-box .val{ font-size: 30px; line-height:1.05; }
+.stat-box{ padding: 14px 12px; }
+
+/* Modal titles get the serif treatment + better spacing */
+.modal{ padding: 26px; }
+
+/* Ensure dimmed text still passes contrast in dark cyber theme */
+.alert-meta, .person-detail, .vol-meta, .contact-meta, .ts-label{
+  color: var(--text-dim);
+}
+
+/* Reduce motion preference — respect users' system setting */
+@media (prefers-reduced-motion: reduce){
+  body::before{ display:none; }
+  .ts-item.sos .ts-val, .stat-box.red .val, .ws-dot,
+  .level-critical, .alert-card{ animation: none !important; }
+  *{ transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
+}
+
 </style>
 </head>
 <body>
