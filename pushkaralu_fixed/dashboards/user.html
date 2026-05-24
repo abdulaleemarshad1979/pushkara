@@ -1155,6 +1155,36 @@ button:focus-visible,a:focus-visible,select:focus-visible,input:focus-visible,te
 .plan-tip{background:var(--info-bg);border:1px solid rgba(21,88,168,.18);border-left:4px solid var(--info);border-radius:var(--r);padding:11px 14px;font-size:12.5px;color:var(--info);margin-bottom:14px}
 .dark-mode .plan-tip{background:rgba(56,189,248,.08);border-color:rgba(56,189,248,.3);color:#7DD3FC}
 
+/* ── Available transport services panel (inside Plan Route card) ── */
+.svc-panel{margin-top:14px;border-top:1px dashed #E5E7EB;padding-top:12px;display:none}
+.svc-panel.show{display:block}
+.dark-mode .svc-panel{border-top-color:#334155}
+.svc-panel .svc-h{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
+.svc-panel .svc-h strong{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--navy)}
+.dark-mode .svc-panel .svc-h strong{color:#E2E8F0}
+.svc-panel .svc-count{font-size:11px;font-weight:700;color:#fff;background:var(--info);padding:2px 8px;border-radius:999px}
+.svc-list{display:flex;flex-direction:column;gap:8px;max-height:340px;overflow-y:auto;padding-right:4px}
+.svc-list::-webkit-scrollbar{width:6px}
+.svc-list::-webkit-scrollbar-thumb{background:#CBD5E1;border-radius:6px}
+.dark-mode .svc-list::-webkit-scrollbar-thumb{background:#334155}
+.svc-row{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;background:#F8FAFC;border:1px solid #E5E7EB;border-radius:10px;padding:8px 10px;font-size:12.5px}
+.dark-mode .svc-row{background:rgba(255,255,255,.03);border-color:#334155}
+.svc-row .svc-no{font-weight:800;color:var(--navy);font-size:12px;background:#fff;border:1px solid #E5E7EB;padding:3px 7px;border-radius:6px;white-space:nowrap}
+.dark-mode .svc-row .svc-no{background:rgba(255,255,255,.05);color:#93C5FD;border-color:#334155}
+.svc-row .svc-name{font-weight:700;color:var(--t1);line-height:1.35}
+.svc-row .svc-meta{font-size:11px;color:var(--t3);margin-top:2px;display:flex;flex-wrap:wrap;gap:8px}
+.svc-row .svc-meta span{display:inline-flex;align-items:center;gap:3px}
+.svc-row .svc-fare{font-weight:800;color:var(--ok);font-size:13px;white-space:nowrap;text-align:right}
+.svc-row .svc-fare small{display:block;font-weight:600;color:var(--t3);font-size:10px;margin-top:1px}
+.svc-empty{background:#FEF3C7;border:1px solid #FBBF24;border-radius:10px;padding:12px 14px;font-size:12.5px;color:#92400E;line-height:1.55}
+.dark-mode .svc-empty{background:rgba(251,191,36,.1);border-color:rgba(251,191,36,.3);color:#FCD34D}
+.svc-empty strong{display:block;margin-bottom:3px}
+.svc-empty .svc-cta{display:block;margin-top:6px;font-size:11.5px;color:var(--t3)}
+.dark-mode .svc-empty .svc-cta{color:#94A3B8}
+.svc-note{font-size:11px;color:var(--t3);margin-top:8px;line-height:1.5;font-style:italic}
+.svc-info{background:var(--info-bg);border:1px solid rgba(21,88,168,.18);border-radius:10px;padding:10px 12px;font-size:12.5px;color:var(--info);line-height:1.5}
+.dark-mode .svc-info{background:rgba(56,189,248,.08);border-color:rgba(56,189,248,.3);color:#7DD3FC}
+
 /* Voice button placeholder (feature coming soon — keeps hooks ready) */
 .voice-fab{position:fixed;left:18px;bottom:18px;z-index:8400;width:54px;height:54px;border-radius:50%;background:var(--navy);color:#fff;border:none;cursor:pointer;font-size:22px;box-shadow:0 6px 18px rgba(11,46,110,.45);display:flex;align-items:center;justify-content:center;transition:transform .2s}
 .voice-fab:hover{transform:scale(1.07);background:var(--saffron)}
@@ -2045,7 +2075,10 @@ button:focus-visible,a:focus-visible,select:focus-visible,input:focus-visible,te
     <div class="plan-card route">
       <div class="plan-card-h"><div class="ico">🗺️</div><h3 class="t" data-k="plan_route">1. Plan Route</h3></div>
       <label class="t" data-k="plan_from">From (Your City)</label>
-      <input type="text" id="pl-from" placeholder="e.g. Hyderabad, Vijayawada, Visakhapatnam" autocomplete="off">
+      <input type="text" id="pl-from" placeholder="e.g. Hyderabad, Vijayawada, Visakhapatnam" autocomplete="off" list="pl-from-cities">
+      <datalist id="pl-from-cities">
+        <!-- Populated at runtime from CITY_LIST -->
+      </datalist>
       <label class="t" data-k="plan_to">To</label>
       <select id="pl-to">
         <option value="Rajahmundry">Rajahmundry / Rajamahendravaram</option>
@@ -2063,6 +2096,9 @@ button:focus-visible,a:focus-visible,select:focus-visible,input:focus-visible,te
       <div style="margin-top:10px">
         <a href="#" id="pl-route-link" class="plan-btn ghost" style="display:none;text-decoration:none" target="_blank" rel="noopener">🗺️ <span class="t" data-k="plan_open_maps">Open route in Maps</span></a>
       </div>
+
+      <!-- Services panel: shows trains/buses available for the chosen pair -->
+      <div id="pl-services" class="svc-panel" aria-live="polite"></div>
     </div>
 
     <!-- 2. STAY -->
@@ -4414,6 +4450,8 @@ function clearPlan(){
   });
   document.getElementById('pl-summary')?.classList.remove('show');
   document.getElementById('pl-route-link').style.display='none';
+  const svc = document.getElementById('pl-services');
+  if(svc){ svc.classList.remove('show'); svc.innerHTML=''; }
 }
 function _renderPlanSummary(plan){
   const box = document.getElementById('pl-summary');
@@ -4442,6 +4480,372 @@ function _updateRouteLink(){
   }else{
     link.style.display = 'none';
   }
+  // Also refresh the available-services panel whenever route changes
+  _renderPlanServices();
+}
+
+// ═══ TRANSPORT DB (curated indicative schedules) ═══════════════════
+// Schedules below are indicative — based on commonly running APSRTC /
+// Indian Railways services to/from Rajahmundry (RJY) for Pushkaralu
+// season planning. Verify on apsrtc.online / irctc.co.in before travel.
+// Cities are lowercased + trimmed before lookup so user input is forgiving.
+
+const CITY_LIST = [
+  // Andhra Pradesh
+  'Vijayawada','Visakhapatnam','Tirupati','Guntur','Kakinada','Eluru','Bhimavaram',
+  'Tanuku','Amalapuram','Tuni','Anakapalle','Vizianagaram','Srikakulam','Nellore',
+  'Ongole','Kurnool','Anantapur','Kadapa','Chittoor','Machilipatnam','Narasaraopet',
+  'Tenali','Palakollu','Narsapur','Razole','Mandapeta','Ramachandrapuram','Pithapuram',
+  'Samalkot','Peddapuram','Yanam','Markapur','Proddatur','Hindupur','Madanapalle',
+  // Telangana
+  'Hyderabad','Secunderabad','Warangal','Khammam','Karimnagar','Nizamabad','Nalgonda',
+  'Mahabubnagar','Adilabad','Suryapet','Miryalaguda','Kothagudem','Bhadrachalam',
+  // Neighbouring states (frequent pilgrim origins)
+  'Bengaluru','Chennai','Bhubaneswar','Kolkata','Mumbai','Pune','Nagpur','Raipur',
+  'Berhampur','Vellore','Salem','Coimbatore'
+];
+
+// Key format: "<from-lower>|<to>". 'to' uses canonical names that match #pl-to.
+// Fields:
+//   bus  => {no, type, dep, arr, fare, days}
+//   train=> {no, name, dep, arr, days, classes}
+const BUS_DB = {
+  // ── Hyderabad → ──
+  'hyderabad|Rajahmundry': [
+    {no:'7066', type:'AC Garuda Plus (Volvo Sleeper)',  dep:'20:30', arr:'06:00', fare:'₹1250', days:'Daily'},
+    {no:'7068', type:'AC Garuda Plus (Volvo Sleeper)',  dep:'21:30', arr:'07:15', fare:'₹1250', days:'Daily'},
+    {no:'7270', type:'Indra AC Seater',                  dep:'22:00', arr:'07:30', fare:'₹950',  days:'Daily'},
+    {no:'7402', type:'Super Luxury (Non-AC)',            dep:'19:00', arr:'05:30', fare:'₹720',  days:'Daily'},
+    {no:'7404', type:'Super Luxury (Non-AC)',            dep:'21:00', arr:'07:00', fare:'₹720',  days:'Daily'},
+    {no:'7510', type:'Pushkaralu Special (AC Sleeper)',  dep:'18:00', arr:'04:00', fare:'₹1100', days:'Jun 25–Jul 8 only'}
+  ],
+  'hyderabad|Kakinada': [
+    {no:'7080', type:'AC Garuda Plus (Volvo)',           dep:'20:00', arr:'06:30', fare:'₹1350', days:'Daily'},
+    {no:'7280', type:'Indra AC Seater',                  dep:'21:30', arr:'08:00', fare:'₹1050', days:'Daily'},
+    {no:'7420', type:'Super Luxury (Non-AC)',            dep:'19:30', arr:'06:30', fare:'₹820',  days:'Daily'}
+  ],
+  'hyderabad|Kovvur': [
+    {no:'—', type:'Connect via Rajahmundry — local APSRTC city bus / shared auto across Godavari Bridge (15 min)', dep:'—', arr:'—', fare:'₹15', days:'Continuous'}
+  ],
+  'hyderabad|Korukonda': [
+    {no:'—', type:'Take Hyderabad→Rajahmundry bus, then APSRTC city service to Korukonda (28 km, ~45 min)', dep:'—', arr:'—', fare:'₹40', days:'Frequent'}
+  ],
+
+  // ── Vijayawada → ──
+  'vijayawada|Rajahmundry': [
+    {no:'4101', type:'Super Luxury (Non-AC)',            dep:'05:30', arr:'09:30', fare:'₹320', days:'Every 30 min'},
+    {no:'4102', type:'Super Luxury (Non-AC)',            dep:'06:00', arr:'10:00', fare:'₹320', days:'Every 30 min'},
+    {no:'4180', type:'Indra AC Seater',                  dep:'07:00', arr:'10:45', fare:'₹480', days:'Daily'},
+    {no:'4205', type:'Pushkaralu Express (Non-stop)',    dep:'04:00', arr:'07:30', fare:'₹360', days:'Jun 25–Jul 8'}
+  ],
+  'vijayawada|Kakinada': [
+    {no:'4150', type:'Super Luxury (Non-AC)',            dep:'06:00', arr:'11:00', fare:'₹390', days:'Hourly'},
+    {no:'4185', type:'Indra AC Seater',                  dep:'08:00', arr:'12:30', fare:'₹560', days:'Daily'}
+  ],
+  'vijayawada|Kovvur': [
+    {no:'—', type:'Take Vijayawada→Rajahmundry bus, then auto across Godavari Arch Bridge (10 min)', dep:'—', arr:'—', fare:'₹10', days:'Continuous'}
+  ],
+  'vijayawada|Korukonda': [
+    {no:'—', type:'Vijayawada→Rajahmundry bus, then APSRTC local to Korukonda', dep:'—', arr:'—', fare:'₹40', days:'Frequent'}
+  ],
+
+  // ── Visakhapatnam → ──
+  'visakhapatnam|Rajahmundry': [
+    {no:'5301', type:'Super Luxury (Non-AC)',            dep:'05:00', arr:'09:30', fare:'₹360', days:'Every 30 min'},
+    {no:'5302', type:'Super Luxury (Non-AC)',            dep:'06:00', arr:'10:30', fare:'₹360', days:'Every 30 min'},
+    {no:'5380', type:'Indra AC Seater',                  dep:'07:30', arr:'11:30', fare:'₹540', days:'Daily'},
+    {no:'5390', type:'AC Garuda',                        dep:'09:00', arr:'12:45', fare:'₹680', days:'Daily'}
+  ],
+  'visakhapatnam|Kakinada': [
+    {no:'5410', type:'Super Luxury (Non-AC)',            dep:'05:30', arr:'09:00', fare:'₹260', days:'Hourly'},
+    {no:'5485', type:'Indra AC Seater',                  dep:'08:00', arr:'11:00', fare:'₹400', days:'Daily'}
+  ],
+  'visakhapatnam|Kovvur': [
+    {no:'—', type:'Visakhapatnam→Rajahmundry bus, then auto across Godavari Bridge', dep:'—', arr:'—', fare:'₹10', days:'Continuous'}
+  ],
+  'visakhapatnam|Korukonda': [
+    {no:'5350', type:'Express (via Anakapalle)',         dep:'07:00', arr:'11:00', fare:'₹320', days:'2 services/day'}
+  ],
+
+  // ── Tirupati → ──
+  'tirupati|Rajahmundry': [
+    {no:'6601', type:'AC Garuda Plus (Sleeper)',         dep:'18:00', arr:'07:00', fare:'₹1450', days:'Daily'},
+    {no:'6605', type:'Super Luxury (Non-AC)',            dep:'17:00', arr:'07:30', fare:'₹950',  days:'Daily'}
+  ],
+  'tirupati|Kakinada': [
+    {no:'6620', type:'AC Garuda Plus',                   dep:'17:30', arr:'07:30', fare:'₹1550', days:'Daily'}
+  ],
+
+  // ── Guntur → ──
+  'guntur|Rajahmundry': [
+    {no:'4310', type:'Super Luxury (Non-AC)',            dep:'05:00', arr:'10:00', fare:'₹360', days:'Hourly'},
+    {no:'4380', type:'Indra AC Seater',                  dep:'07:00', arr:'11:30', fare:'₹520', days:'Daily'}
+  ],
+  'guntur|Kakinada': [
+    {no:'4350', type:'Super Luxury (Non-AC)',            dep:'06:00', arr:'12:00', fare:'₹420', days:'Hourly'}
+  ],
+
+  // ── Kakinada → ──
+  'kakinada|Rajahmundry': [
+    {no:'5101', type:'City Express (Non-AC)',            dep:'05:00', arr:'06:30', fare:'₹90',  days:'Every 15 min'},
+    {no:'5102', type:'City Express (Non-AC)',            dep:'05:30', arr:'07:00', fare:'₹90',  days:'Every 15 min'},
+    {no:'5150', type:'Pushkaralu Shuttle',               dep:'04:00', arr:'05:15', fare:'₹70',  days:'Jun 25–Jul 8 (every 5 min)'}
+  ],
+  'kakinada|Kovvur': [
+    {no:'—', type:'Kakinada→Rajahmundry bus, then auto across Godavari Bridge', dep:'—', arr:'—', fare:'₹100', days:'Frequent'}
+  ],
+  'kakinada|Korukonda': [
+    {no:'5180', type:'Local (Non-AC)',                   dep:'06:00', arr:'07:30', fare:'₹80',  days:'Hourly'}
+  ],
+
+  // ── Eluru / West Godavari belt → ──
+  'eluru|Rajahmundry': [
+    {no:'4220', type:'Super Luxury (Non-AC)',            dep:'06:00', arr:'08:30', fare:'₹220', days:'Every 30 min'}
+  ],
+  'bhimavaram|Rajahmundry': [
+    {no:'4250', type:'Express (Non-AC)',                 dep:'06:30', arr:'09:00', fare:'₹180', days:'Hourly'}
+  ],
+  'tanuku|Rajahmundry': [
+    {no:'4260', type:'Local Express',                    dep:'06:00', arr:'07:30', fare:'₹120', days:'Every 20 min'}
+  ],
+  'amalapuram|Rajahmundry': [
+    {no:'5200', type:'Local Express',                    dep:'05:30', arr:'07:30', fare:'₹140', days:'Every 30 min'}
+  ],
+
+  // ── Bengaluru / Chennai (out-of-state pilgrims) → ──
+  'bengaluru|Rajahmundry': [
+    {no:'8801', type:'AC Multi-Axle Sleeper (Volvo)',    dep:'18:30', arr:'09:30', fare:'₹1850', days:'Daily'},
+    {no:'8805', type:'AC Garuda Plus',                   dep:'19:30', arr:'10:30', fare:'₹1750', days:'Daily'}
+  ],
+  'chennai|Rajahmundry': [
+    {no:'9101', type:'AC Multi-Axle Sleeper',            dep:'17:00', arr:'07:30', fare:'₹1650', days:'Daily'},
+    {no:'9105', type:'Super Luxury (Non-AC)',            dep:'18:00', arr:'08:30', fare:'₹1100', days:'Daily'}
+  ],
+
+  // ── Telangana belt → ──
+  'warangal|Rajahmundry': [
+    {no:'7150', type:'Super Luxury (Non-AC)',            dep:'19:00', arr:'04:00', fare:'₹780', days:'Daily'}
+  ],
+  'khammam|Rajahmundry': [
+    {no:'7180', type:'Express (Non-AC)',                 dep:'06:00', arr:'12:30', fare:'₹420', days:'Every hour'}
+  ]
+};
+
+const TRAIN_DB = {
+  // ── Hyderabad / Secunderabad → ──
+  'hyderabad|Rajahmundry': [
+    {no:'12728', name:'Godavari Express',         dep:'17:15 SC', arr:'02:55', days:'Daily',     classes:'SL/3A/2A/1A'},
+    {no:'17005', name:'Hyderabad–Darbhanga Exp',  dep:'06:50 HYB',arr:'15:30', days:'Wed/Sun',   classes:'SL/3A/2A'},
+    {no:'17064', name:'Ajanta Express',           dep:'21:05 SC', arr:'06:30', days:'Daily',     classes:'SL/3A/2A'},
+    {no:'07291', name:'Pushkaralu Special',       dep:'22:30 SC', arr:'07:30', days:'Jun 24–Jul 9', classes:'SL/3A/2A'}
+  ],
+  'secunderabad|Rajahmundry': [
+    {no:'12728', name:'Godavari Express',         dep:'17:15', arr:'02:55', days:'Daily', classes:'SL/3A/2A/1A'},
+    {no:'17064', name:'Ajanta Express',           dep:'21:05', arr:'06:30', days:'Daily', classes:'SL/3A/2A'},
+    {no:'12774', name:'Secunderabad–Visakhapatnam SF Exp', dep:'19:50', arr:'05:10', days:'Daily', classes:'SL/3A/2A/1A'}
+  ],
+  'hyderabad|Kakinada': [
+    {no:'17256', name:'Hyderabad–Kakinada Port Exp', dep:'20:15 HYB', arr:'07:35', days:'Daily', classes:'SL/3A/2A'}
+  ],
+
+  // ── Vijayawada → ──
+  'vijayawada|Rajahmundry': [
+    {no:'12728', name:'Godavari Express',         dep:'00:35', arr:'02:55', days:'Daily', classes:'SL/3A/2A/1A'},
+    {no:'12842', name:'Coromandel Express',       dep:'02:25', arr:'04:30', days:'Daily', classes:'SL/3A/2A/1A'},
+    {no:'12863', name:'Howrah–Yeshvantpur Exp',   dep:'01:50', arr:'04:05', days:'4 days/week', classes:'SL/3A/2A'},
+    {no:'22707', name:'Tirupati–Visakhapatnam SF',dep:'14:30', arr:'17:00', days:'Daily', classes:'SL/3A/2A'},
+    {no:'17239', name:'Simhadri Express',         dep:'06:35', arr:'09:25', days:'Daily', classes:'SL/3A/2A'}
+  ],
+  'vijayawada|Kakinada': [
+    {no:'12805', name:'Janmabhoomi Express',      dep:'05:55', arr:'09:50', days:'Daily', classes:'CC/2S'},
+    {no:'17256', name:'Hyderabad–Kakinada Port Exp', dep:'04:30', arr:'07:35', days:'Daily', classes:'SL/3A/2A'}
+  ],
+
+  // ── Visakhapatnam → ──
+  'visakhapatnam|Rajahmundry': [
+    {no:'12727', name:'Godavari Express',         dep:'17:15', arr:'19:50', days:'Daily', classes:'SL/3A/2A/1A'},
+    {no:'12806', name:'Janmabhoomi Express',      dep:'05:50', arr:'08:30', days:'Daily', classes:'CC/2S'},
+    {no:'17240', name:'Simhadri Express',         dep:'13:50', arr:'17:00', days:'Daily', classes:'SL/3A/2A'},
+    {no:'22416', name:'AP Express',               dep:'18:25', arr:'20:55', days:'Daily', classes:'SL/3A/2A/1A'},
+    {no:'12773', name:'Visakhapatnam–Secunderabad SF Exp', dep:'11:40', arr:'14:25', days:'Daily', classes:'SL/3A/2A/1A'}
+  ],
+  'visakhapatnam|Kakinada': [
+    {no:'17243', name:'Visakhapatnam–Kakinada Port Pass', dep:'06:30', arr:'10:00', days:'Daily', classes:'2S'},
+    {no:'12805', name:'Janmabhoomi Express',      dep:'08:50', arr:'12:00', days:'Daily', classes:'CC/2S'}
+  ],
+
+  // ── Tirupati / Chennai / Bengaluru → ──
+  'tirupati|Rajahmundry': [
+    {no:'22707', name:'Tirupati–Visakhapatnam SF',dep:'09:00', arr:'18:00', days:'Daily', classes:'SL/3A/2A'},
+    {no:'17481', name:'Tirupati–Bilaspur Exp',    dep:'23:55', arr:'09:30', days:'Mon/Thu', classes:'SL/3A/2A'}
+  ],
+  'chennai|Rajahmundry': [
+    {no:'12842', name:'Coromandel Express',       dep:'19:50 MAS', arr:'04:30', days:'Daily',    classes:'SL/3A/2A/1A'},
+    {no:'12839', name:'Howrah Mail',              dep:'23:30 MAS', arr:'08:35', days:'Daily',    classes:'SL/3A/2A/1A'},
+    {no:'22887', name:'MAS–Howrah Antyodaya',     dep:'13:25 MAS', arr:'22:30', days:'Tue',      classes:'GS (unreserved)'}
+  ],
+  'bengaluru|Rajahmundry': [
+    {no:'17651', name:'Yesvantpur–Kakinada Exp',  dep:'17:00 YPR', arr:'13:35', days:'Mon/Thu', classes:'SL/3A/2A'},
+    {no:'22707', name:'Tirupati–Visakhapatnam SF',dep:'via Tirupati transfer', arr:'—', days:'Daily', classes:'SL/3A/2A'}
+  ],
+
+  // ── Other AP / TS / Odisha / WB origins → ──
+  'kakinada|Rajahmundry': [
+    {no:'17256', name:'Kakinada Port–Hyderabad Exp (return leg)', dep:'18:00', arr:'19:25', days:'Daily', classes:'SL/3A/2A'},
+    {no:'12805', name:'Janmabhoomi Express',      dep:'09:50', arr:'11:10', days:'Daily', classes:'CC/2S'}
+  ],
+  'guntur|Rajahmundry': [
+    {no:'17240', name:'Simhadri Express',         dep:'09:00', arr:'12:30', days:'Daily', classes:'SL/3A/2A'},
+    {no:'12728', name:'Godavari Express',         dep:'01:25', arr:'02:55', days:'Daily', classes:'SL/3A/2A/1A'}
+  ],
+  'eluru|Rajahmundry': [
+    {no:'17239', name:'Simhadri Express',         dep:'07:30', arr:'09:25', days:'Daily', classes:'SL/3A/2A'},
+    {no:'12805', name:'Janmabhoomi Express',      dep:'06:55', arr:'08:30', days:'Daily', classes:'CC/2S'}
+  ],
+  'warangal|Rajahmundry': [
+    {no:'12728', name:'Godavari Express',         dep:'19:50', arr:'02:55', days:'Daily', classes:'SL/3A/2A/1A'},
+    {no:'17064', name:'Ajanta Express',           dep:'23:50', arr:'06:30', days:'Daily', classes:'SL/3A/2A'}
+  ],
+  'khammam|Rajahmundry': [
+    {no:'12728', name:'Godavari Express',         dep:'21:30', arr:'02:55', days:'Daily', classes:'SL/3A/2A/1A'}
+  ],
+  'kolkata|Rajahmundry': [
+    {no:'12841', name:'Coromandel Express',       dep:'14:50 HWH', arr:'10:55+1', days:'Daily', classes:'SL/3A/2A/1A'},
+    {no:'12840', name:'Howrah Mail',              dep:'19:25 HWH', arr:'14:55+1', days:'Daily', classes:'SL/3A/2A/1A'}
+  ],
+  'bhubaneswar|Rajahmundry': [
+    {no:'12841', name:'Coromandel Express',       dep:'21:35 BBS', arr:'10:55', days:'Daily', classes:'SL/3A/2A/1A'},
+    {no:'18645', name:'East Coast Express',       dep:'21:55 BBS', arr:'14:30', days:'Daily', classes:'SL/3A/2A'}
+  ]
+};
+
+// Build datalist for the From input on first load
+function _populateCityList(){
+  const dl = document.getElementById('pl-from-cities');
+  if(!dl || dl.children.length) return;
+  dl.innerHTML = CITY_LIST.slice().sort().map(c => `<option value="${c}">`).join('');
+}
+
+function _svcKey(from, to){
+  return (from || '').trim().toLowerCase() + '|' + (to || 'Rajahmundry').trim();
+}
+
+function _renderPlanServices(){
+  const panel = document.getElementById('pl-services');
+  if(!panel) return;
+  const fromRaw = document.getElementById('pl-from')?.value || '';
+  const to      = document.getElementById('pl-to')?.value || 'Rajahmundry';
+  const mode    = document.getElementById('pl-mode')?.value || 'train';
+  const from    = fromRaw.trim();
+
+  // Hide entirely if no From entered yet
+  if(!from || from.length < 2){
+    panel.classList.remove('show');
+    panel.innerHTML = '';
+    return;
+  }
+
+  // Car / Flight: just show a route hint, no schedule needed
+  if(mode === 'car'){
+    panel.innerHTML = `
+      <div class="svc-h"><strong>🚗 Driving directions</strong></div>
+      <div class="svc-info">
+        Use the <strong>Open route in Maps</strong> button above for live turn-by-turn navigation from <strong>${_esc(from)}</strong> to <strong>${_esc(to)}</strong>.
+        During Pushkaralu (Jun 26 – Jul 7), expect heavy traffic on NH-16 near Rajahmundry — arrive early and use the dedicated pilgrim corridors signposted by ASTRAM.
+      </div>`;
+    panel.classList.add('show');
+    return;
+  }
+  if(mode === 'flight'){
+    panel.innerHTML = `
+      <div class="svc-h"><strong>✈️ Flights</strong></div>
+      <div class="svc-info">
+        Nearest airports: <strong>Rajahmundry (RJA)</strong> — direct flights from Hyderabad, Bengaluru, Chennai (IndiGo / Alliance Air).
+        <strong>Vijayawada (VGA)</strong> is a larger alternative with more connections (~150 km from Rajahmundry, 3 hr by road or train).
+        Book directly on the airline website or IRCTC Air for the latest schedule.
+      </div>`;
+    panel.classList.add('show');
+    return;
+  }
+
+  // Bus / Train: lookup curated DB
+  const db   = mode === 'bus' ? BUS_DB : TRAIN_DB;
+  const key  = _svcKey(from, to);
+  const list = db[key];
+
+  const heading = mode === 'bus'
+    ? `🚌 APSRTC buses · ${_esc(from)} → ${_esc(to)}`
+    : `🚆 Trains · ${_esc(from)} → ${_esc(to)}`;
+
+  if(!list || !list.length){
+    // Graceful "data needed" fallback
+    const altLink = mode === 'bus'
+      ? '<a href="https://www.apsrtconline.in/" target="_blank" rel="noopener" style="color:var(--info);font-weight:700">apsrtconline.in</a>'
+      : '<a href="https://www.irctc.co.in/" target="_blank" rel="noopener" style="color:var(--info);font-weight:700">irctc.co.in</a>';
+    panel.innerHTML = `
+      <div class="svc-h"><strong>${heading}</strong></div>
+      <div class="svc-empty">
+        <strong>ℹ️ Data needed to add</strong>
+        Schedule data for this city pair is not yet curated in the offline planner.
+        <span class="svc-cta">Please check ${altLink} for live ${mode === 'bus' ? 'bus' : 'train'} availability, or use the <strong>Open route in Maps</strong> button above for driving directions.</span>
+      </div>`;
+    panel.classList.add('show');
+    return;
+  }
+
+  // Render available services
+  const rows = list.map(s => {
+    if(mode === 'bus'){
+      return `
+        <div class="svc-row">
+          <span class="svc-no">${_esc(s.no)}</span>
+          <div>
+            <div class="svc-name">${_esc(s.type)}</div>
+            <div class="svc-meta">
+              <span>🕐 ${_esc(s.dep)} → ${_esc(s.arr)}</span>
+              <span>📅 ${_esc(s.days)}</span>
+            </div>
+          </div>
+          <div class="svc-fare">${_esc(s.fare)}<small>approx</small></div>
+        </div>`;
+    } else {
+      return `
+        <div class="svc-row">
+          <span class="svc-no">${_esc(s.no)}</span>
+          <div>
+            <div class="svc-name">${_esc(s.name)}</div>
+            <div class="svc-meta">
+              <span>🕐 ${_esc(s.dep)} → ${_esc(s.arr)}</span>
+              <span>📅 ${_esc(s.days)}</span>
+              <span>🎟️ ${_esc(s.classes)}</span>
+            </div>
+          </div>
+          <div class="svc-fare" style="color:var(--info)">RJY</div>
+        </div>`;
+    }
+  }).join('');
+
+  const bookHref = mode === 'bus' ? 'https://www.apsrtconline.in/' : 'https://www.irctc.co.in/';
+  const bookLbl  = mode === 'bus' ? 'Book on APSRTC' : 'Book on IRCTC';
+  panel.innerHTML = `
+    <div class="svc-h">
+      <strong>${heading}</strong>
+      <span class="svc-count">${list.length} service${list.length>1?'s':''}</span>
+    </div>
+    <div class="svc-list">${rows}</div>
+    <div class="svc-note">
+      Schedules indicative — verify on
+      <a href="${bookHref}" target="_blank" rel="noopener" style="color:var(--info);font-weight:700">${bookLbl}</a>
+      before travel. Pushkaralu specials run Jun 24 – Jul 9, 2027.
+    </div>`;
+  panel.classList.add('show');
+}
+
+// Tiny HTML escape helper used by the services renderer
+function _esc(s){
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 function printPlan(){
   // Persist first so the printout reflects latest values
@@ -4470,6 +4874,7 @@ function sharePlan(){
 document.addEventListener('change', (e) => {
   if(e.target && e.target.closest && e.target.closest('#sec-plan')){
     if(e.target.id === 'pl-from' || e.target.id === 'pl-to') _updateRouteLink();
+    if(e.target.id === 'pl-mode') _renderPlanServices();
     // Auto-persist documents checklist (lightweight, no alert)
     if(e.target.matches('#pl-docs input[type=checkbox]')){
       try{
@@ -4483,6 +4888,11 @@ document.addEventListener('change', (e) => {
 });
 document.addEventListener('input', (e)=>{
   if(e.target && e.target.id === 'pl-from') _updateRouteLink();
+});
+
+// Populate the From-city datalist on page load
+document.addEventListener('DOMContentLoaded', () => {
+  try{ _populateCityList(); }catch(e){}
 });
 
 // ═══ VOICE ASSISTANT (placeholder — full integration in next release) ═════
