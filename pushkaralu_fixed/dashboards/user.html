@@ -4850,7 +4850,153 @@ function _esc(s){
 function printPlan(){
   // Persist first so the printout reflects latest values
   savePlan();
-  setTimeout(()=>window.print(), 200);
+  setTimeout(()=>{
+    let plan = null;
+    try{ plan = JSON.parse(localStorage.getItem(PLAN_KEY) || 'null'); }catch(e){}
+    if(!plan){ alert('Please save your plan first.'); return; }
+
+    const docLabels = {
+      aadhaar:'🆔 Aadhaar / Govt ID (each pilgrim)',
+      ticket:'🎟️ Train / Bus ticket print-out',
+      medicine:'💊 Daily medicines + prescriptions',
+      cash:'💵 Cash + UPI app (network may be slow)',
+      water:'🚰 Water bottle & light snacks',
+      clothes:'👕 Change of clothes (after holy dip)',
+      towel:'🧺 Towel + plastic bag for wet clothes',
+      contact:'📞 Family contact numbers (written copy)',
+      hat:'🧢 Cap, sunscreen & umbrella',
+      shoes:'👟 Comfortable footwear (lots of walking)'
+    };
+
+    const dateLabel = plan.date
+      ? new Date(plan.date).toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long',year:'numeric'})
+      : '—';
+
+    const docRows = Object.entries(docLabels).map(([k,label])=>{
+      const checked = plan.docs && plan.docs[k];
+      return `<tr>
+        <td style="width:28px;text-align:center;font-size:16px;">${checked ? '✅' : '☐'}</td>
+        <td style="padding:6px 4px;">${label}</td>
+      </tr>`;
+    }).join('');
+
+    const packedCount = plan.docs ? Object.values(plan.docs).filter(Boolean).length : 0;
+
+    const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Pushkaralu 2027 — My Trip Plan</title>
+<style>
+  @page { size: A4; margin: 20mm 18mm; }
+  * { box-sizing: border-box; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; color: #1a1a1a; background: #fff; margin: 0; padding: 0; }
+
+  .header { border-bottom: 3px solid #c0392b; padding-bottom: 12px; margin-bottom: 20px; display: flex; align-items: center; gap: 14px; }
+  .header-logo { font-size: 36px; }
+  .header-text h1 { margin: 0; font-size: 22px; color: #c0392b; }
+  .header-text p { margin: 2px 0 0; font-size: 12px; color: #555; }
+
+  .badge { background: #fff8e1; border: 1px solid #f0c000; border-radius: 6px; padding: 6px 12px; font-size: 12px; color: #7a5c00; display: inline-block; margin-bottom: 18px; }
+
+  .section { margin-bottom: 20px; }
+  .section-title { font-size: 13px; font-weight: 700; color: #c0392b; text-transform: uppercase; letter-spacing: 0.06em; border-bottom: 1px solid #eee; padding-bottom: 4px; margin-bottom: 10px; }
+
+  .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 24px; }
+  .info-item label { font-size: 10px; color: #888; text-transform: uppercase; display: block; margin-bottom: 2px; }
+  .info-item span { font-size: 14px; font-weight: 600; color: #1a1a1a; }
+
+  table { width: 100%; border-collapse: collapse; }
+  table td { vertical-align: middle; font-size: 13px; border-bottom: 1px dashed #eee; }
+  table tr:last-child td { border-bottom: none; }
+
+  .doc-summary { font-size: 12px; color: #555; margin-top: 8px; }
+
+  .safety-box { background: #fff3f3; border-left: 4px solid #c0392b; padding: 10px 14px; border-radius: 4px; }
+  .safety-box p { margin: 0 0 4px; font-size: 12px; }
+  .safety-box p:last-child { margin-bottom: 0; }
+
+  .footer { margin-top: 28px; padding-top: 10px; border-top: 1px solid #ddd; display: flex; justify-content: space-between; font-size: 10px; color: #888; }
+
+  .emergency-bar { background: #c0392b; color: #fff; border-radius: 6px; padding: 8px 14px; display: flex; gap: 24px; font-size: 12px; font-weight: 600; margin-bottom: 18px; }
+  .emergency-bar span { display: flex; align-items: center; gap: 5px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-logo">🪔</div>
+  <div class="header-text">
+    <h1>Godavari Pushkaralu 2027 — My Trip Plan</h1>
+    <p>Govt of Andhra Pradesh · East Godavari · Jun 26 – Jul 7, 2027</p>
+  </div>
+</div>
+
+<div class="badge">📅 Plan saved on: ${new Date(plan.saved || Date.now()).toLocaleString('en-IN')}</div>
+
+<div class="emergency-bar">
+  <span>🆘 Helpline: 1800-425-8877</span>
+  <span>🚑 Ambulance: 108</span>
+  <span>👮 Police: 100</span>
+</div>
+
+<div class="section">
+  <div class="section-title">🗺️ 1. Travel Route</div>
+  <div class="info-grid">
+    <div class="info-item"><label>From</label><span>${_esc(plan.from) || '—'}</span></div>
+    <div class="info-item"><label>To</label><span>${_esc(plan.to) || 'Rajahmundry'}</span></div>
+    <div class="info-item"><label>Travel Mode</label><span>${_esc(plan.mode) || '—'}</span></div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-title">🏨 2. Stay / Lodging</div>
+  <div class="info-grid">
+    <div class="info-item"><label>Lodging Type</label><span>${_esc(plan.stayType) || '—'}</span></div>
+    <div class="info-item"><label>Name / Phone</label><span>${_esc(plan.stayName) || '—'}</span></div>
+    <div class="info-item"><label>Number of Pilgrims</label><span>${_esc(plan.persons) || '—'}</span></div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-title">🛁 3. Sacred Bathing</div>
+  <div class="info-grid">
+    <div class="info-item"><label>Bathing Date</label><span>${dateLabel}</span></div>
+    <div class="info-item"><label>Arrival Time</label><span>${_esc(plan.arrival) || '—'}</span></div>
+    <div class="info-item"><label>Preferred Ghat</label><span>${_esc(plan.ghat) || 'Any (decide on arrival)'}</span></div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-title">📋 4. Documents Checklist (${packedCount} / ${Object.keys(docLabels).length} packed)</div>
+  <table>${docRows}</table>
+  <p class="doc-summary">${packedCount === 10 ? '✅ All items packed! You are ready.' : `⚠️ ${10 - packedCount} item(s) still unchecked — verify before leaving.`}</p>
+</div>
+
+<div class="section">
+  <div class="section-title">🛡️ Safety Reminders</div>
+  <div class="safety-box">
+    <p>• Tell at least one family member your bathing day &amp; preferred ghat.</p>
+    <p>• Save Helpline <strong>1800-425-8877</strong> in your phone before travelling.</p>
+    <p>• Keep a written paper copy of emergency contacts — phones may die in crowds.</p>
+    <p>• Avoid heavy gold ornaments at ghats. Carry only essentials.</p>
+    <p>• Elderly &amp; children: stay with the group and fix a meeting point.</p>
+  </div>
+</div>
+
+<div class="footer">
+  <span>🏛️ Rajamahendravaram Municipal Corporation · 🎓 Aditya University · 🌐 TourGO</span>
+  <span>Printed: ${new Date().toLocaleString('en-IN')}</span>
+</div>
+
+</body>
+</html>`;
+
+    const w = window.open('', '_blank', 'width=800,height=900');
+    w.document.write(html);
+    w.document.close();
+    w.onload = ()=>{ w.focus(); w.print(); };
+  }, 200);
 }
 function sharePlan(){
   let plan = null;
