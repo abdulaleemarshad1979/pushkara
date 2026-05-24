@@ -766,6 +766,7 @@ async def clear_all_crowd_overrides(_auth: dict = Depends(require_volunteer_or_a
     return {"success": True, "cleared_count": count}
 
 
+@app.get("/get_transport")
 async def get_transport(type: Optional[str] = None):
     key = Keys.TRANSPORT if not type else f"cache:transport:type:{type}"
     cached = await cache_get(key)
