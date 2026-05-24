@@ -206,12 +206,24 @@ button, .action-btn {
 }
 
 /* === NAV === */
-.nav{background:var(--navy)}
+.nav{background:var(--navy);position:relative;z-index:150}
 .nav-inner{display:flex;overflow-x:auto;scrollbar-width:none}
 .nav-inner::-webkit-scrollbar{display:none}
 .nt{background:none;border:none;border-bottom:3px solid transparent;color:rgba(255,255,255,.65);padding:11px 14px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;white-space:nowrap;transition:all .15s;display:flex;align-items:center;gap:5px}
 .nt:hover{color:white;background:rgba(255,255,255,.05)}
 .nt.on{color:var(--gold2);border-bottom-color:var(--saffron)}
+/* "More Info" dropdown — keeps the navbar compact */
+.nt-group{position:relative;display:flex;align-items:stretch}
+.nt-trigger .nt-caret{display:inline-block;margin-left:2px;font-size:10px;transition:transform .18s}
+.nt-group.open .nt-caret{transform:rotate(180deg)}
+.nt-group.open > .nt-trigger{color:var(--gold2);background:rgba(255,255,255,.06)}
+.nt-menu{position:absolute;top:100%;left:0;background:linear-gradient(180deg,var(--navy2) 0%,var(--navy) 100%);border:1px solid rgba(255,255,255,.12);border-top:none;border-radius:0 0 10px 10px;min-width:230px;display:none;flex-direction:column;z-index:300;box-shadow:0 14px 32px rgba(0,0,0,.35);overflow:hidden;padding:6px 0}
+.nt-group.open .nt-menu{display:flex;animation:ntFade .18s ease}
+@keyframes ntFade{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
+.nt-menu-item{background:none;border:none;color:rgba(255,255,255,.88);padding:10px 16px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;display:flex;align-items:center;gap:10px;text-align:left;transition:background .12s,color .12s;white-space:nowrap;border-left:3px solid transparent}
+.nt-menu-item:hover{background:rgba(255,255,255,.08);color:white}
+.nt-menu-item.on{color:var(--gold2);border-left-color:var(--saffron);background:rgba(232,96,10,.08)}
+.nt-menu-sub{font-size:10.5px;color:rgba(255,255,255,.45);font-weight:500;margin-left:auto;padding-left:18px}
 
 /* === LAYOUT === */
 .page{max-width:1100px;margin:0 auto;padding:22px 14px;overflow-x:hidden;width:100%}
@@ -592,9 +604,11 @@ html,body{max-width:100%;overflow-x:hidden}
 
 /* ── TourGO Chatbot Widget ── */
 /* ── Chatbot FAB + Panel ─────────────────────────────────────────────── */
+/* Positioned ABOVE the sticky SOS fab stack so the two never overlap.
+   SOS stack on the right occupies ~108px (bottom:18 + main:50 + gap:8 + quick:32). */
 #cb-fab {
   position: fixed;
-  bottom: 24px;
+  bottom: 130px;
   right: 20px;
   width: 58px;
   height: 58px;
@@ -627,12 +641,12 @@ html,body{max-width:100%;overflow-x:hidden}
 
 #cb-panel {
   position: fixed;
-  bottom: 94px;
+  bottom: 200px;
   right: 20px;
   width: 340px;
   max-width: calc(100vw - 24px);
   height: 480px;
-  max-height: calc(100vh - 120px);
+  max-height: calc(100vh - 230px);
   background: var(--card);
   border-radius: 16px;
   box-shadow: var(--sh3), 0 0 0 1px rgba(0,0,0,.06);
@@ -1037,6 +1051,11 @@ body.has-offline-bar{padding-top:38px}
   .sos-fab-main{padding:12px 18px;font-size:14px}
   .sos-fab-quick{font-size:11px}
 }
+/* Keep chatbot clear of the SOS stack on phones too. */
+@media(max-width:480px){
+  #cb-fab{bottom:108px;right:12px;width:52px;height:52px;font-size:1.4rem}
+  #cb-panel{bottom:170px;right:12px;max-height:calc(100vh - 200px)}
+}
 
 /* === SIMPLIFIED LOCATION MODAL (mandatory location, no skip) === */
 .loc-modal{max-width:380px}
@@ -1264,10 +1283,27 @@ button:focus-visible,a:focus-visible,select:focus-visible,input:focus-visible,te
   <nav class="nav">
     <div class="nav-inner">
       <button class="nt on" onclick="goSec('home')">🏠 <span class="t" data-k="nav_home">Home</span></button>
-      <button class="nt" onclick="goSec('plan')">🧳 <span class="t" data-k="nav_plan">Plan Trip</span></button>
       <button class="nt" onclick="goSec('ghats')">🌊 <span class="t" data-k="nav_ghats">Ghats & Schedule</span></button>
-      <button class="nt" onclick="goSec('fac')">🏥 <span class="t" data-k="nav_fac">Facilities</span></button>
-      <button class="nt" onclick="goSec('transport')">🚌 <span class="t" data-k="nav_trans">Transport</span></button>
+      <!-- "More Info" — bundles Plan Trip / Facilities / Transport so the bar stays compact -->
+      <div class="nt-group" id="nt-more-group">
+        <button class="nt nt-trigger" id="nt-more-trigger" onclick="toggleNtMenu(event)" aria-haspopup="true" aria-expanded="false" aria-controls="nt-more-menu">
+          📚 <span class="t" data-k="nav_more">More Info</span> <span class="nt-caret">▾</span>
+        </button>
+        <div class="nt-menu" id="nt-more-menu" role="menu">
+          <button class="nt-menu-item" data-sec="plan" onclick="goSec('plan');closeNtMenu()" role="menuitem">
+            🧳 <span class="t" data-k="nav_plan">Plan Trip</span>
+            <span class="nt-menu-sub t" data-k="nav_plan_sub">Route · Stay · Date</span>
+          </button>
+          <button class="nt-menu-item" data-sec="fac" onclick="goSec('fac');closeNtMenu()" role="menuitem">
+            🏥 <span class="t" data-k="nav_fac">Facilities</span>
+            <span class="nt-menu-sub t" data-k="nav_fac_sub">Toilets · Medical · Food</span>
+          </button>
+          <button class="nt-menu-item" data-sec="transport" onclick="goSec('transport');closeNtMenu()" role="menuitem">
+            🚌 <span class="t" data-k="nav_trans">Transport</span>
+            <span class="nt-menu-sub t" data-k="nav_trans_sub">Buses · Trains · Routes</span>
+          </button>
+        </div>
+      </div>
       <button class="nt" onclick="goSec('report')">📋 <span class="t" data-k="nav_report">Report Issue</span></button>
       <button class="nt" onclick="goSec('sos')">🆘 SOS</button>
       <button class="nt" onclick="goSec('emergency')">🚨 Emergency Contacts</button>
@@ -1436,36 +1472,53 @@ button:focus-visible,a:focus-visible,select:focus-visible,input:focus-visible,te
 
   <!-- Significance -->
   <div style="background:var(--card);border-radius:var(--r);padding:18px;margin-bottom:14px">
-    <div style="font-size:15px;font-weight:700;color:var(--t1);margin-bottom:12px">✨ Significance</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+    <div style="font-size:15px;font-weight:700;color:var(--t1);margin-bottom:12px">✨ Festival At a Glance</div>
+    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px">
       <div style="padding:10px;background:var(--bg);border-radius:8px;text-align:center">
-        <div style="font-size:24px;margin-bottom:4px">12</div>
+        <div style="font-size:24px;margin-bottom:4px;color:var(--saffron);font-weight:700">12</div>
         <div style="font-size:11px;color:var(--t3)">Years between festivals</div>
       </div>
       <div style="padding:10px;background:var(--bg);border-radius:8px;text-align:center">
-        <div style="font-size:24px;margin-bottom:4px">3Cr+</div>
-        <div style="font-size:11px;color:var(--t3)">Expected devotees</div>
+        <div style="font-size:24px;margin-bottom:4px;color:var(--saffron);font-weight:700">10 Cr+</div>
+        <div style="font-size:11px;color:var(--t3)">Devotees expected</div>
       </div>
       <div style="padding:10px;background:var(--bg);border-radius:8px;text-align:center">
-        <div style="font-size:24px;margin-bottom:4px">15</div>
-        <div style="font-size:11px;color:var(--t3)">Official bathing ghats</div>
+        <div style="font-size:24px;margin-bottom:4px;color:var(--saffron);font-weight:700">373</div>
+        <div style="font-size:11px;color:var(--t3)">Bathing ghats planned</div>
       </div>
       <div style="padding:10px;background:var(--bg);border-radius:8px;text-align:center">
-        <div style="font-size:24px;margin-bottom:4px">12</div>
+        <div style="font-size:24px;margin-bottom:4px;color:var(--saffron);font-weight:700">9,918m</div>
+        <div style="font-size:11px;color:var(--t3)">Total ghat length</div>
+      </div>
+      <div style="padding:10px;background:var(--bg);border-radius:8px;text-align:center">
+        <div style="font-size:24px;margin-bottom:4px;color:var(--saffron);font-weight:700">12</div>
         <div style="font-size:11px;color:var(--t3)">Sacred bathing days</div>
       </div>
+      <div style="padding:10px;background:var(--bg);border-radius:8px;text-align:center">
+        <div style="font-size:24px;margin-bottom:4px;color:var(--saffron);font-weight:700">6</div>
+        <div style="font-size:11px;color:var(--t3)">Districts coordinating</div>
+      </div>
+    </div>
+    <div style="margin-top:10px;padding:10px 12px;background:linear-gradient(135deg,rgba(232,96,10,.08),rgba(200,133,13,.08));border-radius:8px;font-size:12px;color:var(--t2);line-height:1.55">
+      🛕 The Andhra Pradesh government has set Maha Kumbh Mela as the benchmark for organising Godavari Pushkaralu 2027 — the largest scale ever attempted for this 12-year cycle.
     </div>
   </div>
 
   <!-- Government Preparations -->
   <div style="background:var(--card);border-radius:var(--r);padding:18px;margin-bottom:14px">
     <div style="font-size:15px;font-weight:700;color:var(--t1);margin-bottom:12px">🏛️ Government Preparations</div>
-    <div style="display:grid;gap:8px;font-size:13px;color:var(--t2)">
-      <div style="display:flex;gap:8px;align-items:flex-start"><span>🏗️</span><span><strong>Akhanda Godavari Tourism Project</strong> — comprehensive development covering Havelock Bridge, Pushkar Ghat, Bridgelanka beautification, Kovvur Goshpadakshetram revamp, and Kadiyam Nurseries.</span></div>
-      <div style="display:flex;gap:8px;align-items:flex-start"><span>🛖</span><span><strong>Tent Cities & Homestays</strong> — 21 major pilgrimage centres across the state will have tent cities for 2–3 day stays. Traditional manduva logili huts to be leased for rural tourism.</span></div>
-      <div style="display:flex;gap:8px;align-items:flex-start"><span>🤖</span><span><strong>AI-Powered Security</strong> — CCTV surveillance with AI crowd-counting and real-time density monitoring across all ghats.</span></div>
-      <div style="display:flex;gap:8px;align-items:flex-start"><span>🚌</span><span><strong>Transport Upgrades</strong> — Special APSRTC buses, 311 trains listed through Rajahmundry, and dedicated pilgrim transport corridors.</span></div>
-      <div style="display:flex;gap:8px;align-items:flex-start"><span>🏥</span><span><strong>Medical Infrastructure</strong> — Medical camps at every ghat, emergency corridors, and 108 ambulance priority routing.</span></div>
+    <div style="display:grid;gap:10px;font-size:13px;color:var(--t2)">
+      <div style="display:flex;gap:10px;align-items:flex-start"><span style="font-size:18px;flex-shrink:0">🌊</span><span><strong>373 Bathing Ghats</strong> — 234 existing ghats are being upgraded and 139 new ones added, covering ~9,918 m of riverbank across the Rajamahendravaram and Kovvur sides.</span></div>
+      <div style="display:flex;gap:10px;align-items:flex-start"><span style="font-size:18px;flex-shrink:0">🛖</span><span><strong>Tent Cities & Homestays</strong> — Tent cities planned across 21 major pilgrimage centres for 2-3 day stays, modelled on Maha Kumbh Mela. Traditional manduva logili huts to be leased for rural tourism.</span></div>
+      <div style="display:flex;gap:10px;align-items:flex-start"><span style="font-size:18px;flex-shrink:0">🚦</span><span><strong>ASTRAM Traffic System</strong> — DGP-led AI-driven traffic management system being rolled out for Pushkaralu 2027 — real-time vehicle flow, predictive congestion alerts and pilgrim-corridor enforcement.</span></div>
+      <div style="display:flex;gap:10px;align-items:flex-start"><span style="font-size:18px;flex-shrink:0">🚌</span><span><strong>10 Temporary Bus Stations</strong> — APSRTC will operate 10 dedicated pilgrim bus stations with a circular movement system to keep routes from intersecting and minimise peak-hour congestion.</span></div>
+      <div style="display:flex;gap:10px;align-items:flex-start"><span style="font-size:18px;flex-shrink:0">👥</span><span><strong>Cumta Crowd-Management Advisor</strong> — A field study by the Chennai Unified Metropolitan Transport Authority team is informing pilgrim-flow plans along the Godavari banks for the Jun 26 – Jul 7 window.</span></div>
+      <div style="display:flex;gap:10px;align-items:flex-start"><span style="font-size:18px;flex-shrink:0">🤖</span><span><strong>AI-Powered Security</strong> — CCTV surveillance with AI crowd-counting and real-time density monitoring across all ghats; live feeds reach the integrated command centre.</span></div>
+      <div style="display:flex;gap:10px;align-items:flex-start"><span style="font-size:18px;flex-shrink:0">🏗️</span><span><strong>Akhanda Godavari Tourism Project</strong> — Comprehensive development covering Havelock Bridge, Pushkar Ghat, Bridgelanka beautification, Kovvur Goshpadakshetram revamp, and Kadiyam Nurseries.</span></div>
+      <div style="display:flex;gap:10px;align-items:flex-start"><span style="font-size:18px;flex-shrink:0">🚂</span><span><strong>Transport Upgrades</strong> — Special APSRTC Pushkaralu buses every 5 minutes from RJY Railway Station, 311 trains listed through Rajahmundry, dedicated pilgrim transport corridors.</span></div>
+      <div style="display:flex;gap:10px;align-items:flex-start"><span style="font-size:18px;flex-shrink:0">🏥</span><span><strong>Medical Infrastructure</strong> — Medical camps at every ghat, emergency corridors, and 108 ambulance priority routing.</span></div>
+      <div style="display:flex;gap:10px;align-items:flex-start"><span style="font-size:18px;flex-shrink:0">📅</span><span><strong>18-Month Lead Time</strong> — Preparations began 18 months in advance — three times longer than the lead-up to Pushkaralu 2015 — on the directions of CM N. Chandrababu Naidu.</span></div>
+      <div style="display:flex;gap:10px;align-items:flex-start"><span style="font-size:18px;flex-shrink:0">🤝</span><span><strong>Joint AP–Telangana Planning</strong> — Both states are coordinating high-level arrangements to ensure seamless travel and rituals for pilgrims arriving from Telangana.</span></div>
     </div>
   </div>
 
@@ -1508,6 +1561,15 @@ button:focus-visible,a:focus-visible,select:focus-visible,input:focus-visible,te
         <span style="font-size:18px">📧</span>
         <div><div style="font-weight:600">godavaripushkaralu2027@gmail.com</div><div style="font-size:11px;color:var(--t3)">Official email contact</div></div>
       </div>
+    </div>
+    <div style="margin-top:14px;padding-top:12px;border-top:1px dashed rgba(0,0,0,.08);font-size:11px;color:var(--t3);line-height:1.6">
+      <strong style="color:var(--t2)">📰 News &amp; press references:</strong>
+      <a href="https://timesofindia.indiatimes.com/city/vijayawada/373-ghats-tent-cities-planned-for-godavari-pushkarams-2027/articleshow/128822260.cms" target="_blank" rel="noopener" style="color:var(--navy);text-decoration:none">TOI: 373 ghats &amp; tent cities</a> ·
+      <a href="https://timesofindia.indiatimes.com/city/vijayawada/astram-system-to-manage-pushkaralu-traffic/articleshow/130044466.cms" target="_blank" rel="noopener" style="color:var(--navy);text-decoration:none">TOI: ASTRAM traffic system</a> ·
+      <a href="https://timesofindia.indiatimes.com/city/vijayawada/naidu-orders-early-start-to-2027-godavari-pushkaralu-works/articleshow/127318995.cms" target="_blank" rel="noopener" style="color:var(--navy);text-decoration:none">TOI: Naidu orders early start</a> ·
+      <a href="https://www.newindianexpress.com/cities/vijayawada/2026/feb/27/officials-to-set-up-373-ghats-for-2027-godavari-pushkarams" target="_blank" rel="noopener" style="color:var(--navy);text-decoration:none">NIE: 373 ghats plan</a> ·
+      <a href="https://www.thehindu.com/news/national/andhra-pradesh/andhra-pradesh-begins-godavari-pushkaralu-2027-preparations-18-months-in-advance/article70942010.ece" target="_blank" rel="noopener" style="color:var(--navy);text-decoration:none">The Hindu: 18-month preparations</a> ·
+      <a href="https://www.ap7am.com/en/118896/cm-chandrababu-naidu-reviews-arrangements-for-godavari-pushkaralu" target="_blank" rel="noopener" style="color:var(--navy);text-decoration:none">AP7AM: CM review</a>
     </div>
   </div>
 
@@ -2040,12 +2102,32 @@ button:focus-visible,a:focus-visible,select:focus-visible,input:focus-visible,te
       <label class="t" data-k="plan_ghat">Preferred Ghat</label>
       <select id="pl-ghat">
         <option value="">Any (decide on arrival)</option>
-        <option value="Pushkar Ghat">Pushkar Ghat (main)</option>
-        <option value="Saraswati Ghat">Saraswati Ghat</option>
-        <option value="Kotilingala Ghat">Kotilingala Ghat</option>
-        <option value="Gowthami Ghat">Gowthami Ghat</option>
-        <option value="Markandeya Ghat">Markandeya Ghat</option>
+        <optgroup label="Rajamahendravaram (East Bank)">
+          <option value="Pushkar Ghat">🪔 Pushkar Ghat — Main Festival Ghat</option>
+          <option value="Kotilingala Revu Pushkar Ghat">🛕 Kotilingala Revu — Largest Ghat</option>
+          <option value="Saraswati Ghat">📚 Saraswati Ghat — Children & Aksharabhyasam</option>
+          <option value="Gowthami Ghat">🙏 Gowthami Ghat — Pitru Tarpanam Hub</option>
+          <option value="Tummalapalli Vari Revu">🏘️ Tummalapalli Vari Revu — Krishna Nagar</option>
+          <option value="Sri Narasimha Nagar Ghat">🌿 Sri Narasimha Nagar — Peaceful</option>
+          <option value="Dowleswaram Barrage Ghat">🌉 Dowleswaram Barrage — Sri Rama Padalu</option>
+          <option value="Venkateswara Ghat">🛕 Venkateswara Ghat — TTD-managed</option>
+        </optgroup>
+        <optgroup label="Kovvur (West Bank)">
+          <option value="Goshpada Kshetram (Main Kovvur Ghat)">🐄 Goshpada Kshetram — Main Kovvur Ghat</option>
+          <option value="Subrahmanyeswara Ghat">🔱 Subrahmanyeswara Ghat — Shiva</option>
+          <option value="Nagareswaram Ghat">🐍 Nagareswaram Ghat — Naga Devata</option>
+        </optgroup>
+        <optgroup label="Nearby Mandals">
+          <option value="Purushottapatnam Ghat">⛵ Purushottapatnam — Ramapadala Revu</option>
+          <option value="Seethanagaram Ghat">🌾 Seethanagaram — Village Ghat</option>
+          <option value="Pattiseema Ghat">🏝️ Pattiseema — Island Temple (ferry)</option>
+          <option value="Vangalapudi Ghat">🌅 Vangalapudi — Quiet East Bank</option>
+        </optgroup>
       </select>
+      <div style="font-size:11px;color:var(--t3);margin-top:4px;line-height:1.5">
+        💡 <strong>Tip:</strong> 373 ghats total are being prepared for Pushkaralu 2027 (234 existing + 139 new) covering ~9,918m of riverbank.
+        Pick a ghat near your stay — see the <a href="#" onclick="goSec('ghats');return false;" style="color:var(--saffron);font-weight:600">Ghats &amp; Schedule</a> page for live crowd levels.
+      </div>
     </div>
 
     <!-- 4. DOCUMENTS -->
@@ -2109,6 +2191,7 @@ button:focus-visible,a:focus-visible,select:focus-visible,input:focus-visible,te
 const LANG={
 en:{
   nav_home:'Home',nav_plan:'Plan Trip',nav_ghats:'Ghats & Schedule',nav_fac:'Facilities',nav_trans:'Transport',nav_report:'Report Issue',nav_mine:'My Reports',
+  nav_more:'More Info', nav_plan_sub:'Route · Stay · Date', nav_fac_sub:'Toilets · Medical · Food', nav_trans_sub:'Buses · Trains · Routes',
   hero_badge:'Sacred Festival of Godavari River',sacred_days:'Sacred Days',
   sos_btn:'EMERGENCY SOS',sos_hint:'Press only in emergencies — Police · Medical · Volunteer dispatch',
   live_status:'Live Festival Status',refresh:'Refresh',
@@ -2146,6 +2229,7 @@ en:{
 },
 te:{
   nav_home:'హోమ్',nav_plan:'యాత్ర ప్లాన్',nav_ghats:'ఘాట్లు & షెడ్యూల్',nav_fac:'సౌకర్యాలు',nav_trans:'రవాణా',nav_report:'సమస్య నివేదించు',nav_mine:'నా నివేదికలు',
+  nav_more:'మరిన్ని వివరాలు', nav_plan_sub:'రూట్ · బస · తేదీ', nav_fac_sub:'టాయిలెట్లు · వైద్యం · ఆహారం', nav_trans_sub:'బస్సులు · రైళ్ళు · మార్గాలు',
   hero_badge:'గోదావరి నదీ పవిత్ర పండుగ',sacred_days:'పవిత్ర దినాలు',
   sos_btn:'అత్యవసర SOS',sos_hint:'అత్యవసర పరిస్థితులలో మాత్రమే నొక్కండి',
   live_status:'లైవ్ పండుగ స్థితి',refresh:'రిఫ్రెష్',
@@ -2183,6 +2267,7 @@ te:{
 },
 hi:{
   nav_home:'होम',nav_plan:'यात्रा प्लान',nav_ghats:'घाट & शेड्यूल',nav_fac:'सुविधाएं',nav_trans:'परिवहन',nav_report:'समस्या रिपोर्ट',nav_mine:'मेरी रिपोर्ट',
+  nav_more:'अधिक जानकारी', nav_plan_sub:'रूट · ठहराव · तिथि', nav_fac_sub:'शौचालय · चिकित्सा · भोजन', nav_trans_sub:'बसें · ट्रेनें · मार्ग',
   hero_badge:'गोदावरी नदी का पवित्र उत्सव',sacred_days:'पवित्र दिन',
   sos_btn:'आपातकालीन SOS',sos_hint:'केवल आपात स्थिति में दबाएं — पुलिस · चिकित्सा · स्वयंसेवक',
   live_status:'लाइव फेस्टिवल स्थिति',refresh:'रिफ्रेश',
@@ -2359,12 +2444,44 @@ function hamGoSec(id) {
 // Close drawer on Escape key
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeHam(); });
 
+// ── "More Info" dropdown (desktop nav) ────────────────────────────
+function toggleNtMenu(e){
+  if (e) e.stopPropagation();
+  const grp = document.getElementById('nt-more-group');
+  const trg = document.getElementById('nt-more-trigger');
+  if (!grp || !trg) return;
+  const isOpen = grp.classList.toggle('open');
+  trg.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+}
+function closeNtMenu(){
+  const grp = document.getElementById('nt-more-group');
+  const trg = document.getElementById('nt-more-trigger');
+  if (grp) grp.classList.remove('open');
+  if (trg) trg.setAttribute('aria-expanded', 'false');
+}
+document.addEventListener('click', e => {
+  const grp = document.getElementById('nt-more-group');
+  if (grp && grp.classList.contains('open') && !e.target.closest('#nt-more-group')) closeNtMenu();
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeNtMenu(); });
+
 function goSec(id){
   document.querySelectorAll('.sec').forEach(s=>s.classList.remove('on'));
   document.querySelectorAll('.nt').forEach(t=>t.classList.remove('on'));
+  document.querySelectorAll('.nt-menu-item').forEach(t=>t.classList.remove('on'));
   document.getElementById('sec-'+id).classList.add('on');
-  const ids=['home','plan','ghats','fac','transport','report','sos','emergency','lost','about','tourgo'];
-  const i=ids.indexOf(id);if(i>=0)document.querySelectorAll('.nt')[i].classList.add('on');
+
+  // Map section id → nav button. Plan/Facilities/Transport now live inside
+  // the "More Info" dropdown, so highlight that trigger AND the menu item.
+  const moreSubs = {plan:1, fac:1, transport:1};
+  const directNt = document.querySelector(`.nt[onclick*="goSec('${id}')"]`);
+  if (directNt) directNt.classList.add('on');
+  if (moreSubs[id]) {
+    const trigger = document.getElementById('nt-more-trigger');
+    if (trigger) trigger.classList.add('on');
+    const subItem = document.querySelector(`.nt-menu-item[data-sec="${id}"]`);
+    if (subItem) subItem.classList.add('on');
+  }
 
   // Plan section: hydrate saved plan data on open
   if(id==='plan'){ if(typeof loadPlan==='function') loadPlan(); }
