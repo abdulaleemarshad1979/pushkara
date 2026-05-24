@@ -1009,24 +1009,180 @@ html,body{max-width:100%;overflow-x:hidden}
 .gc-importance{font-size:12px;color:var(--t2);line-height:1.5;margin-bottom:8px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .gc-tap-hint{font-size:10.5px;color:var(--t3);text-align:right;margin-top:4px;display:flex;align-items:center;justify-content:flex-end;gap:3px}
 
+/* ═══════════════════════════════════════════════════════════════════
+   ADDITIONS — UX IMPROVEMENTS (SOS prominence, offline, accessibility,
+   simplified location modal, pre-travel planner)
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* === OFFLINE BANNER ============================================ */
+.offline-bar{position:fixed;top:0;left:0;right:0;z-index:10000;background:linear-gradient(90deg,#8B5A00,#B27200);color:#FFF;padding:8px 14px;font-size:13px;font-weight:700;display:none;align-items:center;justify-content:center;gap:8px;box-shadow:0 2px 10px rgba(0,0,0,.25);font-family:'DM Sans',sans-serif;text-align:center}
+.offline-bar.show{display:flex}
+.offline-bar .ob-dot{width:8px;height:8px;border-radius:50%;background:#FFD480;animation:blink 2s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.4}}
+body.has-offline-bar{padding-top:38px}
+
+/* === STICKY SOS FAB (always visible — even before location granted) === */
+.sos-fab{position:fixed;right:18px;bottom:18px;z-index:8500;display:flex;flex-direction:column;align-items:flex-end;gap:8px;pointer-events:none}
+.sos-fab > *{pointer-events:auto}
+.sos-fab-main{background:var(--danger);color:#fff;border:none;border-radius:50px;padding:14px 22px;font-family:'DM Sans',sans-serif;font-size:15px;font-weight:800;letter-spacing:.4px;cursor:pointer;display:flex;align-items:center;gap:8px;box-shadow:0 8px 24px rgba(192,57,43,.55),0 0 0 4px rgba(192,57,43,.18);transition:transform .2s, box-shadow .2s;animation:sosBeat 2.4s ease infinite;will-change:transform}
+.sos-fab-main:hover,.sos-fab-main:focus{background:#A93226;transform:scale(1.04);outline:none;box-shadow:0 10px 32px rgba(192,57,43,.7),0 0 0 4px rgba(192,57,43,.28)}
+@keyframes sosBeat{0%,100%{transform:scale(1)}50%{transform:scale(1.045)}}
+.sos-fab-quick{display:flex;gap:6px;background:rgba(0,0,0,.78);backdrop-filter:blur(6px);border-radius:30px;padding:5px 8px;box-shadow:0 6px 18px rgba(0,0,0,.3)}
+.sos-fab-quick a{display:flex;align-items:center;gap:4px;color:#fff;text-decoration:none;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:700;padding:4px 10px;border-radius:20px;transition:background .15s;white-space:nowrap}
+.sos-fab-quick a:hover{background:rgba(255,255,255,.18)}
+.sos-fab-quick a.amb{color:#7DFFB2}
+.sos-fab-quick a.pol{color:#9BD7FF}
+@media(max-width:480px){
+  .sos-fab{right:10px;bottom:10px}
+  .sos-fab-main{padding:12px 18px;font-size:14px}
+  .sos-fab-quick{font-size:11px}
+}
+
+/* === SIMPLIFIED LOCATION MODAL (mandatory location, no skip) === */
+.loc-modal{max-width:380px}
+.loc-emoji-big{font-size:3.2rem;margin-bottom:8px;display:inline-block;animation:pinDrop .6s ease-out}
+@keyframes pinDrop{0%{transform:translateY(-12px);opacity:0}60%{transform:translateY(3px);opacity:1}100%{transform:translateY(0)}}
+.loc-mini-stats{display:flex;justify-content:space-around;background:var(--bg);border-radius:var(--r);padding:10px 8px;margin-bottom:14px;font-size:11px;color:var(--t3)}
+.loc-mini-stats div{text-align:center}
+.loc-mini-stats span{display:block;font-weight:700;color:var(--navy);font-size:14px}
+.dark-mode .loc-mini-stats span{color:var(--gold2)}
+.loc-mandatory-note{font-size:11px;color:var(--t3);text-align:center;margin-top:10px;padding:6px;background:var(--bg);border-radius:var(--r)}
+.loc-fallback{display:none;border-top:1px dashed #D8DCE6;margin-top:14px;padding-top:14px}
+.dark-mode .loc-fallback{border-top-color:#1E293B}
+.loc-fallback.show{display:block}
+.loc-fallback p{font-size:12px;color:var(--t2);text-align:center;margin-bottom:10px}
+.loc-call-help{display:flex;align-items:center;justify-content:center;gap:8px;background:var(--saffron);color:#fff;text-decoration:none;border-radius:var(--r);padding:10px;font-weight:700;font-size:13px;font-family:'DM Sans',sans-serif}
+.loc-area-row{display:flex;gap:6px;margin-top:10px}
+.loc-area-row select{flex:1;border:1.5px solid #D8DCE6;border-radius:var(--r);padding:8px 10px;font-family:'DM Sans',sans-serif;font-size:13px;background:#fff;color:var(--t1)}
+.dark-mode .loc-area-row select{background:var(--card);color:var(--t1);border-color:#334155}
+.loc-area-row button{background:var(--navy);color:#fff;border:none;border-radius:var(--r);padding:8px 14px;font-weight:700;font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif}
+
+/* === HIGH-CONTRAST MODE (for elderly/low-vision users) === */
+body.hc-mode{
+  --t1:#000;--t2:#1a1a1a;--t3:#3a3a3a;
+  --navy:#001a4d;--navy2:#002766;--navy3:#000a26;
+  --saffron:#a83b00;--saffron2:#c04400;
+  --danger:#8a1010;--ok:#054d20;--info:#0a3a85;--warn:#5c3a00;
+  --border:1.5px solid #000;
+  font-weight:500;
+}
+body.hc-mode.dark-mode{
+  --t1:#fff;--t2:#f0f0f0;--t3:#cccccc;
+  --navy:#7BD7FF;--gold2:#FFE066;
+  --border:1.5px solid #ffffff;
+}
+body.hc-mode{font-size:17px;line-height:1.75}
+body.hc-mode .nt{font-size:15px;font-weight:700}
+body.hc-mode .hero-title{font-size:2.6rem}
+body.hc-mode .sv{font-size:1.95rem}
+body.hc-mode .gmc-name,body.hc-mode .fac-name,body.hc-mode .gc-name{font-size:15px;font-weight:800}
+body.hc-mode .htag,body.hc-mode .hl-grid .hn{font-weight:800}
+body.hc-mode .sos-fab-main{font-size:17px;padding:16px 26px}
+body.hc-mode button:not([disabled]),body.hc-mode .nt,body.hc-mode .lb,body.hc-mode a.hlc{outline-offset:2px}
+body.hc-mode :focus-visible{outline:3px solid var(--saffron);outline-offset:3px}
+body.hc-mode .crowd-tag,body.hc-mode .crowd-badge,body.hc-mode .op{font-weight:800;letter-spacing:.5px}
+body.hc-mode .marquee-bar{background:#000;color:#FFD480;font-weight:800}
+body.hc-mode .mq-tag{background:#000;color:#fff}
+
+/* Better focus ring for keyboard users — applies to all modes */
+button:focus-visible,a:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-visible{
+  outline:3px solid var(--saffron);outline-offset:2px;border-radius:var(--r)
+}
+
+/* === PRE-TRAVEL PLANNER === */
+.plan-hero{background:linear-gradient(135deg,var(--navy3) 0%,var(--navy) 60%,#1A4080 100%);color:#fff;border-radius:var(--r2);padding:24px 18px;margin-bottom:18px;position:relative;overflow:hidden;box-shadow:var(--sh2)}
+.plan-hero::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 90% 10%,rgba(232,96,10,.18),transparent 60%);pointer-events:none}
+.plan-hero h2{font-family:'DM Serif Display',serif;color:var(--gold2);font-size:1.55rem;margin-bottom:4px;position:relative}
+.plan-hero p{font-size:13px;color:rgba(255,255,255,.75);position:relative;max-width:560px}
+.plan-step-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-bottom:18px}
+.plan-card{background:var(--card);border:var(--border);border-top:4px solid var(--saffron);border-radius:var(--r);padding:16px;box-shadow:var(--sh)}
+.plan-card.route{border-top-color:var(--info)}
+.plan-card.stay{border-top-color:var(--gold)}
+.plan-card.date{border-top-color:var(--saffron)}
+.plan-card.docs{border-top-color:var(--ok)}
+.plan-card-h{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.plan-card-h .ico{font-size:1.7rem;line-height:1}
+.plan-card-h h3{font-family:'DM Serif Display',serif;font-size:1.05rem;color:var(--navy);font-weight:400;margin:0}
+.plan-card label{display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--t3);margin-bottom:5px;margin-top:8px}
+.plan-card label:first-of-type{margin-top:0}
+.plan-card input,.plan-card select{width:100%;border:1.5px solid #D1D5DB;border-radius:var(--r);padding:9px 11px;font-family:'DM Sans',sans-serif;font-size:14px;color:var(--t1);background:#fff;outline:none;transition:border-color .15s}
+.plan-card input:focus,.plan-card select:focus{border-color:var(--navy);box-shadow:0 0 0 3px rgba(11,46,110,.08)}
+.dark-mode .plan-card input,.dark-mode .plan-card select{background:var(--card);color:var(--t1);border-color:#334155}
+.plan-summary{background:var(--card);border:var(--border);border-left:4px solid var(--ok);border-radius:var(--r);padding:14px 16px;margin-bottom:18px;font-size:13px;color:var(--t2);line-height:1.7;display:none}
+.plan-summary.show{display:block}
+.plan-summary h4{color:var(--ok);margin-bottom:8px;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:800}
+.plan-actions{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:18px}
+.plan-btn{flex:1;min-width:140px;background:var(--navy);color:#fff;border:none;border-radius:var(--r);padding:11px 14px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:background .15s}
+.plan-btn:hover{background:var(--navy2)}
+.plan-btn.ghost{background:transparent;border:1.5px solid var(--navy);color:var(--navy)}
+.plan-btn.ghost:hover{background:var(--navy);color:#fff}
+.plan-btn.ok{background:var(--ok)}
+.plan-btn.ok:hover{background:#0E5A28}
+.docs-list{list-style:none;margin-top:6px}
+.docs-list li{display:flex;align-items:center;gap:8px;padding:6px 0;font-size:13px;color:var(--t2);border-bottom:1px dashed #E5E7EB}
+.dark-mode .docs-list li{border-bottom-color:#1E293B}
+.docs-list li:last-child{border-bottom:none}
+.docs-list input[type=checkbox]{width:18px;height:18px;accent-color:var(--ok);cursor:pointer}
+.docs-list label{display:inline;margin:0;text-transform:none;letter-spacing:0;font-size:13px;color:var(--t2);font-weight:500;cursor:pointer}
+.plan-tip{background:var(--info-bg);border:1px solid rgba(21,88,168,.18);border-left:4px solid var(--info);border-radius:var(--r);padding:11px 14px;font-size:12.5px;color:var(--info);margin-bottom:14px}
+.dark-mode .plan-tip{background:rgba(56,189,248,.08);border-color:rgba(56,189,248,.3);color:#7DD3FC}
+
+/* Voice button placeholder (feature coming soon — keeps hooks ready) */
+.voice-fab{position:fixed;left:18px;bottom:18px;z-index:8400;width:54px;height:54px;border-radius:50%;background:var(--navy);color:#fff;border:none;cursor:pointer;font-size:22px;box-shadow:0 6px 18px rgba(11,46,110,.45);display:flex;align-items:center;justify-content:center;transition:transform .2s}
+.voice-fab:hover{transform:scale(1.07);background:var(--saffron)}
+.voice-fab[disabled]{opacity:.55;cursor:not-allowed}
+.voice-tip{position:absolute;bottom:62px;left:0;background:#000;color:#fff;font-size:11px;padding:5px 10px;border-radius:6px;white-space:nowrap;font-family:'DM Sans',sans-serif;font-weight:600;opacity:0;pointer-events:none;transition:opacity .2s}
+.voice-fab:hover .voice-tip{opacity:.95}
+@media(max-width:480px){.voice-fab{width:48px;height:48px;left:10px;bottom:10px;font-size:20px}}
+
 </style>
 </head>
 <body>
 
-<!-- LOCATION OVERLAY -->
+<!-- OFFLINE BANNER (auto-shown when navigator.onLine === false) -->
+<div id="offline-bar" class="offline-bar" role="status" aria-live="polite">
+  <span class="ob-dot"></span>
+  <span id="offline-msg">You are offline · Showing saved data · Helplines still work via phone</span>
+</div>
+
+<!-- LOCATION OVERLAY (mandatory — no skip; manual fallback if denied) -->
 <div id="loc-overlay">
   <div class="loc-modal">
     <div class="loc-head">
-      <div class="loc-emoji">📍</div>
-      <h2 id="lo-h">Allow Location Access</h2>
-      <p id="lo-p">For nearest facilities & emergency SOS dispatch</p>
+      <div class="loc-emoji-big">📍</div>
+      <h2 id="lo-h">Share your location</h2>
+      <p id="lo-p">Required for nearest help &amp; SOS</p>
     </div>
     <div class="loc-body">
-      <p id="lo-desc">This portal uses your location to show nearby ghats, toilets, medical camps, and to dispatch the nearest volunteer during emergencies. Your location is never stored.</p>
+      <div class="loc-mini-stats">
+        <div><span>📍</span>Nearest ghats</div>
+        <div><span>🚑</span>Faster SOS</div>
+        <div><span>🚻</span>Toilets &amp; food</div>
+      </div>
+      <p id="lo-desc">We use your location only on this device to show you what's near. Nothing is stored.</p>
       <div class="loc-actions">
         <button class="btn-allow" onclick="reqLoc()" id="btn-allow">📍 Allow Location</button>
-        <button class="btn-skip" onclick="skipLoc()" id="btn-skip">Continue without location</button>
+        <button class="btn-skip" onclick="showLocFallback()" id="btn-skip" style="background:transparent;border:none;color:var(--t3);font-size:12px;text-decoration:underline;padding:6px">Can't share? Use manual area instead</button>
       </div>
+      <div class="loc-fallback" id="loc-fallback">
+        <p>Pick the area closest to you — we'll use it to show nearby services.</p>
+        <div class="loc-area-row">
+          <select id="loc-area-sel" aria-label="Pick your area">
+            <option value="16.9857,81.7821">Rajahmundry (City Centre)</option>
+            <option value="16.9890,81.7790">Pushkar Ghat</option>
+            <option value="16.9930,81.7755">Saraswati Ghat</option>
+            <option value="16.9819,81.7868">Kotilingala Ghat</option>
+            <option value="17.0050,81.8050">Kovvur</option>
+            <option value="17.1050,81.7860">Korukonda</option>
+            <option value="16.7867,82.2378">Kakinada</option>
+          </select>
+          <button onclick="useManualLoc()">Use this</button>
+        </div>
+        <div style="text-align:center;margin-top:12px">
+          <a href="tel:18004250066" class="loc-call-help" aria-label="Call Pushkaralu helpline 1800-425-0066">📞 Call Helpline 1800-425-0066</a>
+        </div>
+      </div>
+      <div class="loc-mandatory-note" id="lo-note">🔒 Your privacy: location is used only on your device.</div>
     </div>
   </div>
 </div>
@@ -1089,6 +1245,7 @@ html,body{max-width:100%;overflow-x:hidden}
         <button class="lb" onclick="setLang('hi')">हि</button>
       </div>
       <button id="theme-toggle" class="theme-btn" onclick="toggleTheme()" title="Toggle Dark Mode">🌙</button>
+      <button id="hc-toggle" class="theme-btn" onclick="toggleHC()" title="High contrast / larger text" aria-label="Toggle high contrast and larger text" style="font-weight:800;font-size:13px">Aa</button>
       <button class="ham-btn" id="ham-btn" onclick="toggleHam()" aria-label="Menu" aria-expanded="false">
         <span class="ham-bar"></span>
         <span class="ham-bar"></span>
@@ -1107,6 +1264,7 @@ html,body{max-width:100%;overflow-x:hidden}
   <nav class="nav">
     <div class="nav-inner">
       <button class="nt on" onclick="goSec('home')">🏠 <span class="t" data-k="nav_home">Home</span></button>
+      <button class="nt" onclick="goSec('plan')">🧳 <span class="t" data-k="nav_plan">Plan Trip</span></button>
       <button class="nt" onclick="goSec('ghats')">🌊 <span class="t" data-k="nav_ghats">Ghats & Schedule</span></button>
       <button class="nt" onclick="goSec('fac')">🏥 <span class="t" data-k="nav_fac">Facilities</span></button>
       <button class="nt" onclick="goSec('transport')">🚌 <span class="t" data-k="nav_trans">Transport</span></button>
@@ -1137,6 +1295,7 @@ html,body{max-width:100%;overflow-x:hidden}
   <div class="ham-tricolor"></div>
   <nav class="ham-nav">
     <button class="ham-item ham-active" onclick="hamGoSec('home')">    <span class="ham-icon">🏠</span><span class="ham-label">Home</span></button>
+    <button class="ham-item" onclick="hamGoSec('plan')">              <span class="ham-icon">🧳</span><span class="ham-label">Plan Your Trip</span></button>
     <button class="ham-item" onclick="hamGoSec('ghats')">             <span class="ham-icon">🌊</span><span class="ham-label">Ghats &amp; Schedule</span></button>
     <button class="ham-item" onclick="hamGoSec('fac')">               <span class="ham-icon">🏥</span><span class="ham-label">Facilities</span></button>
     <button class="ham-item" onclick="hamGoSec('transport')">         <span class="ham-icon">🚌</span><span class="ham-label">Transport</span></button>
@@ -1795,6 +1954,141 @@ html,body{max-width:100%;overflow-x:hidden}
 
 </div><!-- /sec-tourgo -->
 
+<!-- ===== PLAN TRIP (pre-travel: route, stay, date, documents) ===== -->
+<div id="sec-plan" class="sec">
+  <div class="plan-hero">
+    <h2>🧳 <span class="t" data-k="plan_title">Plan Your Pushkaralu Trip</span></h2>
+    <p class="t" data-k="plan_sub">Set your route, stay, sacred bathing date and documents in one place. Saved on this device — works offline.</p>
+  </div>
+
+  <div class="plan-tip">
+    💡 <span class="t" data-k="plan_tip">Tip: First-time pilgrims should plan to arrive a day early, book lodging in advance, and check the muhurtham of their bathing day.</span>
+  </div>
+
+  <div class="plan-step-grid">
+
+    <!-- 1. ROUTE -->
+    <div class="plan-card route">
+      <div class="plan-card-h"><div class="ico">🗺️</div><h3 class="t" data-k="plan_route">1. Plan Route</h3></div>
+      <label class="t" data-k="plan_from">From (Your City)</label>
+      <input type="text" id="pl-from" placeholder="e.g. Hyderabad, Vijayawada, Visakhapatnam" autocomplete="off">
+      <label class="t" data-k="plan_to">To</label>
+      <select id="pl-to">
+        <option value="Rajahmundry">Rajahmundry / Rajamahendravaram</option>
+        <option value="Kovvur">Kovvur (across the river)</option>
+        <option value="Korukonda">Korukonda</option>
+        <option value="Kakinada">Kakinada</option>
+      </select>
+      <label class="t" data-k="plan_mode">Travel Mode</label>
+      <select id="pl-mode">
+        <option value="train">🚆 Train (RJY Junction)</option>
+        <option value="bus">🚌 APSRTC Bus</option>
+        <option value="car">🚗 Own Vehicle</option>
+        <option value="flight">✈️ Flight (Rajahmundry RJA / Vijayawada)</option>
+      </select>
+      <div style="margin-top:10px">
+        <a href="#" id="pl-route-link" class="plan-btn ghost" style="display:none;text-decoration:none" target="_blank" rel="noopener">🗺️ <span class="t" data-k="plan_open_maps">Open route in Maps</span></a>
+      </div>
+    </div>
+
+    <!-- 2. STAY -->
+    <div class="plan-card stay">
+      <div class="plan-card-h"><div class="ico">🏨</div><h3 class="t" data-k="plan_stay">2. Stay / Lodging</h3></div>
+      <label class="t" data-k="plan_stay_type">Lodging Type</label>
+      <select id="pl-stay-type">
+        <option value="hotel">🏨 Hotel</option>
+        <option value="lodge">🛏️ Lodge / Guest House</option>
+        <option value="dharamshala">🛕 Dharamshala / Choultry</option>
+        <option value="tent">⛺ Govt Tent City (free)</option>
+        <option value="relative">👨‍👩‍👧 Staying with Relatives</option>
+        <option value="none">❓ Not yet decided</option>
+      </select>
+      <label class="t" data-k="plan_stay_name">Name &amp; Phone (so we can verify)</label>
+      <input type="text" id="pl-stay-name" placeholder="e.g. Hotel Anand, 9848000000" autocomplete="off">
+      <label class="t" data-k="plan_stay_persons">Number of Pilgrims</label>
+      <input type="number" id="pl-stay-persons" min="1" max="50" value="2" inputmode="numeric">
+      <div style="margin-top:10px">
+        <button class="plan-btn ghost" onclick="goSec('fac');setTimeout(()=>document.querySelector('[data-fac=hotel]')?.click(),200)">🔍 <span class="t" data-k="plan_browse_hotels">Browse Hotel List</span></button>
+      </div>
+    </div>
+
+    <!-- 3. DATE -->
+    <div class="plan-card date">
+      <div class="plan-card-h"><div class="ico">📅</div><h3 class="t" data-k="plan_date">3. Bathing Date</h3></div>
+      <label class="t" data-k="plan_date_choose">Pick Sacred Bathing Day</label>
+      <select id="pl-date">
+        <option value="2027-06-26">Day 1 · Jun 26 — Maha Pushkaram (peak crowd)</option>
+        <option value="2027-06-27">Day 2 · Jun 27</option>
+        <option value="2027-06-28">Day 3 · Jun 28</option>
+        <option value="2027-06-29">Day 4 · Jun 29</option>
+        <option value="2027-06-30">Day 5 · Jun 30</option>
+        <option value="2027-07-01">Day 6 · Jul 1</option>
+        <option value="2027-07-02">Day 7 · Jul 2</option>
+        <option value="2027-07-03">Day 8 · Jul 3</option>
+        <option value="2027-07-04">Day 9 · Jul 4</option>
+        <option value="2027-07-05">Day 10 · Jul 5</option>
+        <option value="2027-07-06">Day 11 · Jul 6</option>
+        <option value="2027-07-07">Day 12 · Jul 7 — Antima Pushkaram (peak crowd)</option>
+      </select>
+      <label class="t" data-k="plan_arrival">Arrival Time</label>
+      <select id="pl-arrival">
+        <option value="early">🌅 Early Morning (3 AM – 7 AM) — Recommended</option>
+        <option value="morning">☀️ Morning (7 AM – 11 AM)</option>
+        <option value="noon">🌞 Midday (11 AM – 3 PM)</option>
+        <option value="evening">🌇 Evening (3 PM – 7 PM)</option>
+      </select>
+      <label class="t" data-k="plan_ghat">Preferred Ghat</label>
+      <select id="pl-ghat">
+        <option value="">Any (decide on arrival)</option>
+        <option value="Pushkar Ghat">Pushkar Ghat (main)</option>
+        <option value="Saraswati Ghat">Saraswati Ghat</option>
+        <option value="Kotilingala Ghat">Kotilingala Ghat</option>
+        <option value="Gowthami Ghat">Gowthami Ghat</option>
+        <option value="Markandeya Ghat">Markandeya Ghat</option>
+      </select>
+    </div>
+
+    <!-- 4. DOCUMENTS -->
+    <div class="plan-card docs">
+      <div class="plan-card-h"><div class="ico">📄</div><h3 class="t" data-k="plan_docs">4. Documents Checklist</h3></div>
+      <p style="font-size:12px;color:var(--t3);margin:0 0 6px 0" class="t" data-k="plan_docs_sub">Tick what you have packed. Saved automatically.</p>
+      <ul class="docs-list" id="pl-docs">
+        <li><input type="checkbox" id="d1" data-doc="aadhaar"><label for="d1" class="t" data-k="d_aadhaar">🆔 Aadhaar / Govt ID (each pilgrim)</label></li>
+        <li><input type="checkbox" id="d2" data-doc="ticket"><label for="d2" class="t" data-k="d_ticket">🎟️ Train / Bus ticket print-out</label></li>
+        <li><input type="checkbox" id="d3" data-doc="medicine"><label for="d3" class="t" data-k="d_medicine">💊 Daily medicines + prescriptions</label></li>
+        <li><input type="checkbox" id="d4" data-doc="cash"><label for="d4" class="t" data-k="d_cash">💵 Cash + UPI app (network may be slow)</label></li>
+        <li><input type="checkbox" id="d5" data-doc="water"><label for="d5" class="t" data-k="d_water">🚰 Water bottle &amp; light snacks</label></li>
+        <li><input type="checkbox" id="d6" data-doc="clothes"><label for="d6" class="t" data-k="d_clothes">👕 Change of clothes (after holy dip)</label></li>
+        <li><input type="checkbox" id="d7" data-doc="towel"><label for="d7" class="t" data-k="d_towel">🧺 Towel + plastic bag for wet clothes</label></li>
+        <li><input type="checkbox" id="d8" data-doc="contact"><label for="d8" class="t" data-k="d_contact">📞 Family contact numbers (written copy)</label></li>
+        <li><input type="checkbox" id="d9" data-doc="hat"><label for="d9" class="t" data-k="d_hat">🧢 Cap, sunscreen &amp; umbrella</label></li>
+        <li><input type="checkbox" id="d10" data-doc="shoes"><label for="d10" class="t" data-k="d_shoes">👟 Comfortable footwear (lots of walking)</label></li>
+      </ul>
+    </div>
+
+  </div>
+
+  <div class="plan-summary" id="pl-summary"></div>
+
+  <div class="plan-actions">
+    <button class="plan-btn ok" onclick="savePlan()">💾 <span class="t" data-k="plan_save">Save My Plan</span></button>
+    <button class="plan-btn ghost" onclick="printPlan()">🖨️ <span class="t" data-k="plan_print">Print / Save PDF</span></button>
+    <button class="plan-btn ghost" onclick="sharePlan()">📤 <span class="t" data-k="plan_share">Share with Family</span></button>
+    <button class="plan-btn ghost" onclick="clearPlan()" style="border-color:var(--danger);color:var(--danger)">🗑️ <span class="t" data-k="plan_clear">Clear</span></button>
+  </div>
+
+  <div style="background:var(--card);border:var(--border);border-radius:var(--r);padding:14px 16px;font-size:13px;color:var(--t2);line-height:1.7">
+    <strong style="color:var(--saffron)" class="t" data-k="plan_safety_h">🛡️ Safety reminders before you leave</strong>
+    <ul style="padding-left:18px;margin-top:8px">
+      <li class="t" data-k="ps1">Tell at least one family member your bathing day &amp; preferred ghat.</li>
+      <li class="t" data-k="ps2">Save Pushkaralu Helpline 1800-425-0066 in your phone before travelling.</li>
+      <li class="t" data-k="ps3">Keep a written paper copy of emergency contacts — phones may discharge in crowds.</li>
+      <li class="t" data-k="ps4">Avoid wearing heavy gold ornaments to ghats. Carry only essentials.</li>
+      <li class="t" data-k="ps5">Elderly &amp; children: stay with the group, fix a meeting point in case of separation.</li>
+    </ul>
+  </div>
+</div><!-- /sec-plan -->
+
 <footer class="site-footer">
   <div class="footer-partners">
     <a href="https://rmc.ap.gov.in/" target="_blank" rel="noopener" class="fp-item">🏛️ Rajamahendravaram Municipal Corporation</a>
@@ -1814,7 +2108,7 @@ html,body{max-width:100%;overflow-x:hidden}
 // ═══ TRANSLATIONS ═══════════════════════════════════════════
 const LANG={
 en:{
-  nav_home:'Home',nav_ghats:'Ghats & Schedule',nav_fac:'Facilities',nav_trans:'Transport',nav_report:'Report Issue',nav_mine:'My Reports',
+  nav_home:'Home',nav_plan:'Plan Trip',nav_ghats:'Ghats & Schedule',nav_fac:'Facilities',nav_trans:'Transport',nav_report:'Report Issue',nav_mine:'My Reports',
   hero_badge:'Sacred Festival of Godavari River',sacred_days:'Sacred Days',
   sos_btn:'EMERGENCY SOS',sos_hint:'Press only in emergencies — Police · Medical · Volunteer dispatch',
   live_status:'Live Festival Status',refresh:'Refresh',
@@ -1836,11 +2130,22 @@ en:{
   sos_warn:'⚠️ Use SOS Only for Genuine Emergencies',sos_warn_d:'False alarms misuse volunteer resources. Use Report Issue for non-emergencies.',
   mine_title:'My Submitted Reports',footer:'Godavari Pushkaralu 2027 · Pilgrim Information Portal · Government of Andhra Pradesh',
   t_govbar:'🇮🇳 Government of Andhra Pradesh — Official Portal',t_helpbar:'Helpline: 1800-425-8877',t_days:'Days to Pushkaralu',t_vol:'Volunteer',
-  lo_h:'Allow Location Access',lo_p:'For nearest facilities & emergency SOS dispatch',lo_desc:'This portal uses your location to show nearby ghats, toilets, medical camps, and to dispatch the nearest volunteer during emergencies. Your location is never stored.',lo_allow:'📍 Allow Location',lo_skip:'Continue without location',
+  lo_h:'Share your location',lo_p:'Required for nearest help & SOS',lo_desc:'We use your location only on this device to show you what is near. Nothing is stored.',lo_allow:'📍 Allow Location',lo_skip:"Can't share? Use manual area instead",
   fac_all:'All',fac_toilet:'Toilets',fac_medical:'Medical Camps',fac_parking:'Parking',fac_enquiry:'Enquiry',fac_food:'Food Stalls',fac_hotel:'Hotels',fac_bus:'Bus Stops',fac_petrol:'Petrol Bunks',fac_luggage:'Luggage',
+  sos_fab:'SOS', voice_tip:'Voice assistant — coming soon',
+  plan_title:'Plan Your Pushkaralu Trip', plan_sub:'Set your route, stay, sacred bathing date and documents in one place. Saved on this device — works offline.',
+  plan_tip:'Tip: First-time pilgrims should plan to arrive a day early, book lodging in advance, and check the muhurtham of their bathing day.',
+  plan_route:'1. Plan Route', plan_from:'From (Your City)', plan_to:'To', plan_mode:'Travel Mode', plan_open_maps:'Open route in Maps',
+  plan_stay:'2. Stay / Lodging', plan_stay_type:'Lodging Type', plan_stay_name:'Name & Phone (so we can verify)', plan_stay_persons:'Number of Pilgrims', plan_browse_hotels:'Browse Hotel List',
+  plan_date:'3. Bathing Date', plan_date_choose:'Pick Sacred Bathing Day', plan_arrival:'Arrival Time', plan_ghat:'Preferred Ghat',
+  plan_docs:'4. Documents Checklist', plan_docs_sub:'Tick what you have packed. Saved automatically.',
+  d_aadhaar:'🆔 Aadhaar / Govt ID (each pilgrim)', d_ticket:'🎟️ Train / Bus ticket print-out', d_medicine:'💊 Daily medicines + prescriptions', d_cash:'💵 Cash + UPI app (network may be slow)', d_water:'🚰 Water bottle & light snacks', d_clothes:'👕 Change of clothes (after holy dip)', d_towel:'🧺 Towel + plastic bag for wet clothes', d_contact:'📞 Family contact numbers (written copy)', d_hat:'🧢 Cap, sunscreen & umbrella', d_shoes:'👟 Comfortable footwear (lots of walking)',
+  plan_save:'Save My Plan', plan_print:'Print / Save PDF', plan_share:'Share with Family', plan_clear:'Clear',
+  plan_safety_h:'🛡️ Safety reminders before you leave',
+  ps1:'Tell at least one family member your bathing day & preferred ghat.', ps2:'Save Pushkaralu Helpline 1800-425-0066 in your phone before travelling.', ps3:'Keep a written paper copy of emergency contacts — phones may discharge in crowds.', ps4:'Avoid wearing heavy gold ornaments to ghats. Carry only essentials.', ps5:'Elderly & children: stay with the group, fix a meeting point in case of separation.',
 },
 te:{
-  nav_home:'హోమ్',nav_ghats:'ఘాట్లు & షెడ్యూల్',nav_fac:'సౌకర్యాలు',nav_trans:'రవాణా',nav_report:'సమస్య నివేదించు',nav_mine:'నా నివేదికలు',
+  nav_home:'హోమ్',nav_plan:'యాత్ర ప్లాన్',nav_ghats:'ఘాట్లు & షెడ్యూల్',nav_fac:'సౌకర్యాలు',nav_trans:'రవాణా',nav_report:'సమస్య నివేదించు',nav_mine:'నా నివేదికలు',
   hero_badge:'గోదావరి నదీ పవిత్ర పండుగ',sacred_days:'పవిత్ర దినాలు',
   sos_btn:'అత్యవసర SOS',sos_hint:'అత్యవసర పరిస్థితులలో మాత్రమే నొక్కండి',
   live_status:'లైవ్ పండుగ స్థితి',refresh:'రిఫ్రెష్',
@@ -1862,11 +2167,22 @@ te:{
   sos_warn:'⚠️ నిజమైన అత్యవసర పరిస్థితులలో మాత్రమే SOS వాడండి',sos_warn_d:'తప్పుడు హెచ్చరికలు వాలంటీర్ వనరులను వృథా చేస్తాయి.',
   mine_title:'నా సమర్పించిన నివేదికలు',footer:'గోదావరి పుష్కరాలు 2027 · ఆంధ్రప్రదేశ్ ప్రభుత్వం',
   t_govbar:'🇮🇳 ఆంధ్రప్రదేశ్ ప్రభుత్వం — అధికారిక పోర్టల్',t_helpbar:'హెల్ప్‌లైన్: 1800-425-8877',t_days:'పుష్కరాలకు రోజులు',t_vol:'వాలంటీర్',
-  lo_h:'స్థాన యాక్సెస్ అనుమతించండి',lo_p:'సమీప సౌకర్యాలు & SOS కోసం',lo_desc:'ఈ పోర్టల్ సమీప ఘాట్లు, టాయిలెట్లు, వైద్య శిబిరాలు చూపించడానికి మీ స్థానాన్ని ఉపయోగిస్తుంది.',lo_allow:'📍 స్థానం అనుమతించు',lo_skip:'స్థానం లేకుండా కొనసాగించు',
+  lo_h:'స్థానం పంచుకోండి',lo_p:'సమీప సహాయం & SOS కోసం అవసరం',lo_desc:'ఈ పరికరంలో మాత్రమే ఉపయోగిస్తాం. ఎక్కడా నిల్వ చేయము.',lo_allow:'📍 స్థానం అనుమతించు',lo_skip:'పంచుకోలేరా? మాన్యువల్ ప్రాంతం ఎంచుకోండి',
   fac_all:'అన్నీ',fac_toilet:'టాయిలెట్లు',fac_medical:'వైద్య శిబిరాలు',fac_parking:'పార్కింగ్',fac_enquiry:'విచారణ',fac_food:'ఆహార స్టాల్స్',fac_hotel:'హోటళ్ళు',fac_bus:'బస్ స్టాప్లు',fac_petrol:'పెట్రోల్ బంక్లు',fac_luggage:'లగేజీ',
+  sos_fab:'SOS', voice_tip:'వాయిస్ సహాయం — త్వరలో',
+  plan_title:'మీ పుష్కరాల యాత్రను ప్లాన్ చేయండి', plan_sub:'మార్గం, బస, స్నాన దినం, పత్రాలు అన్నీ ఒకే చోట. ఈ పరికరంలో సేవ్ — ఆఫ్‌లైన్‌లో పనిచేస్తుంది.',
+  plan_tip:'సూచన: మొదటిసారి యాత్రికులు ఒక రోజు ముందు చేరుకోవాలి, బస ముందుగానే బుక్ చేసుకోవాలి, ముహూర్తం తనిఖీ చేయాలి.',
+  plan_route:'1. మార్గం ప్లాన్', plan_from:'ఎక్కడి నుంచి (మీ నగరం)', plan_to:'ఎక్కడికి', plan_mode:'ప్రయాణ మాధ్యమం', plan_open_maps:'మ్యాప్‌లో మార్గం తెరవండి',
+  plan_stay:'2. బస / వసతి', plan_stay_type:'వసతి రకం', plan_stay_name:'పేరు & ఫోన్', plan_stay_persons:'యాత్రికుల సంఖ్య', plan_browse_hotels:'హోటల్ జాబితా',
+  plan_date:'3. స్నాన దినం', plan_date_choose:'పవిత్ర స్నాన దినం ఎంచుకోండి', plan_arrival:'రాక సమయం', plan_ghat:'ఇష్టమైన ఘాట్',
+  plan_docs:'4. పత్రాల జాబితా', plan_docs_sub:'ఏం ప్యాక్ చేశారో గుర్తుపెట్టండి. ఆటోసేవ్.',
+  d_aadhaar:'🆔 ఆధార్ / ప్రభుత్వ ID', d_ticket:'🎟️ ట్రైన్ / బస్ టికెట్', d_medicine:'💊 రోజువారీ మందులు + ప్రిస్క్రిప్షన్‌', d_cash:'💵 నగదు + UPI', d_water:'🚰 నీటి బాటిల్ & తేలికపాటి స్నాక్స్', d_clothes:'👕 మార్పు దుస్తులు', d_towel:'🧺 టవల్ + ప్లాస్టిక్ బ్యాగ్', d_contact:'📞 కుటుంబ ఫోన్ నంబర్లు', d_hat:'🧢 టోపీ, సన్‌స్క్రీన్, గొడుగు', d_shoes:'👟 సౌకర్యవంతమైన బూట్లు',
+  plan_save:'నా ప్లాన్ సేవ్ చేయి', plan_print:'ప్రింట్ / PDF', plan_share:'కుటుంబంతో పంచుకో', plan_clear:'తొలగించు',
+  plan_safety_h:'🛡️ బయలుదేరడానికి ముందు భద్రతా సూచనలు',
+  ps1:'మీ స్నాన దినం & ఘాట్ గురించి కనీసం ఒక కుటుంబ సభ్యునికి చెప్పండి.', ps2:'1800-425-0066 హెల్ప్‌లైన్ ఫోన్‌లో సేవ్ చేసుకోండి.', ps3:'అత్యవసర సంప్రదింపు వివరాలు కాగితంపై కూడా రాసుకోండి.', ps4:'భారీ బంగారు ఆభరణాలు ధరించవద్దు.', ps5:'వృద్ధులు, పిల్లలు: సమూహంతో ఉండండి, మీటింగ్ స్థలం నిర్ణయించుకోండి.',
 },
 hi:{
-  nav_home:'होम',nav_ghats:'घाट & शेड्यूल',nav_fac:'सुविधाएं',nav_trans:'परिवहन',nav_report:'समस्या रिपोर्ट',nav_mine:'मेरी रिपोर्ट',
+  nav_home:'होम',nav_plan:'यात्रा प्लान',nav_ghats:'घाट & शेड्यूल',nav_fac:'सुविधाएं',nav_trans:'परिवहन',nav_report:'समस्या रिपोर्ट',nav_mine:'मेरी रिपोर्ट',
   hero_badge:'गोदावरी नदी का पवित्र उत्सव',sacred_days:'पवित्र दिन',
   sos_btn:'आपातकालीन SOS',sos_hint:'केवल आपात स्थिति में दबाएं — पुलिस · चिकित्सा · स्वयंसेवक',
   live_status:'लाइव फेस्टिवल स्थिति',refresh:'रिफ्रेश',
@@ -1888,8 +2204,19 @@ hi:{
   sos_warn:'⚠️ SOS केवल वास्तविक आपात स्थिति में उपयोग करें',sos_warn_d:'झूठे अलर्ट स्वयंसेवक संसाधन बर्बाद करते हैं।',
   mine_title:'मेरी सबमिट की गई रिपोर्ट',footer:'गोदावरी पुष्करालु 2027 · आंध्र प्रदेश सरकार',
   t_govbar:'🇮🇳 आंध्र प्रदेश सरकार — आधिकारिक पोर्टल',t_helpbar:'हेल्पलाइन: 1800-425-8877',t_days:'पुष्करालु तक दिन',t_vol:'स्वयंसेवक',
-  lo_h:'स्थान अनुमति दें',lo_p:'निकटतम सुविधाओं और SOS के लिए',lo_desc:'यह पोर्टल निकटतम घाट, शौचालय, चिकित्सा शिविर दिखाने के लिए और आपातकाल में स्वयंसेवक भेजने के लिए आपके स्थान का उपयोग करता है।',lo_allow:'📍 स्थान की अनुमति दें',lo_skip:'स्थान के बिना जारी रखें',
+  lo_h:'स्थान साझा करें',lo_p:'निकटतम सहायता और SOS के लिए आवश्यक',lo_desc:'हम केवल आपके डिवाइस पर इसका उपयोग करते हैं। कुछ भी सहेजा नहीं जाता।',lo_allow:'📍 स्थान की अनुमति दें',lo_skip:'साझा नहीं कर सकते? मैन्युअल क्षेत्र चुनें',
   fac_all:'सभी',fac_toilet:'शौचालय',fac_medical:'चिकित्सा शिविर',fac_parking:'पार्किंग',fac_enquiry:'पूछताछ',fac_food:'खाना',fac_hotel:'होटल',fac_bus:'बस स्टॉप',fac_petrol:'पेट्रोल पंप',fac_luggage:'सामान',
+  sos_fab:'SOS', voice_tip:'वॉइस सहायक — जल्द आ रहा है',
+  plan_title:'अपनी पुष्करालु यात्रा की योजना बनाएं', plan_sub:'मार्ग, ठहरने की जगह, स्नान दिन और दस्तावेज़ एक जगह। डिवाइस पर सेव — ऑफ़लाइन भी काम करता है।',
+  plan_tip:'सुझाव: पहली बार आने वाले यात्री एक दिन पहले पहुँचें, ठहरने की बुकिंग पहले करें।',
+  plan_route:'1. मार्ग योजना', plan_from:'कहाँ से (आपका शहर)', plan_to:'कहाँ', plan_mode:'यात्रा माध्यम', plan_open_maps:'मैप में मार्ग खोलें',
+  plan_stay:'2. ठहरने की जगह', plan_stay_type:'ठहरने का प्रकार', plan_stay_name:'नाम और फ़ोन', plan_stay_persons:'यात्रियों की संख्या', plan_browse_hotels:'होटल सूची',
+  plan_date:'3. स्नान दिन', plan_date_choose:'पवित्र स्नान दिन चुनें', plan_arrival:'पहुँचने का समय', plan_ghat:'पसंदीदा घाट',
+  plan_docs:'4. दस्तावेज़ चेकलिस्ट', plan_docs_sub:'जो पैक किया है उसे टिक करें।',
+  d_aadhaar:'🆔 आधार / सरकारी ID', d_ticket:'🎟️ ट्रेन / बस टिकट', d_medicine:'💊 दैनिक दवाएं + पर्ची', d_cash:'💵 नकद + UPI', d_water:'🚰 पानी की बोतल & स्नैक्स', d_clothes:'👕 कपड़े बदलने के लिए', d_towel:'🧺 तौलिया + प्लास्टिक बैग', d_contact:'📞 परिवार के संपर्क नंबर', d_hat:'🧢 टोपी, सनस्क्रीन, छाता', d_shoes:'👟 आरामदायक जूते',
+  plan_save:'मेरी योजना सेव करें', plan_print:'प्रिंट / PDF', plan_share:'परिवार के साथ साझा करें', plan_clear:'साफ़ करें',
+  plan_safety_h:'🛡️ निकलने से पहले सुरक्षा अनुस्मारक',
+  ps1:'अपने स्नान दिन और घाट के बारे में कम से कम एक पारिवारिक सदस्य को बताएं।', ps2:'पुष्करालु हेल्पलाइन 1800-425-0066 फ़ोन में सेव करें।', ps3:'आपातकालीन संपर्क की कागज़ी प्रति रखें।', ps4:'भारी सोने के गहने न पहनें।', ps5:'बुज़ुर्ग और बच्चे: समूह के साथ रहें, मिलने का स्थान तय करें।',
 }};
 
 let lang='en';
@@ -1950,7 +2277,7 @@ try{myReports=JSON.parse(localStorage.getItem('pr')||'[]');}catch(e){}
 function reqLoc(){
   const b=document.getElementById('btn-allow');
   b.innerHTML='<span class="spin"></span> Detecting...';b.disabled=true;
-  if(!navigator.geolocation){skipLoc();return;}
+  if(!navigator.geolocation){showLocFallback();b.disabled=false;b.innerHTML='📍 Allow Location';return;}
   navigator.geolocation.getCurrentPosition(pos=>{
     uLat=pos.coords.latitude;uLon=pos.coords.longitude;locKnown=true;
     uAccuracy=pos.coords.accuracy;
@@ -1963,9 +2290,32 @@ function reqLoc(){
     closeOverlay();
     if(allFac.length)renderFacHome(homeFacFilter);
     _onLocGranted();   // trigger location context if SOS tab is open
-  },()=>closeOverlay(),GPS_OPTS);
+  },(err)=>{
+    console.warn('[GPS] denied/failed:',err&&err.message);
+    b.innerHTML='📍 Try Again';b.disabled=false;
+    showLocFallback();
+  },GPS_OPTS);
 }
 function skipLoc(){closeOverlay();}
+function showLocFallback(){
+  const f=document.getElementById('loc-fallback');
+  if(f){f.classList.add('show');f.scrollIntoView({behavior:'smooth',block:'nearest'});}
+}
+function useManualLoc(){
+  const sel=document.getElementById('loc-area-sel');
+  if(!sel)return;
+  const [lat,lon]=sel.value.split(',').map(Number);
+  uLat=lat;uLon=lon;locKnown=true;uAccuracy=null;
+  const lab=sel.options[sel.selectedIndex].text;
+  console.log('[GPS] Manual area selected —', lab, lat, lon);
+  document.getElementById('r-lat').value=uLat;document.getElementById('r-lon').value=uLon;
+  setLocStatus('r-loc-box','r-loc-txt',`📍 ${lab} (manual)`,'ok');
+  setLocStatus('sos-loc-box','sos-loc-txt',`📍 ${lab} (manual)`,'ok');
+  document.getElementById('loc-hint').textContent=`📍 ${lab}`;
+  closeOverlay();
+  if(allFac.length)renderFacHome(homeFacFilter);
+  if(typeof _onLocGranted==='function')_onLocGranted();
+}
 function closeOverlay(){const o=document.getElementById('loc-overlay');o.style.opacity='0';o.style.transition='opacity .3s';setTimeout(()=>o.style.display='none',300);}
 
 // ═══ NAVIGATION ══════════════════════════════════════════════
@@ -2000,7 +2350,7 @@ function closeHam() {
 function hamGoSec(id) {
   // Update active state in drawer
   document.querySelectorAll('.ham-item').forEach(i => i.classList.remove('ham-active'));
-  const ids = ['home','ghats','fac','transport','report','sos','emergency','lost','tourgo','about'];
+  const ids = ['home','plan','ghats','fac','transport','report','sos','emergency','lost','tourgo','about'];
   const idx = ids.indexOf(id);
   if (idx >= 0) document.querySelectorAll('.ham-item')[idx].classList.add('ham-active');
   goSec(id);
@@ -2013,8 +2363,11 @@ function goSec(id){
   document.querySelectorAll('.sec').forEach(s=>s.classList.remove('on'));
   document.querySelectorAll('.nt').forEach(t=>t.classList.remove('on'));
   document.getElementById('sec-'+id).classList.add('on');
-  const ids=['home','ghats','fac','transport','report','sos','emergency','lost','about','tourgo'];
+  const ids=['home','plan','ghats','fac','transport','report','sos','emergency','lost','about','tourgo'];
   const i=ids.indexOf(id);if(i>=0)document.querySelectorAll('.nt')[i].classList.add('on');
+
+  // Plan section: hydrate saved plan data on open
+  if(id==='plan'){ if(typeof loadPlan==='function') loadPlan(); }
 
   // Always load+render the section; if data is already in memory the fetch
   // is a tiny no-op because we cache results in module-level arrays.
@@ -2218,8 +2571,23 @@ function renderLostUser(){
 }
 async function loadGhats(){
   const el=document.getElementById('ghats-list');if(el)el.innerHTML=loading();
-  try{const d=await(await fetch(`${API_BASE}/get_ghats`)).json();allGhats=d.ghats||[];renderGhats();populateGhatSelector();_refreshMapMarkers();}
-  catch(e){if(el)el.innerHTML=errMsg();}
+  try{
+    const d=await(await fetch(`${API_BASE}/get_ghats`)).json();
+    allGhats=d.ghats||[];
+    if(window._offlineCache) window._offlineCache.set('ghats', allGhats);
+    renderGhats();populateGhatSelector();_refreshMapMarkers();
+  }
+  catch(e){
+    // Fall back to cached data if offline / network failed
+    const cached = window._offlineCache && window._offlineCache.get('ghats');
+    if(cached && cached.length){
+      allGhats = cached;
+      renderGhats();populateGhatSelector();_refreshMapMarkers();
+      console.info('[offline] Loaded ghats from cache');
+    } else if(el) {
+      el.innerHTML=errMsg();
+    }
+  }
 }
 async function loadFac(){
   const el=document.getElementById('fac-full');el.innerHTML=loading();
@@ -2232,13 +2600,37 @@ async function loadFac(){
     if(params.length) url+='?'+params.join('&');
     const d=await(await fetch(url)).json();
     allFac=d.facilities||[];
+    if(window._offlineCache && !params.length) window._offlineCache.set('fac', allFac);
     buildFacBtns();renderFacFull();
-  }catch(e){el.innerHTML=errMsg();}
+  }catch(e){
+    const cached = window._offlineCache && window._offlineCache.get('fac');
+    if(cached && cached.length){
+      allFac = cached;
+      buildFacBtns();renderFacFull();
+      console.info('[offline] Loaded facilities from cache');
+    }else{
+      el.innerHTML=errMsg();
+    }
+  }
 }
 async function loadTrans(){
   const el=document.getElementById('trans-list');el.innerHTML=loading();
-  try{const d=await(await fetch(`${API_BASE}/get_transport`)).json();allTrans=d.transport_routes||[];renderTrans();}
-  catch(e){el.innerHTML=errMsg();}
+  try{
+    const d=await(await fetch(`${API_BASE}/get_transport`)).json();
+    allTrans=d.transport_routes||[];
+    if(window._offlineCache) window._offlineCache.set('trans', allTrans);
+    renderTrans();
+  }
+  catch(e){
+    const cached = window._offlineCache && window._offlineCache.get('trans');
+    if(cached && cached.length){
+      allTrans = cached;
+      renderTrans();
+      console.info('[offline] Loaded transport from cache');
+    }else{
+      el.innerHTML=errMsg();
+    }
+  }
 }
 
 // ═══ GHAT MINI (homepage) ════════════════════════════════════
@@ -3781,6 +4173,196 @@ function updateThemeIcon(){
   updateThemeIcon();
 })();
 
+// ═══ HIGH-CONTRAST / LARGER-TEXT MODE (for elderly / low-vision) ═════
+function toggleHC(){
+  document.body.classList.toggle('hc-mode');
+  const on = document.body.classList.contains('hc-mode');
+  localStorage.setItem('hc-mode', on ? '1' : '0');
+  const btn = document.getElementById('hc-toggle');
+  if(btn){
+    btn.style.background = on ? 'var(--saffron)' : '';
+    btn.style.color = on ? '#fff' : '';
+    btn.style.borderColor = on ? 'var(--saffron)' : '';
+    btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+  }
+}
+(function initHC(){
+  if(localStorage.getItem('hc-mode') === '1'){
+    document.body.classList.add('hc-mode');
+    setTimeout(()=>{
+      const btn = document.getElementById('hc-toggle');
+      if(btn){
+        btn.style.background='var(--saffron)';btn.style.color='#fff';
+        btn.style.borderColor='var(--saffron)';btn.setAttribute('aria-pressed','true');
+      }
+    },50);
+  }
+})();
+
+// ═══ OFFLINE DETECTION + GRACEFUL DEGRADATION ═════════════════
+function _setOfflineUI(isOffline){
+  const bar = document.getElementById('offline-bar');
+  if(!bar) return;
+  if(isOffline){
+    bar.classList.add('show');
+    document.body.classList.add('has-offline-bar');
+  }else{
+    bar.classList.remove('show');
+    document.body.classList.remove('has-offline-bar');
+  }
+}
+window.addEventListener('online',  () => _setOfflineUI(false));
+window.addEventListener('offline', () => _setOfflineUI(true));
+// initial check
+if(typeof navigator !== 'undefined' && navigator.onLine === false) _setOfflineUI(true);
+
+// Cache critical lists in localStorage so they survive reloads when offline.
+function _cacheData(key, data){
+  try{ localStorage.setItem('cache_'+key, JSON.stringify({t:Date.now(), d:data})); }catch(e){}
+}
+function _readCache(key, maxAgeMs){
+  try{
+    const raw = localStorage.getItem('cache_'+key);
+    if(!raw) return null;
+    const parsed = JSON.parse(raw);
+    if(maxAgeMs && Date.now()-parsed.t > maxAgeMs) return null;
+    return parsed.d;
+  }catch(e){ return null; }
+}
+// Expose simple offline data fallback hook
+window._offlineCache = { set:_cacheData, get:_readCache };
+
+// ═══ PRE-TRAVEL PLANNER ══════════════════════════════════════
+const PLAN_KEY = 'pushkara_trip_plan_v1';
+function savePlan(){
+  const plan = {
+    from:    document.getElementById('pl-from')?.value || '',
+    to:      document.getElementById('pl-to')?.value || 'Rajahmundry',
+    mode:    document.getElementById('pl-mode')?.value || 'train',
+    stayType:document.getElementById('pl-stay-type')?.value || '',
+    stayName:document.getElementById('pl-stay-name')?.value || '',
+    persons: document.getElementById('pl-stay-persons')?.value || '2',
+    date:    document.getElementById('pl-date')?.value || '',
+    arrival: document.getElementById('pl-arrival')?.value || '',
+    ghat:    document.getElementById('pl-ghat')?.value || '',
+    docs:    Array.from(document.querySelectorAll('#pl-docs input[type=checkbox]')).reduce((a,c)=>{a[c.dataset.doc]=c.checked;return a;},{}),
+    saved:   new Date().toISOString()
+  };
+  try{ localStorage.setItem(PLAN_KEY, JSON.stringify(plan)); }catch(e){}
+  _renderPlanSummary(plan);
+  alert('✅ Trip plan saved on this device. It will be available even offline.');
+}
+function loadPlan(){
+  let plan = null;
+  try{ plan = JSON.parse(localStorage.getItem(PLAN_KEY) || 'null'); }catch(e){}
+  if(!plan) return;
+  const set = (id, val) => { const el = document.getElementById(id); if(el && val != null) el.value = val; };
+  set('pl-from', plan.from);
+  set('pl-to', plan.to);
+  set('pl-mode', plan.mode);
+  set('pl-stay-type', plan.stayType);
+  set('pl-stay-name', plan.stayName);
+  set('pl-stay-persons', plan.persons);
+  set('pl-date', plan.date);
+  set('pl-arrival', plan.arrival);
+  set('pl-ghat', plan.ghat);
+  if(plan.docs){
+    Object.entries(plan.docs).forEach(([k,v])=>{
+      const cb = document.querySelector(`#pl-docs input[data-doc="${k}"]`);
+      if(cb) cb.checked = !!v;
+    });
+  }
+  _renderPlanSummary(plan);
+  _updateRouteLink();
+}
+function clearPlan(){
+  if(!confirm('Clear your saved trip plan?')) return;
+  try{ localStorage.removeItem(PLAN_KEY); }catch(e){}
+  document.querySelectorAll('#sec-plan input, #sec-plan select').forEach(el=>{
+    if(el.type==='checkbox') el.checked=false;
+    else if(el.type==='number') el.value=el.defaultValue||'';
+    else el.value = el.tagName==='SELECT' ? el.options[0].value : '';
+  });
+  document.getElementById('pl-summary')?.classList.remove('show');
+  document.getElementById('pl-route-link').style.display='none';
+}
+function _renderPlanSummary(plan){
+  const box = document.getElementById('pl-summary');
+  if(!box || !plan) return;
+  const docCount = plan.docs ? Object.values(plan.docs).filter(Boolean).length : 0;
+  const totalDocs = document.querySelectorAll('#pl-docs input[type=checkbox]').length || 10;
+  const dateLabel = plan.date ? new Date(plan.date).toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'short',year:'numeric'}) : '—';
+  box.innerHTML = `
+    <h4>📋 Your saved plan</h4>
+    <strong>Route:</strong> ${plan.from || '?'} → ${plan.to || 'Rajahmundry'} via ${plan.mode || '?'}<br>
+    <strong>Stay:</strong> ${plan.stayType || '?'}${plan.stayName?' · '+plan.stayName:''} · ${plan.persons || '?'} pilgrim(s)<br>
+    <strong>Bathing day:</strong> ${dateLabel}${plan.ghat?' at '+plan.ghat:''}${plan.arrival?' · '+plan.arrival:''}<br>
+    <strong>Documents packed:</strong> ${docCount} of ${totalDocs}
+  `;
+  box.classList.add('show');
+}
+function _updateRouteLink(){
+  const from = document.getElementById('pl-from')?.value;
+  const to   = document.getElementById('pl-to')?.value || 'Rajahmundry';
+  const link = document.getElementById('pl-route-link');
+  if(!link) return;
+  if(from && from.trim().length > 1){
+    const q = encodeURIComponent(from)+'/'+encodeURIComponent(to+', Andhra Pradesh');
+    link.href = 'https://www.google.com/maps/dir/' + q;
+    link.style.display = 'inline-flex';
+  }else{
+    link.style.display = 'none';
+  }
+}
+function printPlan(){
+  // Persist first so the printout reflects latest values
+  savePlan();
+  setTimeout(()=>window.print(), 200);
+}
+function sharePlan(){
+  let plan = null;
+  try{ plan = JSON.parse(localStorage.getItem(PLAN_KEY) || 'null'); }catch(e){}
+  if(!plan){ alert('Save your plan first.'); return; }
+  const dateLabel = plan.date ? new Date(plan.date).toLocaleDateString('en-IN') : '—';
+  const txt = `🪔 My Pushkaralu 2027 plan\n` +
+              `Route: ${plan.from||'?'} → ${plan.to||'Rajahmundry'} (${plan.mode||'?'})\n` +
+              `Bathing day: ${dateLabel}${plan.ghat?' · '+plan.ghat:''}\n` +
+              `Stay: ${plan.stayType||'?'}${plan.stayName?' · '+plan.stayName:''}\n` +
+              `Pilgrims: ${plan.persons||'?'}\n` +
+              `Helpline: 1800-425-0066`;
+  if(navigator.share){
+    navigator.share({title:'Pushkaralu Trip Plan', text:txt}).catch(()=>{});
+  }else{
+    navigator.clipboard?.writeText(txt);
+    alert('Plan copied to clipboard. Paste in WhatsApp / SMS to share.');
+  }
+}
+// Wire up auto-save on change & route link refresh
+document.addEventListener('change', (e) => {
+  if(e.target && e.target.closest && e.target.closest('#sec-plan')){
+    if(e.target.id === 'pl-from' || e.target.id === 'pl-to') _updateRouteLink();
+    // Auto-persist documents checklist (lightweight, no alert)
+    if(e.target.matches('#pl-docs input[type=checkbox]')){
+      try{
+        const cur = JSON.parse(localStorage.getItem(PLAN_KEY) || '{}');
+        cur.docs = cur.docs || {};
+        cur.docs[e.target.dataset.doc] = e.target.checked;
+        localStorage.setItem(PLAN_KEY, JSON.stringify(cur));
+      }catch(err){}
+    }
+  }
+});
+document.addEventListener('input', (e)=>{
+  if(e.target && e.target.id === 'pl-from') _updateRouteLink();
+});
+
+// ═══ VOICE ASSISTANT (placeholder — full integration in next release) ═════
+function voicePlaceholder(){
+  const tip = document.getElementById('voice-tip');
+  if(tip){ tip.style.opacity = '0.95'; setTimeout(()=>tip.style.opacity='', 2200); }
+  // Hook for future: window.dispatchEvent(new Event('voice-assistant-open'));
+}
+
 // ═══ BACKEND WARM-UP ══════════════════════════════════════════
 // Pings Render immediately on page load so the backend is warm
 // before the user interacts — eliminates cold-start LCP penalty.
@@ -4174,6 +4756,23 @@ document.addEventListener('keydown', function(e){
     <!-- Filled by showGhatDetail() -->
   </div>
 </div>
+
+<!-- ===== STICKY SOS FAB (visible on every section, always one tap away) ===== -->
+<div class="sos-fab" role="region" aria-label="Emergency quick actions">
+  <div class="sos-fab-quick" aria-label="Direct emergency calls">
+    <a href="tel:108" class="amb" aria-label="Call ambulance 108">🚑 108</a>
+    <a href="tel:100" class="pol" aria-label="Call police 100">👮 100</a>
+  </div>
+  <button class="sos-fab-main" onclick="goSec('sos')" aria-label="Open emergency SOS panel">
+    🆘 <span class="t" data-k="sos_fab">SOS</span>
+  </button>
+</div>
+
+<!-- Voice assistant placeholder (full integration coming — keeps hooks ready) -->
+<button class="voice-fab" id="voice-fab" onclick="voicePlaceholder()" aria-label="Voice assistant — coming soon">
+  🎤
+  <span class="voice-tip" id="voice-tip"><span class="t" data-k="voice_tip">Voice assistant — coming soon</span></span>
+</button>
 
 </body>
 </html>
