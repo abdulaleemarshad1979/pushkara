@@ -207,8 +207,11 @@ button, .action-btn {
 
 /* === NAV === */
 .nav{background:var(--navy);position:relative;z-index:150}
-.nav-inner{display:flex;overflow-x:auto;scrollbar-width:none}
-.nav-inner::-webkit-scrollbar{display:none}
+/* IMPORTANT: do NOT use overflow-x:auto here — it forces overflow-y to clip
+   too (per CSS spec) and would hide the absolutely-positioned "More Info"
+   dropdown. We let items wrap to a 2nd line on narrow screens instead. */
+.nav-inner{display:flex;flex-wrap:wrap}
+@media (max-width:600px){ .nav{display:none} } /* mobile uses hamburger drawer */
 .nt{background:none;border:none;border-bottom:3px solid transparent;color:rgba(255,255,255,.65);padding:11px 14px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;white-space:nowrap;transition:all .15s;display:flex;align-items:center;gap:5px}
 .nt:hover{color:white;background:rgba(255,255,255,.05)}
 .nt.on{color:var(--gold2);border-bottom-color:var(--saffron)}
@@ -1284,7 +1287,11 @@ button:focus-visible,a:focus-visible,select:focus-visible,input:focus-visible,te
     <div class="nav-inner">
       <button class="nt on" onclick="goSec('home')">🏠 <span class="t" data-k="nav_home">Home</span></button>
       <button class="nt" onclick="goSec('ghats')">🌊 <span class="t" data-k="nav_ghats">Ghats & Schedule</span></button>
-      <!-- "More Info" — bundles Plan Trip / Facilities / Transport so the bar stays compact -->
+      <button class="nt" onclick="goSec('report')">📋 <span class="t" data-k="nav_report">Report Issue</span></button>
+      <button class="nt" onclick="goSec('sos')">🆘 SOS</button>
+      <button class="nt" onclick="goSec('lost')">🔍 Lost &amp; Found</button>
+      <!-- "More Info" — bundles Plan Trip / Facilities / Transport / Emergency
+           Contacts so the bar stays compact -->
       <div class="nt-group" id="nt-more-group">
         <button class="nt nt-trigger" id="nt-more-trigger" onclick="toggleNtMenu(event)" aria-haspopup="true" aria-expanded="false" aria-controls="nt-more-menu">
           📚 <span class="t" data-k="nav_more">More Info</span> <span class="nt-caret">▾</span>
@@ -1302,14 +1309,13 @@ button:focus-visible,a:focus-visible,select:focus-visible,input:focus-visible,te
             🚌 <span class="t" data-k="nav_trans">Transport</span>
             <span class="nt-menu-sub t" data-k="nav_trans_sub">Buses · Trains · Routes</span>
           </button>
+          <button class="nt-menu-item" data-sec="emergency" onclick="goSec('emergency');closeNtMenu()" role="menuitem">
+            🚨 <span>Emergency Contacts</span>
+            <span class="nt-menu-sub">Police · Fire · Ambulance</span>
+          </button>
         </div>
       </div>
-      <button class="nt" onclick="goSec('report')">📋 <span class="t" data-k="nav_report">Report Issue</span></button>
-      <button class="nt" onclick="goSec('sos')">🆘 SOS</button>
-      <button class="nt" onclick="goSec('emergency')">🚨 Emergency Contacts</button>
-      <button class="nt" onclick="goSec('lost')">🔍 Lost &amp; Found</button>
       <button class="nt" onclick="goSec('about')">ℹ️ <span class="t" data-k="nav_about">About</span></button>
-      <!-- My Reports removed per requirement D -->
       <button class="nt" onclick="goSec('tourgo')">🗺️ TourGo Explorer</button>
     </div>
   </nav>
@@ -2471,9 +2477,9 @@ function goSec(id){
   document.querySelectorAll('.nt-menu-item').forEach(t=>t.classList.remove('on'));
   document.getElementById('sec-'+id).classList.add('on');
 
-  // Map section id → nav button. Plan/Facilities/Transport now live inside
-  // the "More Info" dropdown, so highlight that trigger AND the menu item.
-  const moreSubs = {plan:1, fac:1, transport:1};
+  // Map section id → nav button. Plan/Facilities/Transport/Emergency now live
+  // inside the "More Info" dropdown, so highlight that trigger AND the menu item.
+  const moreSubs = {plan:1, fac:1, transport:1, emergency:1};
   const directNt = document.querySelector(`.nt[onclick*="goSec('${id}')"]`);
   if (directNt) directNt.classList.add('on');
   if (moreSubs[id]) {
