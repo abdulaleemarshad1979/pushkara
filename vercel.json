@@ -4,12 +4,9 @@
     { "source": "/sitemap.xml",    "destination": "/pushkaralu_fixed/dashboards/sitemap.xml" },
     { "source": "/robots.txt",     "destination": "/pushkaralu_fixed/dashboards/robots.txt" },
     { "source": "/admin",          "destination": "/pushkaralu_fixed/dashboards/admin.html" },
-    { "source": "/admin.html",     "destination": "/pushkaralu_fixed/dashboards/admin.html" },
     { "source": "/volunteer",      "destination": "/pushkaralu_fixed/dashboards/index.html" },
-    { "source": "/index.html",     "destination": "/pushkaralu_fixed/dashboards/index.html" },
     { "source": "/user",           "destination": "/pushkaralu_fixed/dashboards/user.html" },
-    { "source": "/user.html",      "destination": "/pushkaralu_fixed/dashboards/user.html" },
     { "source": "/config.js",      "destination": "/pushkaralu_fixed/dashboards/config.js" },
-    { "source": "/",               "destination": "/pushkaralu_fixed/dashboards/index.html" }
+    { "source": "/",               "destination": "/pushkaralu_fixed/dashboards/user.html" }
   ]
 }
