@@ -10,8 +10,6 @@
     { "source": "/user",           "destination": "/pushkaralu_fixed/dashboards/user.html" },
     { "source": "/user.html",      "destination": "/pushkaralu_fixed/dashboards/user.html" },
     { "source": "/config.js",      "destination": "/pushkaralu_fixed/dashboards/config.js" },
-    { "source": "/",               "destination": "/pushkaralu_fixed/dashboards/user.html" }
+    { "source": "/",               "destination": "/pushkaralu_fixed/dashboards/index.html" }
   ]
 }
-                       
-         
