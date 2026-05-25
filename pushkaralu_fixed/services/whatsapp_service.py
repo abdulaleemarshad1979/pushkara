@@ -31,6 +31,16 @@ import httpx
 
 logger = logging.getLogger("pushkaralu.whatsapp")
 
+# ── Fire-and-forget concurrency caps ────────────────────────────────────────
+# Bound how many outbound WhatsApp sends can be in flight at once so a spike
+# (e.g. a mass SOS event) cannot starve the event loop or exhaust the
+# provider's API quota. Tasks beyond the cap queue rather than fan out.
+WHATSAPP_FF_CONCURRENCY = int(os.getenv("WHATSAPP_FF_CONCURRENCY", "16"))
+_FF_SEMAPHORE: "asyncio.Semaphore" = asyncio.Semaphore(WHATSAPP_FF_CONCURRENCY)
+# Strong refs to in-flight tasks — without this they can be GC'd mid-flight
+# (CPython warns since 3.11).
+_FF_TASKS: "set[asyncio.Task]" = set()
+
 # ── Env config ──────────────────────────────────────────────────────────────
 WHATSAPP_PROVIDER = os.getenv("WHATSAPP_PROVIDER", "mock").strip().lower()
 WHATSAPP_ENABLED = os.getenv("WHATSAPP_ENABLED", "true").strip().lower() == "true"
@@ -355,12 +365,17 @@ def fire_and_forget_send(to_phone: str, body: str) -> None:
 
     Use this from request handlers that must NOT block their HTTP response
     on a third-party API. The result is logged at debug level.
+
+    Concurrency is bounded so a burst (e.g. mass SOS) cannot spawn thousands
+    of orphan coroutines all blocked on Twilio/Meta HTTPS — once the cap is
+    reached, additional sends wait their turn rather than piling up.
     """
     if not to_phone or not body:
         return
 
     async def _runner() -> None:
-        result = await send_text(to_phone, body)
+        async with _FF_SEMAPHORE:
+            result = await send_text(to_phone, body)
         if not result.ok:
             logger.warning(
                 "[WhatsApp] fire_and_forget failed: provider=%s err=%s",
@@ -375,7 +390,9 @@ def fire_and_forget_send(to_phone: str, body: str) -> None:
             )
 
     try:
-        asyncio.create_task(_runner())
+        task = asyncio.create_task(_runner())
+        _FF_TASKS.add(task)
+        task.add_done_callback(_FF_TASKS.discard)
     except RuntimeError:
         # No running loop (e.g. from sync test code) — silently drop.
         logger.debug("[WhatsApp] fire_and_forget called outside event loop")
