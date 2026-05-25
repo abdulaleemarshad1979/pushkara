@@ -79,6 +79,7 @@ from app.core.pg_store import (
 )
 from app.core.storage import upload_image
 from chat import router as chat_router
+from whatsapp import router as whatsapp_router
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
 logger = logging.getLogger("pushkaralu.main")
@@ -218,6 +219,7 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True,
 app.add_middleware(GZipMiddleware, minimum_size=1024)
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 app.include_router(chat_router)
+app.include_router(whatsapp_router)
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # Helpers
@@ -550,6 +552,86 @@ async def accept_issue(
 # SOS Alerts
 # ═══════════════════════════════════════════════════════════════════════════════
 
+async def create_sos_record(
+    user_name: str,
+    phone: str,
+    latitude: float,
+    longitude: float,
+    source: str = "app",
+) -> dict:
+    """
+    Core SOS creation flow — shared between the /sos_alert HTTP endpoint and
+    other channels (WhatsApp via Mana Mitra, future SMS / IVR, etc.).
+
+    Always returns a dict with: success, alert_id, nearest_volunteer,
+    volunteer_assigned, message. Never raises (except for HTTPException
+    rate-limit which the caller can choose to surface).
+    """
+    if phone:
+        allowed, _ = await check_rate_limit(
+            f"rate:sos:{phone}", limit=3, window_seconds=300
+        )
+        if not allowed:
+            raise HTTPException(
+                status_code=429,
+                detail="SOS rate limit reached. If this is a real emergency, call 112.",
+            )
+
+    nearest = await asyncio.to_thread(find_nearest_volunteer, latitude, longitude)
+    alert = {
+        "id": str(uuid.uuid4()),
+        "user_name": user_name,
+        "phone": phone,
+        "latitude": latitude,
+        "longitude": longitude,
+        "status": "active",
+        "assigned_volunteer":      nearest["id"]   if nearest else None,
+        "assigned_volunteer_name": nearest["name"] if nearest else "Unassigned",
+        "source": source,
+        "timestamp": _utc_now(),
+    }
+
+    # Persistence (non-blocking on failure)
+    try:
+        await write_sos_alert(alert)
+    except Exception as pg_exc:
+        logger.error("[SOS] PG write failed: %s", pg_exc)
+
+    DB["sos_alerts"].append(alert)
+    msg = {"type": "SOS_ALERT", "data": alert, "priority": "HIGH"}
+
+    # Reliable broadcast (Redis + local fan-out)
+    try:
+        await cache_delete(Keys.SOS_ACTIVE, Keys.SOS_ALL, Keys.STATS, Keys.ADMIN_STATS)
+        await manager.broadcast(msg)
+        await stream_publish(
+            Keys.STREAM_EVENTS,
+            {"event": "sos_alert", "payload": json.dumps(alert)},
+        )
+    except Exception as ws_exc:
+        logger.warning("[SOS] Broadcast failed: %s", ws_exc)
+        await manager._local_broadcast(msg)
+
+    if nearest:
+        message = (
+            f"SOS sent! Volunteer {nearest['name']} has been alerted "
+            "and is on the way."
+        )
+    else:
+        message = (
+            "SOS received! No volunteers are currently available nearby. "
+            "Please call emergency services immediately: "
+            "Police: 100 | Ambulance: 108 | Pushkaralu Control Room: 1800-425-8877"
+        )
+    return {
+        "success": True,
+        "alert_id": alert["id"],
+        "nearest_volunteer": nearest,
+        "volunteer_assigned": nearest is not None,
+        "message": message,
+    }
+
+
 @app.post("/sos_alert")
 async def sos_alert(
     request: Request,
@@ -557,53 +639,37 @@ async def sos_alert(
     longitude: float = Form(...), phone: str = Form(default="")
 ):
     try:
+        result = await create_sos_record(
+            user_name=user_name,
+            phone=phone,
+            latitude=latitude,
+            longitude=longitude,
+            source="app",
+        )
+        # Best-effort WhatsApp confirmation back to the pilgrim if they shared a
+        # phone number. Fire-and-forget so the HTTP response is never delayed
+        # by a third-party API call.
         if phone:
-            allowed, _ = await check_rate_limit(f"rate:sos:{phone}", limit=3, window_seconds=300)
-            if not allowed:
-                raise HTTPException(status_code=429, detail="SOS rate limit reached. If this is a real emergency, call 112.")
-        
-        nearest = await asyncio.to_thread(find_nearest_volunteer, latitude, longitude)
-        alert = {
-            "id": str(uuid.uuid4()), "user_name": user_name, "phone": phone,
-            "latitude": latitude, "longitude": longitude, "status": "active",
-            "assigned_volunteer":      nearest["id"]   if nearest else None,
-            "assigned_volunteer_name": nearest["name"] if nearest else "Unassigned",
-            "timestamp": _utc_now()
-        }
-        
-        # Persistence (non-blocking)
-        try:
-            await write_sos_alert(alert)
-        except Exception as pg_exc:
-            logger.error("[SOS] PG write failed: %s", pg_exc)
-
-        DB["sos_alerts"].append(alert)
-        msg = {"type": "SOS_ALERT", "data": alert, "priority": "HIGH"}
-        
-        # Reliable Broadcast (Redis + Local)
-        try:
-            await cache_delete(Keys.SOS_ACTIVE, Keys.SOS_ALL, Keys.STATS, Keys.ADMIN_STATS)
-            await manager.broadcast(msg)
-            await stream_publish(Keys.STREAM_EVENTS, {"event": "sos_alert", "payload": json.dumps(alert)})
-        except Exception as ws_exc:
-            logger.warning("[SOS] Broadcast failed: %s", ws_exc)
-            await manager._local_broadcast(msg) # Fallback to local only
-        
-        if nearest:
-            message = f"SOS sent! Volunteer {nearest['name']} has been alerted and is on the way."
-        else:
-            message = (
-                "SOS received! No volunteers are currently available nearby. "
-                "Please call emergency services immediately: "
-                "Police: 100 | Ambulance: 108 | Pushkaralu Control Room: 1800-425-8877"
-            )
-        return {
-            "success": True,
-            "alert_id": alert["id"],
-            "nearest_volunteer": nearest,
-            "volunteer_assigned": nearest is not None,
-            "message": message,
-        }
+            try:
+                from services.whatsapp_service import fire_and_forget_send
+                nearest = result.get("nearest_volunteer") or {}
+                if nearest:
+                    wa_body = (
+                        f"🚨 SOS received (ID {result['alert_id'][:8]}). "
+                        f"Volunteer {nearest.get('name','—')} "
+                        f"({nearest.get('phone','')}) is on the way. "
+                        "If condition worsens call 112 immediately. — TourGO Pushkara 🕊"
+                    )
+                else:
+                    wa_body = (
+                        f"🚨 SOS received (ID {result['alert_id'][:8]}). "
+                        "No volunteers free nearby — please call Police 100 / "
+                        "Ambulance 108 immediately. — TourGO Pushkara 🕊"
+                    )
+                fire_and_forget_send(phone, wa_body)
+            except Exception as wa_exc:
+                logger.debug("[SOS] WhatsApp confirmation skipped: %s", wa_exc)
+        return result
     except HTTPException:
         raise
     except Exception as exc:
@@ -613,8 +679,8 @@ async def sos_alert(
             content={
                 "success": False,
                 "message": "Internal error processing SOS. PLEASE CALL 112 IMMEDIATELY.",
-                "error": str(exc)
-            }
+                "error": str(exc),
+            },
         )
 
 @app.get("/get_sos_alerts")
@@ -1273,7 +1339,26 @@ async def update_lost(
                 except Exception as ws_exc:
                     logger.warning("[Lost] Broadcast failed: %s", ws_exc)
                     await manager._local_broadcast({"type": "LOST_UPDATED", "data": p})
-                
+
+                # ── WhatsApp notification when a missing person is found ──
+                # Best-effort, fire-and-forget. Falls back silently if no
+                # contact_phone, no WhatsApp provider, or status != "found".
+                if status == "found" and p.get("contact_phone"):
+                    try:
+                        from services.whatsapp_service import fire_and_forget_send
+                        loc = p.get("current_location") or "Enquiry Counter"
+                        wa_body = (
+                            f"✅ Good news — {p.get('name','Your missing person')} "
+                            f"has been FOUND.\n"
+                            f"Current location: {loc}\n"
+                            f"Report ID: {p['id'][:8]}\n"
+                            "Please proceed to the nearest Enquiry Counter to "
+                            "reunite. — TourGO Pushkara 🕊"
+                        )
+                        fire_and_forget_send(p["contact_phone"], wa_body)
+                    except Exception as wa_exc:
+                        logger.debug("[Lost] WhatsApp notify skipped: %s", wa_exc)
+
                 return {"success": True, "person": p}
         
         raise HTTPException(status_code=404, detail="Person not found")

@@ -23,6 +23,40 @@ services:
         sync: false
       - key: GROQ_API_KEY
         sync: false
+      # ── WhatsApp / Mana Mitra integration ────────────────────────────
+      # All optional. Defaults to mock provider so the API never crashes
+      # for a missing credential. Flip WHATSAPP_PROVIDER once real keys
+      # are configured in the Render dashboard.
+      - key: WHATSAPP_ENABLED
+        value: "true"
+      - key: WHATSAPP_PROVIDER
+        value: "mock"
+      - key: WHATSAPP_DEFAULT_COUNTRY_CODE
+        value: "91"
+      - key: WHATSAPP_PUBLIC_NUMBER
+        sync: false
+      - key: TWILIO_ACCOUNT_SID
+        sync: false
+      - key: TWILIO_AUTH_TOKEN
+        sync: false
+      - key: TWILIO_FROM_NUMBER
+        sync: false
+      - key: MANA_MITRA_API_URL
+        sync: false
+      - key: MANA_MITRA_API_KEY
+        sync: false
+      - key: MANA_MITRA_SENDER_ID
+        value: "PUSHKARALU"
+      - key: META_WA_TOKEN
+        sync: false
+      - key: META_WA_PHONE_NUMBER_ID
+        sync: false
+      - key: META_WA_VERIFY_TOKEN
+        value: "pushkaralu-verify"
+      - key: META_GRAPH_VERSION
+        value: "v20.0"
+      - key: ADMIN_API_KEY
+        sync: false
     healthCheckPath: /ping
     autoDeploy: true
 
