@@ -28,8 +28,8 @@ import logging
 import os
 import time
 import uuid
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import datetime, timezone, timedelta
+from typing import Optional, List
 
 import httpx
 from fastapi import (
@@ -496,16 +496,23 @@ async def get_issues(status: Optional[str] = None):
 async def resolve_issue(
     issue_id: str,
     volunteer_id: str = Form(default="admin"),
+    resolution_note: str = Form(default=""),     # Phase 2: digital incident report (optional)
+    photo: Optional[UploadFile] = File(None),
     _auth: dict = Depends(require_volunteer_or_admin),
 ):
     try:
         resolved_at = _utc_now()
+        photo_url = await upload_image(photo, folder="issue-resolutions") if photo else None
         await update_issue_status(issue_id, "resolved", volunteer_id, resolved_at)
         for issue in DB["issues"]:
             if issue["id"] == issue_id:
                 issue.update({"status": "resolved", "resolved_at": resolved_at, "assigned_volunteer": volunteer_id})
+                if resolution_note:
+                    issue["resolution_note"]  = resolution_note.strip()[:1000]
+                if photo_url:
+                    issue["resolution_photo"] = photo_url
                 msg = {"type": "ISSUE_RESOLVED", "data": issue}
-                
+
                 try:
                     await cache_delete(Keys.ISSUES_ALL, Keys.ISSUES_STATUS.format(status="resolved"),
                                        Keys.ISSUES_STATUS.format(status="pending"), Keys.STATS, Keys.ADMIN_STATS)
@@ -514,7 +521,7 @@ async def resolve_issue(
                 except Exception as ws_exc:
                     logger.warning("[Issue] Resolve broadcast failed: %s", ws_exc)
                     await manager._local_broadcast(msg)
-                
+
                 return {"success": True}
         raise HTTPException(status_code=404, detail="Issue not found")
     except Exception as exc:
@@ -705,16 +712,26 @@ async def get_sos_alerts(status: Optional[str] = None):
 async def resolve_sos(
     alert_id: str,
     volunteer_id: str = Form(default="admin"),
+    resolution_note: str = Form(default=""),     # Phase 2: digital incident report (optional)
+    photo: Optional[UploadFile] = File(None),
     _auth: dict = Depends(require_volunteer_or_admin),
 ):
     try:
         resolved_at = _utc_now()
+        # Phase 2: capture optional resolution photo + note for digital audit trail
+        photo_url = await upload_image(photo, folder="sos-resolutions") if photo else None
         await update_sos_status(alert_id, "resolved", resolved_at=resolved_at)
         for alert in DB["sos_alerts"]:
             if alert["id"] == alert_id:
                 alert.update({"status": "resolved", "resolved_at": resolved_at})
+                if resolution_note:
+                    alert["resolution_note"]  = resolution_note.strip()[:1000]
+                if photo_url:
+                    alert["resolution_photo"] = photo_url
+                if resolution_note or photo_url:
+                    alert["resolved_by"] = volunteer_id
                 msg = {"type": "SOS_RESOLVED", "data": alert}
-                
+
                 try:
                     await cache_delete(Keys.SOS_ACTIVE, Keys.SOS_ALL, Keys.STATS, Keys.ADMIN_STATS)
                     await manager.broadcast(msg)
@@ -722,7 +739,7 @@ async def resolve_sos(
                 except Exception as ws_exc:
                     logger.warning("[SOS] Resolve broadcast failed: %s", ws_exc)
                     await manager._local_broadcast(msg)
-                    
+
                 return {"success": True}
         raise HTTPException(status_code=404, detail="Alert not found")
     except Exception as exc:
@@ -1110,6 +1127,156 @@ async def admin_list_volunteers(_auth: None = Depends(require_admin_key)):
         ],
         "total": len(DB["volunteers"]),
     }
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Admin Broadcast & Safety Alerts  (Phase 2 / Phase 3)
+#
+#   POST /admin/broadcast     — push notification to all pilgrims/volunteers,
+#                               or to a zone, or to a single volunteer
+#   POST /admin/safety_alert  — high-priority river/weather/safety banner
+#                               (sticky on pilgrim portal until cleared)
+#   POST /admin/safety_alert/clear/{alert_id}
+#
+# Both ride on manager.broadcast() so they reach every connected WS client
+# without additional infra. Pilgrim & volunteer dashboards filter by `target`
+# and `category` client-side.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# In-memory list of currently-active safety alerts. Pilgrim portal fetches this
+# on cold start so newcomers see active warnings even if they joined after the
+# WS broadcast. Persists for the lifetime of the process; bounded to last 25.
+_ACTIVE_SAFETY_ALERTS: List[dict] = []
+
+
+def _allowed_broadcast_category(category: str) -> str:
+    cat = (category or "info").lower().strip()
+    if cat not in ("info", "warning", "safety", "weather", "evacuation"):
+        cat = "info"
+    return cat
+
+
+@app.post("/admin/broadcast")
+async def admin_broadcast(
+    message: str = Form(...),
+    title: str = Form(default=""),
+    category: str = Form(default="info"),
+    target: str = Form(default="all"),
+    _auth: None = Depends(require_admin_key),
+):
+    """
+    Mass-broadcast a message to clients connected over WebSocket.
+
+    Args:
+        message:  Body text shown to recipients (required)
+        title:    Optional headline shown above the body
+        category: info | warning | safety | weather | evacuation
+        target:   "all"                — every connected client
+                  "zone:Zone A"        — only volunteers/pilgrims in this zone
+                  "volunteer:<vid>"    — single volunteer (their own dashboard)
+
+    Auth: X-Admin-Key header required.
+    """
+    msg_text = (message or "").strip()
+    if not msg_text:
+        raise HTTPException(status_code=400, detail="message is required")
+    if len(msg_text) > 1000:
+        raise HTTPException(status_code=400, detail="message too long (max 1000 chars)")
+
+    bid  = str(uuid.uuid4())
+    cat  = _allowed_broadcast_category(category)
+    tgt  = (target or "all").strip() or "all"
+
+    payload = {
+        "type": "BROADCAST",
+        "data": {
+            "id":       bid,
+            "title":    (title or "").strip()[:120] or None,
+            "message":  msg_text,
+            "category": cat,
+            "target":   tgt,
+            "ts":       _utc_now(),
+        },
+    }
+    await manager.broadcast(payload)
+    logger.info("[Broadcast] cat=%s target=%s len=%d id=%s", cat, tgt, len(msg_text), bid)
+    return {"success": True, "broadcast_id": bid, "delivered": True, "data": payload["data"]}
+
+
+@app.post("/admin/safety_alert")
+async def admin_safety_alert(
+    title: str = Form(...),
+    message: str = Form(...),
+    severity: str = Form(default="warning"),       # info | warning | danger | evacuation
+    location: str = Form(default=""),              # free-text e.g. "Pushkar Ghat" or "All Zone A"
+    expires_in_min: int = Form(default=120),       # auto-expire to prevent stale banners
+    _auth: None = Depends(require_admin_key),
+):
+    """
+    Sticky river/weather/evacuation banner on the pilgrim portal.
+    Differs from /admin/broadcast in that the pilgrim portal pins the alert
+    to a top-bar until it is cleared OR the expires_at passes.
+    """
+    sev = (severity or "warning").lower()
+    if sev not in ("info", "warning", "danger", "evacuation"):
+        sev = "warning"
+    expires_in = max(1, min(int(expires_in_min or 120), 24 * 60))
+    alert = {
+        "id":         str(uuid.uuid4()),
+        "title":      title.strip()[:120],
+        "message":    message.strip()[:1000],
+        "severity":   sev,
+        "location":   location.strip()[:120],
+        "issued_at":  _utc_now(),
+        "expires_at": (datetime.now(timezone.utc) + timedelta(minutes=expires_in)).isoformat(),
+        "active":     True,
+    }
+    # Bound the list — keep the most recent 25 active alerts
+    _ACTIVE_SAFETY_ALERTS.append(alert)
+    while len(_ACTIVE_SAFETY_ALERTS) > 25:
+        _ACTIVE_SAFETY_ALERTS.pop(0)
+    await manager.broadcast({"type": "SAFETY_ALERT", "data": alert})
+    logger.warning("[SafetyAlert] sev=%s loc=%s id=%s", sev, alert["location"], alert["id"])
+    return {"success": True, "alert": alert}
+
+
+@app.post("/admin/safety_alert/clear/{alert_id}")
+async def admin_safety_alert_clear(alert_id: str, _auth: None = Depends(require_admin_key)):
+    found = False
+    for a in _ACTIVE_SAFETY_ALERTS:
+        if a["id"] == alert_id and a.get("active"):
+            a["active"] = False
+            a["cleared_at"] = _utc_now()
+            found = True
+            break
+    if not found:
+        raise HTTPException(status_code=404, detail="Alert not found or already cleared")
+    await manager.broadcast({"type": "SAFETY_ALERT_CLEARED", "data": {"id": alert_id}})
+    return {"success": True, "id": alert_id}
+
+
+@app.get("/safety_alerts")
+async def get_safety_alerts():
+    """
+    Public endpoint — pilgrim portal uses this on cold start to render any
+    currently-active safety banners (so latecomers see them even if they
+    weren't connected when the WS broadcast went out).
+    """
+    now = datetime.now(timezone.utc)
+    out = []
+    for a in _ACTIVE_SAFETY_ALERTS:
+        if not a.get("active"):
+            continue
+        try:
+            exp = datetime.fromisoformat(a.get("expires_at", "").replace("Z", "+00:00"))
+            if exp < now:
+                # Auto-clear silently — don't bother broadcasting old alerts
+                a["active"] = False
+                continue
+        except Exception:
+            pass
+        out.append(a)
+    return {"alerts": out, "count": len(out)}
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # Stats
@@ -1669,3 +1836,114 @@ async def get_ghat_risk(ghat_id: str):
     ghat = next((g for g in DB["ghats"] if g["id"] == ghat_id), None)
     if not ghat: raise HTTPException(status_code=404, detail="Ghat not found")
     return evaluate_from_dicts(ghat)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Crowd Forecast  (Phase 3 — predictive analytics surface)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def _level_from_ratio(ratio: float) -> str:
+    """Map occupancy ratio (count/capacity) → crowd_level. Aligned with risk_engine."""
+    if ratio >= 0.95: return "critical"
+    if ratio >= 0.75: return "high"
+    if ratio >= 0.50: return "medium"
+    return "low"
+
+
+async def _forecast_one_ghat(ghat: dict, horizon_min: int = 60) -> dict:
+    """
+    Cheap-and-cheerful 60-min forecast for a single ghat.
+
+    Strategy (in order of preference):
+      1. If we have ≥ 3 recent crowd_history points, fit a linear trend on
+         current_count vs timestamp and extrapolate forward.
+      2. Else, fall back to a heuristic: ghats already over 70% drift up,
+         under 30% drift slowly down, mid-range stays flat.
+
+    Returns: { ghat_id, name, current_count, capacity, current_level,
+               predicted_count, predicted_level, predicted_pct, confidence }
+    """
+    ghat_id = ghat["id"]
+    cap = max(1, int(ghat.get("capacity") or 1))
+    cur = int(ghat.get("current_count") or 0)
+    cur_pct = cur / cap
+    cur_lvl = ghat.get("crowd_level") or _level_from_ratio(cur_pct)
+
+    # 1) Try recent history
+    history = await get_crowd_history(ghat_id, n=12)
+    pts = []
+    for h in history or []:
+        try:
+            t = float(h.get("timestamp") or h.get("recorded_at_ts") or 0)
+            c = h.get("estimated_count") or h.get("current_count") or h.get("count")
+            if t > 0 and c is not None:
+                pts.append((t, float(c)))
+        except (ValueError, TypeError):
+            continue
+
+    predicted_count = cur
+    confidence = 0.35  # heuristic baseline
+    if len(pts) >= 3:
+        # Sort oldest → newest
+        pts.sort(key=lambda x: x[0])
+        # Simple linear regression on (time, count)
+        n = len(pts)
+        mean_t = sum(p[0] for p in pts) / n
+        mean_c = sum(p[1] for p in pts) / n
+        num = sum((p[0] - mean_t) * (p[1] - mean_c) for p in pts)
+        den = sum((p[0] - mean_t) ** 2 for p in pts) or 1.0
+        slope = num / den
+        # Project forward by horizon
+        future_t = pts[-1][0] + horizon_min * 60.0
+        predicted_count = int(max(0, mean_c + slope * (future_t - mean_t)))
+        # Confidence ∝ R² (clamped)
+        ss_res = sum((p[1] - (mean_c + slope * (p[0] - mean_t))) ** 2 for p in pts)
+        ss_tot = sum((p[1] - mean_c) ** 2 for p in pts) or 1.0
+        r2 = max(0.0, 1.0 - ss_res / ss_tot)
+        confidence = max(0.4, min(0.95, 0.4 + 0.55 * r2))
+    else:
+        # 2) Heuristic — drift toward extremes when already loaded
+        if cur_pct >= 0.7:
+            predicted_count = int(min(cap * 1.05, cur * 1.08))   # creep up
+        elif cur_pct <= 0.3:
+            predicted_count = int(max(0, cur * 0.95))             # ease off
+        else:
+            predicted_count = cur                                 # stable
+        confidence = 0.45
+
+    # Bound predicted count to [0, 1.2 * capacity] to keep things plausible
+    predicted_count = max(0, min(int(cap * 1.2), int(predicted_count)))
+    predicted_pct = predicted_count / cap
+    predicted_level = _level_from_ratio(predicted_pct)
+
+    return {
+        "ghat_id":         ghat_id,
+        "name":            ghat.get("name"),
+        "current_count":   cur,
+        "capacity":        cap,
+        "current_level":   cur_lvl,
+        "predicted_count": predicted_count,
+        "predicted_level": predicted_level,
+        "predicted_pct":   round(predicted_pct, 3),
+        "confidence":      round(confidence, 2),
+        "horizon_min":     horizon_min,
+        "samples":         len(pts),
+    }
+
+
+@app.get("/crowd/forecast")
+async def crowd_forecast(horizon_min: int = 60):
+    """
+    Return a 60-min (default) crowd forecast for every ghat.
+    Sorted with most-at-risk first so the admin dashboard pre-positions resources.
+    """
+    horizon_min = max(5, min(240, int(horizon_min or 60)))
+    out = await asyncio.gather(*[_forecast_one_ghat(g, horizon_min) for g in DB["ghats"]])
+    # Order: most severe predicted_level first, then highest predicted_pct
+    severity_rank = {"critical": 3, "high": 2, "medium": 1, "low": 0}
+    out_sorted = sorted(
+        out,
+        key=lambda x: (severity_rank.get(x["predicted_level"], 0), x["predicted_pct"]),
+        reverse=True,
+    )
+    return {"forecast": out_sorted, "horizon_min": horizon_min, "computed_at": _utc_now()}
