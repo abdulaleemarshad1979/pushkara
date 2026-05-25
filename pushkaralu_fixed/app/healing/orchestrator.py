@@ -259,8 +259,8 @@ async def _memory_guardian_loop():
 async def _evict_stale_cache_keys():
     """Scan Redis for cache: keys and delete the oldest MEM_EVICT_KEYS of them."""
     try:
-        from app.core.redis_manager import get_redis, _circuit_open
-        if _circuit_open:
+        from app.core.redis_manager import get_redis, is_circuit_open
+        if is_circuit_open():
             return
         r = await get_redis()
         keys = []
@@ -414,33 +414,41 @@ async def _ws_orphan_pruner_loop():
             await asyncio.sleep(WS_PRUNE_INTERVAL)
             from app.core.ws_manager import manager
 
-            dead_count = 0
-            # Snapshot the buckets to avoid mutating while iterating
-            buckets = dict(manager._connections)
+            # Snapshot the buckets so concurrent connect/disconnect can't
+            # mutate them while we iterate. Each value is a set of WebSockets.
+            buckets = {gid: tuple(conns) for gid, conns in manager._connections.items()}
+            if not buckets:
+                health_state["ws_orphans"].update({
+                    "status":         "ok",
+                    "pruned_total":   _ws_pruned_total,
+                    "active_conns":   manager.get_count(),
+                })
+                continue
 
-            for ghat_id, conns in buckets.items():
-                probe_msg = {"type": "PING", "ts": int(time.time())}
-                dead = []
-                for ws in list(conns):
-                    try:
-                        await asyncio.wait_for(ws.send_json(probe_msg), timeout=2.0)
-                    except Exception:
-                        dead.append(ws)
+            probe_msg = {"type": "PING", "ts": int(time.time())}
 
-                if dead:
-                    async with manager._lock:
-                        for ws in dead:
-                            manager._active.discard(ws)
-                            try:
-                                manager._connections[ghat_id].remove(ws)
-                            except ValueError:
-                                pass
-                    dead_count += len(dead)
+            async def _probe_one(ws) -> bool:
+                try:
+                    await asyncio.wait_for(ws.send_json(probe_msg), timeout=2.0)
+                    return True
+                except Exception:
+                    return False
 
-            if dead_count > 0:
-                _ws_pruned_total += dead_count
+            # Probe every WS in every bucket concurrently — the previous
+            # implementation awaited each socket sequentially, which under
+            # network stalls could spin for `total_conns × 2s`.
+            all_ws = [ws for conns in buckets.values() for ws in conns]
+            results = await asyncio.gather(
+                *(_probe_one(ws) for ws in all_ws),
+                return_exceptions=True,
+            )
+            dead = [ws for ws, ok in zip(all_ws, results) if ok is not True]
+
+            if dead:
+                pruned = await manager.prune_dead(dead)
+                _ws_pruned_total += pruned
                 logger.info("[Heal/WS] Pruned %d orphan WebSocket connections  total=%d",
-                            dead_count, _ws_pruned_total)
+                            pruned, _ws_pruned_total)
 
             health_state["ws_orphans"].update({
                 "status":         "ok",

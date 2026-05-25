@@ -28,11 +28,34 @@ REDIS_PASSWORD    = os.getenv("REDIS_PASSWORD", None)
 REDIS_MAX_CONN    = int(os.getenv("REDIS_MAX_CONNECTIONS", "200"))
 CACHE_DEFAULT_TTL = int(os.getenv("CACHE_TTL_SECONDS", "3"))
 CACHE_STATIC_TTL  = int(os.getenv("CACHE_STATIC_TTL", "30"))
+# Crowd history is only ever read with n<=12 (forecast model + ad-hoc queries).
+# The previous fixed cap of 60 entries per ghat wasted ~75% of Redis memory
+# on data nothing reads. Make it configurable so ops can tune freely.
+CROWD_HIST_MAXLEN = int(os.getenv("CROWD_HIST_MAXLEN", "24"))
+
+# Process-local instance identifier — exposed so that ws_manager / main can
+# tag pub/sub envelopes with the publisher origin and skip self-echoes.
+# Falls back to a stable per-PID value so all importers in the same process
+# observe the SAME id (avoids the previous bug where each importer generated
+# an independent uuid via os.getenv default).
+INSTANCE_ID: str = os.getenv("INSTANCE_ID", f"api-{os.getpid()}")
 
 # ── Circuit breaker state ────────────────────────────────────────────────────
 _circuit_open: bool = False          # True → Redis degraded, skip ops
 _circuit_tripped_at: float = 0.0
 _CIRCUIT_RESET_INTERVAL: float = 10.0  # seconds between reconnect attempts
+
+
+def is_circuit_open() -> bool:
+    """
+    Live read of the circuit-breaker state.
+
+    Other modules MUST use this getter (or import the redis_manager module and
+    read the attribute via dotted access) instead of `from redis_manager import
+    _circuit_open`. The bare-name import binds the value at import time and
+    never updates, which silently disables degraded-mode handling everywhere.
+    """
+    return _circuit_open
 
 # ── Key namespace ─────────────────────────────────────────────────────────────
 class Keys:
@@ -306,9 +329,18 @@ async def publish(channel: str, message: dict) -> int:
 
 
 async def publish_to_ghat(ghat_id: str, message: dict) -> int:
-    count = await publish(Keys.channel_ghat(ghat_id), message)
-    await publish(Keys.CHANNEL_ALL, message)
-    return count
+    """
+    Publish to a single per-ghat channel.
+
+    NOTE (perf fix): the previous implementation also re-published the same
+    payload to CHANNEL_ALL, which caused every receiver to fan-out the message
+    twice — once via the ghat-channel handler (ghat-bucket + "all" bucket)
+    and again via the CHANNEL_ALL handler (every bucket including "all").
+    The subscriber in ws_manager already fans a per-ghat publish into both
+    the ghat bucket and the global "all" bucket, so the second publish is
+    redundant. Single publish is correct and ≈2× cheaper.
+    """
+    return await publish(Keys.channel_ghat(ghat_id), message)
 
 
 # ── Redis Streams ──────────────────────────────────────────────────────────────
@@ -346,7 +378,9 @@ async def set_crowd_data(ghat_id: str, data: dict):
         pipe = r.pipeline(transaction=False)
         pipe.set(key, payload)
         pipe.lpush(hist, payload)
-        pipe.ltrim(hist, 0, 59)
+        # Keep only the most recent CROWD_HIST_MAXLEN entries — readers ask for
+        # at most ~12, the previous 60 was wasted memory.
+        pipe.ltrim(hist, 0, CROWD_HIST_MAXLEN - 1)
         await _safe(pipe.execute())
     except Exception as exc:
         logger.debug("[Crowd] set failed ghat=%s err=%s", ghat_id, exc)
