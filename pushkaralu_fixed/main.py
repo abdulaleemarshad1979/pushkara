@@ -51,7 +51,7 @@ from services.emergency_service import (
 from utils.location_utils import haversine as _hvs, nearest_in_list
 from app.core.redis_manager import (
     Keys, cache_get, cache_set, cache_delete,
-    publish, publish_to_ghat, stream_publish,
+    stream_publish,
     get_crowd_data, set_crowd_data, get_crowd_history,
     check_rate_limit, redis_health, close_redis, get_redis,
 )
@@ -106,6 +106,36 @@ DB: dict = {
     "tourism_spots": [], "poojas": [], "helplines": {},
 }
 
+# ── id → object indexes ──────────────────────────────────────────────────────
+# The mutation routes (resolve_issue / accept_issue / resolve_sos / assign_sos /
+# update_lost / admin_update_volunteer / websocket_pilgrim / etc.) used to
+# `for x in DB[list]: if x["id"] == target_id` — O(N) per call where N can grow
+# to the orchestrator's 5000-item cap. These indexes turn that into O(1) and
+# share the same underlying dict objects, so mutating the indexed object also
+# mutates the list entry.
+_INDEXED_LISTS = ("issues", "sos_alerts", "lost_persons", "ghats")
+DB_BY_ID: dict[str, dict[str, dict]] = {k: {} for k in _INDEXED_LISTS}
+
+
+def _rebuild_id_indexes() -> None:
+    """Rebuild every id-keyed index from the current contents of DB."""
+    for k in _INDEXED_LISTS:
+        DB_BY_ID[k] = {x["id"]: x for x in DB[k] if isinstance(x, dict) and "id" in x}
+
+
+def _index_get(name: str, _id: str) -> Optional[dict]:
+    return DB_BY_ID[name].get(_id) if _id else None
+
+
+def _index_add(name: str, obj: dict) -> None:
+    if obj and "id" in obj:
+        DB_BY_ID[name][obj["id"]] = obj
+
+
+def _index_remove(name: str, _id: str) -> Optional[dict]:
+    return DB_BY_ID[name].pop(_id, None)
+
+
 def load_sample_data():
     data_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "sample_data.json")
     if os.path.exists(data_path):
@@ -119,58 +149,62 @@ def load_sample_data():
     else:
         logger.warning("[Data] sample_data.json not found at %s", data_path)
     rebuild_volunteer_index(DB["volunteers"])
+    _rebuild_id_indexes()
 
 async def sync_state(payload: dict):
     """
     Synchronizes the in-memory DB dictionary when an event is received from Redis.
     Ensures multi-instance consistency for WS INIT and local HTTP reads.
+    Uses the id→object index for O(1) lookup so this hot path no longer scans
+    the whole list on every cross-instance event.
     """
     try:
         msg_type = payload.get("type")
-        data = payload.get("data")
-        if not msg_type or not data: return
+        data     = payload.get("data")
+        if not msg_type or not data:
+            return
+        rec_id = data.get("id") if isinstance(data, dict) else None
 
         if msg_type == "SOS_ALERT":
-            if not any(x["id"] == data.get("id") for x in DB["sos_alerts"]):
+            if rec_id and rec_id not in DB_BY_ID["sos_alerts"]:
                 DB["sos_alerts"].append(data)
+                _index_add("sos_alerts", data)
         elif msg_type in ("SOS_RESOLVED", "SOS_ASSIGNED"):
-            for x in DB["sos_alerts"]:
-                if x["id"] == data.get("id"):
-                    x.update(data)
-                    break
+            existing = _index_get("sos_alerts", rec_id)
+            if existing is not None:
+                existing.update(data)
         elif msg_type == "LOST_REGISTERED":
-            if not any(x["id"] == data.get("id") for x in DB["lost_persons"]):
+            if rec_id and rec_id not in DB_BY_ID["lost_persons"]:
                 DB["lost_persons"].append(data)
+                _index_add("lost_persons", data)
         elif msg_type == "LOST_UPDATED":
-            for x in DB["lost_persons"]:
-                if x["id"] == data.get("id"):
-                    x.update(data)
-                    break
+            existing = _index_get("lost_persons", rec_id)
+            if existing is not None:
+                existing.update(data)
         elif msg_type == "NEW_ISSUE":
-            if not any(x["id"] == data.get("id") for x in DB["issues"]):
+            if rec_id and rec_id not in DB_BY_ID["issues"]:
                 DB["issues"].append(data)
+                _index_add("issues", data)
         elif msg_type in ("ISSUE_RESOLVED", "ISSUE_ACCEPTED"):
-            for x in DB["issues"]:
-                if x["id"] == data.get("id"):
-                    x.update(data)
-                    break
+            existing = _index_get("issues", rec_id)
+            if existing is not None:
+                existing.update(data)
         elif msg_type == "CROWD_UPDATE":
-            for g in DB["ghats"]:
-                if g["id"] == data.get("ghat_id"):
-                    g["crowd_level"] = data.get("level")
-                    if "current_count" in data: g["current_count"] = data["current_count"]
-                    break
+            ghat = _index_get("ghats", data.get("ghat_id"))
+            if ghat is not None:
+                if "level" in data: ghat["crowd_level"] = data["level"]
+                if "current_count" in data: ghat["current_count"] = data["current_count"]
         elif msg_type == "VOLUNTEER_UPDATED":
-             for v in DB["volunteers"]:
-                if v["id"] == data.get("id"):
+            for v in DB["volunteers"]:
+                if v["id"] == rec_id:
                     v.update(data)
                     break
         elif msg_type == "VOLUNTEER_CREATED":
-            if not any(v["id"] == data.get("id") for v in DB["volunteers"]):
+            if not any(v["id"] == rec_id for v in DB["volunteers"]):
                 DB["volunteers"].append(data)
                 rebuild_volunteer_index(DB["volunteers"])
         elif msg_type == "VOLUNTEER_DELETED":
-            DB["volunteers"] = [v for v in DB["volunteers"] if v["id"] != data.get("id")]
+            DB["volunteers"] = [v for v in DB["volunteers"] if v["id"] != rec_id]
             rebuild_volunteer_index(DB["volunteers"])
 
     except Exception as e:
@@ -184,6 +218,7 @@ async def lifespan(app: FastAPI):
     load_sample_data()
     await load_db_from_postgres(DB)
     rebuild_volunteer_index(DB["volunteers"])
+    _rebuild_id_indexes()
     start_monitor()
     if ENABLE_REDIS:
         try:
@@ -257,6 +292,51 @@ def safe_volunteers():
 def _utc_now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Broadcast helper — collapses the ~16 copy-pasted post-mutation blocks
+# (cache invalidation + WS broadcast + optional event-stream append) into a
+# single call. All routes that mutate state and notify clients should go
+# through this helper.
+# ─────────────────────────────────────────────────────────────────────────────
+async def _broadcast_event(
+    msg: dict,
+    *,
+    ghat_id: Optional[str] = None,
+    invalidate: tuple = (),
+    stream_event: Optional[str] = None,
+    stream_payload: Optional[dict] = None,
+    label: str = "Event",
+) -> None:
+    """
+    Invalidate caches → broadcast over WS (Redis-aware) → optionally append
+    to the events Redis stream. Every step is fail-soft: the request handler
+    must complete even if every downstream system is degraded.
+
+    `manager.broadcast` already performs ONE Redis publish + ONE local
+    fan-out, so we no longer need the old `try: broadcast except: _local_broadcast`
+    pattern — `_local_broadcast` runs unconditionally as part of broadcast().
+    """
+    if invalidate:
+        try:
+            await cache_delete(*invalidate)
+        except Exception as exc:
+            logger.debug("[%s] cache_delete failed: %s", label, exc)
+    try:
+        await manager.broadcast(msg, ghat_id=ghat_id)
+    except Exception as exc:
+        logger.warning("[%s] Broadcast failed: %s", label, exc)
+    if stream_event is not None:
+        try:
+            await stream_publish(
+                Keys.STREAM_EVENTS,
+                {"event": stream_event,
+                 "payload": json.dumps(stream_payload or msg.get("data") or {},
+                                       default=str)},
+            )
+        except Exception as exc:
+            logger.debug("[%s] stream_publish failed: %s", label, exc)
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # Leader election  (unchanged)
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -286,74 +366,114 @@ MANUAL_OVERRIDE_TTL = 300  # 5 minutes
 async def crowd_broadcast_loop():
     from app.core.risk_engine import RiskEngine
     logger.info("[CrowdLoop] Starting  instance=%s", INSTANCE_ID)
+
+    async def _process_one(ghat: dict) -> None:
+        ghat_id = ghat["id"]
+        try:
+            # Skip auto-evaluation if admin has manually set this ghat's level.
+            if _manual_overrides.get(ghat_id, 0) > time.time():
+                # Still re-broadcast the manual level so late-joining clients see it.
+                await manager.broadcast({
+                    "type": "CROWD_UPDATE",
+                    "data": {
+                        "ghat_id":      ghat_id,
+                        "level":        ghat["crowd_level"],
+                        "name":         ghat.get("name", ""),
+                        "risk_score":   _prev_scores.get(ghat_id, 0.0),
+                        "occupancy_pct": round(
+                            (ghat.get("current_count", 0)
+                             / max(ghat.get("capacity", 1), 1)) * 100, 1),
+                        "colour": {"low": "green", "medium": "orange",
+                                   "high": "red", "critical": "purple"}
+                                  .get(ghat["crowd_level"], "grey"),
+                        "manual": True,
+                    }
+                }, ghat_id=ghat_id)
+                return
+
+            # Pull all the inputs in parallel — three independent Redis reads.
+            vision_data, telecom_data, history = await asyncio.gather(
+                get_crowd_data(f"cctv:{ghat_id}"),
+                get_crowd_data(f"telecom:{ghat_id}"),
+                get_crowd_history(ghat_id, 10),
+                return_exceptions=False,
+            )
+
+            result = evaluate_from_dicts_adaptive(
+                ghat, vision_data, telecom_data, history,
+            )
+            ghat["crowd_level"]   = result["crowd_level"]
+            ghat["current_count"] = result["estimated_count"]
+
+            # Persist + cache in parallel — both are idempotent best-effort writes.
+            await asyncio.gather(
+                set_crowd_data(ghat_id, result),
+                cache_set(Keys.GHAT_ONE.format(ghat_id=ghat_id), ghat, ttl=3),
+                return_exceptions=True,
+            )
+
+            prev = _prev_scores.get(ghat_id, 0.0)
+            broadcasts: list = []
+
+            if RiskEngine.should_alert(result["risk_score"], prev):
+                broadcasts.append(manager.broadcast({
+                    "type": "CROWD_ALERT",
+                    "data": {
+                        "ghat_id":       ghat_id,
+                        "name":          ghat.get("name", ""),
+                        "crowd_level":   result["crowd_level"],
+                        "risk_score":    result["risk_score"],
+                        "occupancy_pct": result["occupancy_pct"],
+                        "message": f"⚠️ {ghat.get('name','')} — "
+                                   f"{result['crowd_level'].upper()} crowd",
+                    }
+                }, ghat_id=ghat_id))
+
+            _prev_scores[ghat_id] = result["risk_score"]
+
+            if result.get("surge_detected"):
+                broadcasts.append(manager.broadcast({
+                    "type": "SURGE_ALERT",
+                    "data": {
+                        "ghat_id":   ghat_id,
+                        "name":      ghat.get("name", ""),
+                        "message":   f"🚨 SURGE at {ghat.get('name','')} — "
+                                     "crowd rising rapidly",
+                        "risk_score": result["risk_score"],
+                    }
+                }, ghat_id=ghat_id))
+
+            broadcasts.append(manager.broadcast({
+                "type": "CROWD_UPDATE",
+                "data": {
+                    "ghat_id":       ghat_id,
+                    "level":         result["crowd_level"],
+                    "name":          ghat.get("name", ""),
+                    "risk_score":    result["risk_score"],
+                    "occupancy_pct": result["occupancy_pct"],
+                    "colour":        result["colour"],
+                }
+            }, ghat_id=ghat_id))
+
+            if broadcasts:
+                await asyncio.gather(*broadcasts, return_exceptions=True)
+        except Exception as exc:
+            logger.debug("[CrowdLoop] ghat=%s error=%s", ghat_id, exc)
+
     while True:
         try:
             await asyncio.sleep(CROWD_BROADCAST_INTERVAL)
-            if not await _am_leader(): continue
-            for ghat in DB["ghats"]:
-                ghat_id = ghat["id"]
-                try:
-                    # Skip auto-evaluation if admin has manually set this ghat's level
-                    if _manual_overrides.get(ghat_id, 0) > time.time():
-                        # Still broadcast the current manual level so late-joining clients get it
-                        await publish_to_ghat(ghat_id, {
-                            "type": "CROWD_UPDATE",
-                            "data": {
-                                "ghat_id":   ghat_id,
-                                "level":     ghat["crowd_level"],
-                                "name":      ghat.get("name", ""),
-                                "risk_score": _prev_scores.get(ghat_id, 0.0),
-                                "occupancy_pct": round((ghat.get("current_count", 0) / max(ghat.get("capacity", 1), 1)) * 100, 1),
-                                "colour":    {"low": "green", "medium": "orange", "high": "red", "critical": "purple"}.get(ghat["crowd_level"], "grey"),
-                                "manual": True,
-                            }
-                        })
-                        continue
-                    vision_data  = await get_crowd_data(f"cctv:{ghat_id}")
-                    telecom_data = await get_crowd_data(f"telecom:{ghat_id}")
-                    history      = await get_crowd_history(ghat_id, 10)
-                    result       = evaluate_from_dicts_adaptive(ghat, vision_data, telecom_data, history)
-                    ghat["crowd_level"]   = result["crowd_level"]
-                    ghat["current_count"] = result["estimated_count"]
-                    await set_crowd_data(ghat_id, result)
-                    await cache_set(Keys.GHAT_ONE.format(ghat_id=ghat_id), ghat, ttl=3)
-                    prev = _prev_scores.get(ghat_id, 0.0)
-                    if RiskEngine.should_alert(result["risk_score"], prev):
-                        await publish_to_ghat(ghat_id, {
-                            "type": "CROWD_ALERT",
-                            "data": {
-                                "ghat_id":       ghat_id,
-                                "name":          ghat.get("name", ""),
-                                "crowd_level":   result["crowd_level"],
-                                "risk_score":    result["risk_score"],
-                                "occupancy_pct": result["occupancy_pct"],
-                                "message":       f"⚠️ {ghat.get('name','')} — {result['crowd_level'].upper()} crowd",
-                            }
-                        })
-                    _prev_scores[ghat_id] = result["risk_score"]
-                    if result.get("surge_detected"):
-                        await publish_to_ghat(ghat_id, {
-                            "type": "SURGE_ALERT",
-                            "data": {
-                                "ghat_id":   ghat_id,
-                                "name":      ghat.get("name", ""),
-                                "message":   f"🚨 SURGE at {ghat.get('name','')} — crowd rising rapidly",
-                                "risk_score": result["risk_score"],
-                            }
-                        })
-                    await publish_to_ghat(ghat_id, {
-                        "type": "CROWD_UPDATE",
-                        "data": {
-                            "ghat_id":       ghat_id,
-                            "level":         result["crowd_level"],
-                            "name":          ghat.get("name", ""),
-                            "risk_score":    result["risk_score"],
-                            "occupancy_pct": result["occupancy_pct"],
-                            "colour":        result["colour"],
-                        }
-                    })
-                except Exception as exc:
-                    logger.debug("[CrowdLoop] ghat=%s error=%s", ghat_id, exc)
+            if not await _am_leader():
+                continue
+            ghats = list(DB["ghats"])
+            if not ghats:
+                continue
+            # Per-ghat work runs concurrently — was previously a serial loop
+            # of ~76 Redis round-trips per cycle.
+            await asyncio.gather(
+                *(_process_one(g) for g in ghats),
+                return_exceptions=True,
+            )
             await cache_delete(Keys.GHATS_ALL, Keys.STATS, Keys.ADMIN_STATS)
         except asyncio.CancelledError:
             return
@@ -469,15 +589,18 @@ async def report_issue(
     }
     await write_issue(issue)
     DB["issues"].append(issue)
+    _index_add("issues", issue)
     msg = {"type": "NEW_ISSUE", "data": issue}
-    
-    try:
-        await cache_delete(Keys.ISSUES_ALL, Keys.ISSUES_STATUS.format(status="pending"), Keys.STATS, Keys.ADMIN_STATS)
-        await manager.broadcast(msg)
-        await stream_publish(Keys.STREAM_EVENTS, {"event": "new_issue", "payload": json.dumps(issue)})
-    except Exception as ws_exc:
-        logger.warning("[Issue] Broadcast failed: %s", ws_exc)
-        await manager._local_broadcast(msg)
+
+    await _broadcast_event(
+        msg,
+        invalidate=(Keys.ISSUES_ALL,
+                    Keys.ISSUES_STATUS.format(status="pending"),
+                    Keys.STATS, Keys.ADMIN_STATS),
+        stream_event="new_issue",
+        stream_payload=issue,
+        label="Issue",
+    )
 
     return {"success": True, "issue_id": issue["id"], "message": "Issue reported"}
 
@@ -504,25 +627,27 @@ async def resolve_issue(
         resolved_at = _utc_now()
         photo_url = await upload_image(photo, folder="issue-resolutions") if photo else None
         await update_issue_status(issue_id, "resolved", volunteer_id, resolved_at)
-        for issue in DB["issues"]:
-            if issue["id"] == issue_id:
-                issue.update({"status": "resolved", "resolved_at": resolved_at, "assigned_volunteer": volunteer_id})
-                if resolution_note:
-                    issue["resolution_note"]  = resolution_note.strip()[:1000]
-                if photo_url:
-                    issue["resolution_photo"] = photo_url
-                msg = {"type": "ISSUE_RESOLVED", "data": issue}
+        issue = _index_get("issues", issue_id)
+        if issue is not None:
+            issue.update({"status": "resolved", "resolved_at": resolved_at, "assigned_volunteer": volunteer_id})
+            if resolution_note:
+                issue["resolution_note"]  = resolution_note.strip()[:1000]
+            if photo_url:
+                issue["resolution_photo"] = photo_url
+            msg = {"type": "ISSUE_RESOLVED", "data": issue}
 
-                try:
-                    await cache_delete(Keys.ISSUES_ALL, Keys.ISSUES_STATUS.format(status="resolved"),
-                                       Keys.ISSUES_STATUS.format(status="pending"), Keys.STATS, Keys.ADMIN_STATS)
-                    await manager.broadcast(msg)
-                    await stream_publish(Keys.STREAM_EVENTS, {"event": "issue_resolved", "payload": json.dumps(issue)})
-                except Exception as ws_exc:
-                    logger.warning("[Issue] Resolve broadcast failed: %s", ws_exc)
-                    await manager._local_broadcast(msg)
+            await _broadcast_event(
+                msg,
+                invalidate=(Keys.ISSUES_ALL,
+                            Keys.ISSUES_STATUS.format(status="resolved"),
+                            Keys.ISSUES_STATUS.format(status="pending"),
+                            Keys.STATS, Keys.ADMIN_STATS),
+                stream_event="issue_resolved",
+                stream_payload=issue,
+                label="Issue",
+            )
 
-                return {"success": True}
+            return {"success": True}
         raise HTTPException(status_code=404, detail="Issue not found")
     except Exception as exc:
         logger.error("[Issue] resolve_issue failed: %s", exc)
@@ -536,20 +661,21 @@ async def accept_issue(
 ):
     try:
         await update_issue_status(issue_id, "in_progress", volunteer_id)
-        for issue in DB["issues"]:
-            if issue["id"] == issue_id:
-                issue.update({"status": "in_progress", "assigned_volunteer": volunteer_id})
-                msg = {"type": "ISSUE_ACCEPTED", "data": issue}
-                
-                try:
-                    await cache_delete(Keys.ISSUES_ALL, Keys.ISSUES_STATUS.format(status="in_progress"),
-                                       Keys.ISSUES_STATUS.format(status="pending"), Keys.STATS, Keys.ADMIN_STATS)
-                    await manager.broadcast(msg)
-                except Exception as ws_exc:
-                    logger.warning("[Issue] Accept broadcast failed: %s", ws_exc)
-                    await manager._local_broadcast(msg)
-                    
-                return {"success": True}
+        issue = _index_get("issues", issue_id)
+        if issue is not None:
+            issue.update({"status": "in_progress", "assigned_volunteer": volunteer_id})
+            msg = {"type": "ISSUE_ACCEPTED", "data": issue}
+
+            await _broadcast_event(
+                msg,
+                invalidate=(Keys.ISSUES_ALL,
+                            Keys.ISSUES_STATUS.format(status="in_progress"),
+                            Keys.ISSUES_STATUS.format(status="pending"),
+                            Keys.STATS, Keys.ADMIN_STATS),
+                label="Issue",
+            )
+
+            return {"success": True}
         raise HTTPException(status_code=404, detail="Issue not found")
     except Exception as exc:
         logger.error("[Issue] accept_issue failed: %s", exc)
@@ -605,19 +731,17 @@ async def create_sos_record(
         logger.error("[SOS] PG write failed: %s", pg_exc)
 
     DB["sos_alerts"].append(alert)
+    _index_add("sos_alerts", alert)
     msg = {"type": "SOS_ALERT", "data": alert, "priority": "HIGH"}
 
-    # Reliable broadcast (Redis + local fan-out)
-    try:
-        await cache_delete(Keys.SOS_ACTIVE, Keys.SOS_ALL, Keys.STATS, Keys.ADMIN_STATS)
-        await manager.broadcast(msg)
-        await stream_publish(
-            Keys.STREAM_EVENTS,
-            {"event": "sos_alert", "payload": json.dumps(alert)},
-        )
-    except Exception as ws_exc:
-        logger.warning("[SOS] Broadcast failed: %s", ws_exc)
-        await manager._local_broadcast(msg)
+    # Reliable broadcast (Redis + local fan-out via the canonical helper)
+    await _broadcast_event(
+        msg,
+        invalidate=(Keys.SOS_ACTIVE, Keys.SOS_ALL, Keys.STATS, Keys.ADMIN_STATS),
+        stream_event="sos_alert",
+        stream_payload=alert,
+        label="SOS",
+    )
 
     if nearest:
         message = (
@@ -721,26 +845,27 @@ async def resolve_sos(
         # Phase 2: capture optional resolution photo + note for digital audit trail
         photo_url = await upload_image(photo, folder="sos-resolutions") if photo else None
         await update_sos_status(alert_id, "resolved", resolved_at=resolved_at)
-        for alert in DB["sos_alerts"]:
-            if alert["id"] == alert_id:
-                alert.update({"status": "resolved", "resolved_at": resolved_at})
-                if resolution_note:
-                    alert["resolution_note"]  = resolution_note.strip()[:1000]
-                if photo_url:
-                    alert["resolution_photo"] = photo_url
-                if resolution_note or photo_url:
-                    alert["resolved_by"] = volunteer_id
-                msg = {"type": "SOS_RESOLVED", "data": alert}
+        alert = _index_get("sos_alerts", alert_id)
+        if alert is not None:
+            alert.update({"status": "resolved", "resolved_at": resolved_at})
+            if resolution_note:
+                alert["resolution_note"]  = resolution_note.strip()[:1000]
+            if photo_url:
+                alert["resolution_photo"] = photo_url
+            if resolution_note or photo_url:
+                alert["resolved_by"] = volunteer_id
+            msg = {"type": "SOS_RESOLVED", "data": alert}
 
-                try:
-                    await cache_delete(Keys.SOS_ACTIVE, Keys.SOS_ALL, Keys.STATS, Keys.ADMIN_STATS)
-                    await manager.broadcast(msg)
-                    await stream_publish(Keys.STREAM_EVENTS, {"event": "sos_resolved", "payload": json.dumps(alert)})
-                except Exception as ws_exc:
-                    logger.warning("[SOS] Resolve broadcast failed: %s", ws_exc)
-                    await manager._local_broadcast(msg)
+            await _broadcast_event(
+                msg,
+                invalidate=(Keys.SOS_ACTIVE, Keys.SOS_ALL,
+                            Keys.STATS, Keys.ADMIN_STATS),
+                stream_event="sos_resolved",
+                stream_payload=alert,
+                label="SOS",
+            )
 
-                return {"success": True}
+            return {"success": True}
         raise HTTPException(status_code=404, detail="Alert not found")
     except Exception as exc:
         logger.error("[SOS] resolve_sos failed: %s", exc)
@@ -753,7 +878,7 @@ async def assign_sos(
     _auth: dict = Depends(require_volunteer_or_admin),
 ):
     try:
-        alert = next((a for a in DB["sos_alerts"] if a["id"] == alert_id), None)
+        alert = _index_get("sos_alerts", alert_id)
         vol   = next((v for v in DB["volunteers"]  if v["id"] == volunteer_id), None)
         if not alert: raise HTTPException(status_code=404, detail="Alert not found")
         if not vol:   raise HTTPException(status_code=404, detail="Volunteer not found")
@@ -761,14 +886,13 @@ async def assign_sos(
         await update_sos_status(alert_id, "assigned", volunteer_id=volunteer_id, volunteer_name=vol["name"])
         alert.update({"assigned_volunteer": volunteer_id, "assigned_volunteer_name": vol["name"]})
         msg = {"type": "SOS_ASSIGNED", "data": alert}
-        
-        try:
-            await cache_delete(Keys.SOS_ACTIVE, Keys.SOS_ALL)
-            await manager.broadcast(msg)
-        except Exception as ws_exc:
-            logger.warning("[SOS] Assign broadcast failed: %s", ws_exc)
-            await manager._local_broadcast(msg)
-            
+
+        await _broadcast_event(
+            msg,
+            invalidate=(Keys.SOS_ACTIVE, Keys.SOS_ALL),
+            label="SOS",
+        )
+
         return {"success": True}
     except Exception as exc:
         logger.error("[SOS] assign_sos failed: %s", exc)
@@ -810,40 +934,39 @@ async def update_crowd(
     valid_levels = {"low", "medium", "high", "critical"}
     if level not in valid_levels:
         raise HTTPException(status_code=400, detail=f"level must be one of {valid_levels}")
-    for ghat in DB["ghats"]:
-        if ghat["id"] == ghat_id:
-            ghat["crowd_level"] = level
-            # Lock this ghat so broadcast loop won't overwrite for 5 minutes
-            _manual_overrides[ghat_id] = time.time() + MANUAL_OVERRIDE_TTL
-            logger.info("[ManualOverride] ghat=%s level=%s locked for %ds by admin", ghat_id, level, MANUAL_OVERRIDE_TTL)
-            # Build a synthetic risk result so /crowd/risk/all reflects the manual level
-            capacity = ghat.get("capacity", 1000)
-            current = ghat.get("current_count", 0)
-            colour_map = {"low": "green", "medium": "orange", "high": "red", "critical": "purple"}
-            score_map  = {"low": 0.2, "medium": 0.5, "high": 0.75, "critical": 0.95}
-            risk_result = {
-                "ghat_id":       ghat_id,
-                "crowd_level":   level,
-                "risk_score":    score_map.get(level, 0.5),
-                "occupancy_pct": round((current / max(capacity, 1)) * 100, 1),
-                "estimated_count": current,
-                "colour":        colour_map.get(level, "grey"),
-                "manual":        True,
-                "timestamp":     time.time(),
-            }
-            await set_crowd_data(ghat_id, risk_result)
-            await cache_delete(Keys.GHATS_ALL, Keys.GHAT_ONE.format(ghat_id=ghat_id), Keys.RISK_ALL)
-            msg = {"type": "CROWD_UPDATE", "data": {
-                "ghat_id": ghat_id, "level": level, "name": ghat.get("name", ""),
-                "risk_score": risk_result["risk_score"],
-                "occupancy_pct": risk_result["occupancy_pct"],
-                "colour": risk_result["colour"],
-                "manual": True,
-            }}
-            await publish_to_ghat(ghat_id, msg)
-            await manager._local_broadcast(msg, ghat_id)
-            return {"success": True, "locked_until": _manual_overrides[ghat_id], "override_ttl_seconds": MANUAL_OVERRIDE_TTL}
-    raise HTTPException(status_code=404, detail="Ghat not found")
+    ghat = _index_get("ghats", ghat_id)
+    if ghat is None:
+        raise HTTPException(status_code=404, detail="Ghat not found")
+    ghat["crowd_level"] = level
+    # Lock this ghat so broadcast loop won't overwrite for 5 minutes
+    _manual_overrides[ghat_id] = time.time() + MANUAL_OVERRIDE_TTL
+    logger.info("[ManualOverride] ghat=%s level=%s locked for %ds by admin", ghat_id, level, MANUAL_OVERRIDE_TTL)
+    # Build a synthetic risk result so /crowd/risk/all reflects the manual level
+    capacity = ghat.get("capacity", 1000)
+    current = ghat.get("current_count", 0)
+    colour_map = {"low": "green", "medium": "orange", "high": "red", "critical": "purple"}
+    score_map  = {"low": 0.2, "medium": 0.5, "high": 0.75, "critical": 0.95}
+    risk_result = {
+        "ghat_id":       ghat_id,
+        "crowd_level":   level,
+        "risk_score":    score_map.get(level, 0.5),
+        "occupancy_pct": round((current / max(capacity, 1)) * 100, 1),
+        "estimated_count": current,
+        "colour":        colour_map.get(level, "grey"),
+        "manual":        True,
+        "timestamp":     time.time(),
+    }
+    await set_crowd_data(ghat_id, risk_result)
+    await cache_delete(Keys.GHATS_ALL, Keys.GHAT_ONE.format(ghat_id=ghat_id), Keys.RISK_ALL)
+    msg = {"type": "CROWD_UPDATE", "data": {
+        "ghat_id": ghat_id, "level": level, "name": ghat.get("name", ""),
+        "risk_score": risk_result["risk_score"],
+        "occupancy_pct": risk_result["occupancy_pct"],
+        "colour": risk_result["colour"],
+        "manual": True,
+    }}
+    await manager.broadcast(msg, ghat_id=ghat_id)
+    return {"success": True, "locked_until": _manual_overrides[ghat_id], "override_ttl_seconds": MANUAL_OVERRIDE_TTL}
 
 @app.post("/crowd/override/clear/{ghat_id}")
 async def clear_crowd_override(
@@ -969,8 +1092,7 @@ async def update_volunteer(
             safe = {k: v for k, v in vol.items() if k != "password"}
             msg = {"type": "VOLUNTEER_UPDATED", "data": safe}
             await cache_delete(Keys.VOLUNTEERS)
-            await publish(Keys.CHANNEL_ALL, msg)
-            await manager._local_broadcast(msg)
+            await manager.broadcast(msg)
             return {"success": True, "volunteer": safe}
     raise HTTPException(status_code=404, detail="Volunteer not found")
 
@@ -1034,8 +1156,7 @@ async def admin_create_volunteer(
     await cache_delete(Keys.VOLUNTEERS)
     safe = {k: v for k, v in vol.items() if k not in ("password", "password_hash")}
     msg = {"type": "VOLUNTEER_CREATED", "data": safe}
-    await publish(Keys.CHANNEL_ALL, msg)
-    await manager._local_broadcast(msg)
+    await manager.broadcast(msg)
 
     logger.info("[Admin] Volunteer created: %s (%s)", vol["name"], vol["username"])
     return {"success": True, "volunteer": safe}
@@ -1083,8 +1204,7 @@ async def admin_update_volunteer(
     await cache_delete(Keys.VOLUNTEERS)
     safe = {k: v for k, v in vol.items() if k not in ("password", "password_hash")}
     msg = {"type": "VOLUNTEER_UPDATED", "data": safe}
-    await publish(Keys.CHANNEL_ALL, msg)
-    await manager._local_broadcast(msg)
+    await manager.broadcast(msg)
 
     logger.info("[Admin] Volunteer updated: %s", vid)
     return {"success": True, "volunteer": safe}
@@ -1106,8 +1226,7 @@ async def admin_delete_volunteer(vid: str, _auth: None = Depends(require_admin_k
 
     await cache_delete(Keys.VOLUNTEERS)
     msg = {"type": "VOLUNTEER_DELETED", "data": {"id": vid}}
-    await publish(Keys.CHANNEL_ALL, msg)
-    await manager._local_broadcast(msg)
+    await manager.broadcast(msg)
 
     logger.info("[Admin] Volunteer deleted: %s (%s)", removed.get("name"), vid)
     return {"success": True, "deleted_id": vid}
@@ -1450,17 +1569,21 @@ async def register_lost(
             logger.error("[Lost] PG write failed: %s", pg_exc)
 
         DB["lost_persons"].append(person)
+        _index_add("lost_persons", person)
         msg = {"type": "LOST_REGISTERED", "data": person}
-        
+
         # Reliable Broadcast
         try:
             await cache_set(Keys.LOST_ALL, {"lost_persons": DB["lost_persons"]}, ttl=30)
-            await cache_delete(Keys.LOST_STATUS.format(status="missing"), Keys.ADMIN_STATS)
-            await manager.broadcast(msg)
-            await stream_publish(Keys.STREAM_EVENTS, {"event": "lost_person", "payload": json.dumps(person)})
-        except Exception as ws_exc:
-            logger.warning("[Lost] Broadcast failed: %s", ws_exc)
-            await manager._local_broadcast(msg)
+        except Exception as exc:
+            logger.debug("[Lost] cache warm failed: %s", exc)
+        await _broadcast_event(
+            msg,
+            invalidate=(Keys.LOST_STATUS.format(status="missing"), Keys.ADMIN_STATS),
+            stream_event="lost_person",
+            stream_payload=person,
+            label="Lost",
+        )
 
         return {"success": True, "id": person["id"]}
     except Exception as exc:
@@ -1484,50 +1607,50 @@ async def update_lost(
             await update_lost_person_status(pid, status, current_location, last_seen_location)
         except Exception as pg_exc:
             logger.error("[Lost] PG Update failed: %s", pg_exc)
-            
-        for p in DB["lost_persons"]:
-            if p["id"] == pid:
-                if status:             p["status"]             = status
-                if current_location:   p["current_location"]   = current_location
-                if last_seen_location: p["last_seen_location"] = last_seen_location
-                p["updated_at"] = _utc_now()
-                
-                # Redis & Global Sync
+
+        p = _index_get("lost_persons", pid)
+        if p is not None:
+            if status:             p["status"]             = status
+            if current_location:   p["current_location"]   = current_location
+            if last_seen_location: p["last_seen_location"] = last_seen_location
+            p["updated_at"] = _utc_now()
+
+            # Redis & Global Sync
+            try:
+                await cache_set(Keys.LOST_ALL, {"lost_persons": DB["lost_persons"]}, ttl=30)
+            except Exception as exc:
+                logger.debug("[Lost] cache warm failed: %s", exc)
+            msg = {"type": "LOST_UPDATED", "data": p}
+            await _broadcast_event(
+                msg,
+                invalidate=(Keys.LOST_STATUS.format(status="missing"),
+                            Keys.LOST_STATUS.format(status="found"),
+                            Keys.LOST_STATUS.format(status="closed"),
+                            Keys.ADMIN_STATS),
+                label="Lost",
+            )
+
+            # ── WhatsApp notification when a missing person is found ──
+            # Best-effort, fire-and-forget. Falls back silently if no
+            # contact_phone, no WhatsApp provider, or status != "found".
+            if status == "found" and p.get("contact_phone"):
                 try:
-                    await cache_set(Keys.LOST_ALL, {"lost_persons": DB["lost_persons"]}, ttl=30)
-                    await cache_delete(
-                        Keys.LOST_STATUS.format(status="missing"),
-                        Keys.LOST_STATUS.format(status="found"),
-                        Keys.LOST_STATUS.format(status="closed"),
-                        Keys.ADMIN_STATS,
+                    from services.whatsapp_service import fire_and_forget_send
+                    loc = p.get("current_location") or "Enquiry Counter"
+                    wa_body = (
+                        f"✅ Good news — {p.get('name','Your missing person')} "
+                        f"has been FOUND.\n"
+                        f"Current location: {loc}\n"
+                        f"Report ID: {p['id'][:8]}\n"
+                        "Please proceed to the nearest Enquiry Counter to "
+                        "reunite. — TourGO Pushkara 🕊"
                     )
-                    msg = {"type": "LOST_UPDATED", "data": p}
-                    await manager.broadcast(msg)
-                except Exception as ws_exc:
-                    logger.warning("[Lost] Broadcast failed: %s", ws_exc)
-                    await manager._local_broadcast({"type": "LOST_UPDATED", "data": p})
+                    fire_and_forget_send(p["contact_phone"], wa_body)
+                except Exception as wa_exc:
+                    logger.debug("[Lost] WhatsApp notify skipped: %s", wa_exc)
 
-                # ── WhatsApp notification when a missing person is found ──
-                # Best-effort, fire-and-forget. Falls back silently if no
-                # contact_phone, no WhatsApp provider, or status != "found".
-                if status == "found" and p.get("contact_phone"):
-                    try:
-                        from services.whatsapp_service import fire_and_forget_send
-                        loc = p.get("current_location") or "Enquiry Counter"
-                        wa_body = (
-                            f"✅ Good news — {p.get('name','Your missing person')} "
-                            f"has been FOUND.\n"
-                            f"Current location: {loc}\n"
-                            f"Report ID: {p['id'][:8]}\n"
-                            "Please proceed to the nearest Enquiry Counter to "
-                            "reunite. — TourGO Pushkara 🕊"
-                        )
-                        fire_and_forget_send(p["contact_phone"], wa_body)
-                    except Exception as wa_exc:
-                        logger.debug("[Lost] WhatsApp notify skipped: %s", wa_exc)
+            return {"success": True, "person": p}
 
-                return {"success": True, "person": p}
-        
         raise HTTPException(status_code=404, detail="Person not found")
     except HTTPException:
         raise
@@ -1567,9 +1690,11 @@ async def add_contact(
     }
     DB["emergency_contacts"].append(contact)
     msg = {"type": "CONTACT_ADDED", "data": contact}
-    await cache_delete(Keys.CONTACTS, Keys.CONTACTS_CAT.format(category=category))
-    await publish(Keys.CHANNEL_ALL, msg)
-    await manager._local_broadcast(msg)
+    await _broadcast_event(
+        msg,
+        invalidate=(Keys.CONTACTS, Keys.CONTACTS_CAT.format(category=category)),
+        label="Contact",
+    )
     return {"success": True, "id": contact["id"]}
 
 @app.delete("/contacts/{cid}")
@@ -1578,9 +1703,11 @@ async def delete_contact(cid: str, _auth: dict = Depends(require_volunteer)):
         if c["id"] == cid:
             DB["emergency_contacts"].pop(i)
             msg = {"type": "CONTACT_DELETED", "data": {"id": cid}}
-            await cache_delete(Keys.CONTACTS)
-            await publish(Keys.CHANNEL_ALL, msg)
-            await manager._local_broadcast(msg)
+            await _broadcast_event(
+                msg,
+                invalidate=(Keys.CONTACTS,),
+                label="Contact",
+            )
             return {"success": True}
     raise HTTPException(status_code=404, detail="Contact not found")
 
@@ -1613,9 +1740,11 @@ async def add_medical(
     }
     DB["medical_facilities"].append(fac)
     msg = {"type": "MEDICAL_ADDED", "data": fac}
-    await cache_delete(Keys.MEDICAL, Keys.MEDICAL_TYPE.format(type=type))
-    await publish(Keys.CHANNEL_ALL, msg)
-    await manager._local_broadcast(msg)
+    await _broadcast_event(
+        msg,
+        invalidate=(Keys.MEDICAL, Keys.MEDICAL_TYPE.format(type=type)),
+        label="Medical",
+    )
     return {"success": True, "id": fac["id"]}
 
 @app.delete("/medical/{fid}")
@@ -1643,13 +1772,17 @@ async def websocket_volunteer(websocket: WebSocket):
             "medical_facilities": DB["medical_facilities"],
             "volunteers":         safe_volunteers(),
         }})
+        # The manager's central heartbeat_loop pings every HEARTBEAT_INTERVAL
+        # seconds; the per-handler timeout below is purely a read pump that
+        # stays parked between client messages. Don't double-ping.
         while True:
             try:
-                await asyncio.wait_for(websocket.receive_text(), timeout=HEARTBEAT_INTERVAL)
+                await asyncio.wait_for(websocket.receive_text(),
+                                       timeout=HEARTBEAT_INTERVAL * 2)
             except asyncio.TimeoutError:
-                await websocket.send_json({"type": "PING"})
+                continue
     except WebSocketDisconnect:
-        await manager.disconnect(websocket, ghat_id="all")
+        await manager.disconnect(websocket)
 
 # NOTE: /ws/admin WebSocket is removed — admin portal is handled by govt officials.
 
@@ -1665,15 +1798,16 @@ async def websocket_public(websocket: WebSocket):
         }})
         while True:
             try:
-                await asyncio.wait_for(websocket.receive_text(), timeout=HEARTBEAT_INTERVAL)
+                await asyncio.wait_for(websocket.receive_text(),
+                                       timeout=HEARTBEAT_INTERVAL * 2)
             except asyncio.TimeoutError:
-                await websocket.send_json({"type": "PING"})
+                continue
     except WebSocketDisconnect:
-        await manager.disconnect(websocket, ghat_id="all")
+        await manager.disconnect(websocket)
 
 @app.websocket("/ws/pilgrim/{ghat_id}")
 async def websocket_pilgrim(websocket: WebSocket, ghat_id: str):
-    ghat = next((g for g in DB["ghats"] if g["id"] == ghat_id), None)
+    ghat = _index_get("ghats", ghat_id)
     if not ghat:
         await websocket.close(code=1008, reason="Unknown ghat_id")
         return
@@ -1689,11 +1823,12 @@ async def websocket_pilgrim(websocket: WebSocket, ghat_id: str):
         }})
         while True:
             try:
-                await asyncio.wait_for(websocket.receive_text(), timeout=HEARTBEAT_INTERVAL)
+                await asyncio.wait_for(websocket.receive_text(),
+                                       timeout=HEARTBEAT_INTERVAL * 2)
             except asyncio.TimeoutError:
-                await websocket.send_json({"type": "PING"})
+                continue
     except WebSocketDisconnect:
-        await manager.disconnect(websocket, ghat_id=ghat_id)
+        await manager.disconnect(websocket)
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # Location & Emergency Services  (unchanged)
@@ -1767,7 +1902,7 @@ async def ingest_cctv(request: Request):
     # Auto-derive frame_area_sq_m from ghat capacity if not supplied by sender.
     # At Fruin Level F (stampede), density = 4 persons/m².
     # So "full capacity" area = capacity / 4.  This means occupancy maps linearly to density.
-    ghat = next((g for g in DB["ghats"] if g["id"] == ghat_id), None)
+    ghat = _index_get("ghats", ghat_id)
     default_area = (ghat["capacity"] / 4.0) if ghat and ghat.get("capacity") else 500.0
     vision_data = {
         "person_count":    person_count,
@@ -1820,11 +1955,22 @@ async def ingest_telecom(request: Request):
 async def get_all_risk():
     cached = await cache_get(Keys.RISK_ALL)
     if cached: return cached
-    result = []
-    for ghat in DB["ghats"]:
-        risk_data = await get_crowd_data(ghat["id"])
-        if not risk_data: risk_data = evaluate_from_dicts(ghat)
-        result.append(risk_data)
+    ghats = DB["ghats"]
+    if ghats:
+        # Fetch every ghat's crowd snapshot in parallel — was a serial loop
+        # of N Redis round-trips on every cache miss (TTL=3s, so this fires
+        # often).
+        snapshots = await asyncio.gather(
+            *(get_crowd_data(g["id"]) for g in ghats),
+            return_exceptions=True,
+        )
+        result = []
+        for ghat, snap in zip(ghats, snapshots):
+            if isinstance(snap, Exception) or not snap:
+                snap = evaluate_from_dicts(ghat)
+            result.append(snap)
+    else:
+        result = []
     payload = {"risks": result, "timestamp": time.time()}
     await cache_set(Keys.RISK_ALL, payload, ttl=3)
     return payload
@@ -1833,7 +1979,7 @@ async def get_all_risk():
 async def get_ghat_risk(ghat_id: str):
     risk_data = await get_crowd_data(ghat_id)
     if risk_data: return risk_data
-    ghat = next((g for g in DB["ghats"] if g["id"] == ghat_id), None)
+    ghat = _index_get("ghats", ghat_id)
     if not ghat: raise HTTPException(status_code=404, detail="Ghat not found")
     return evaluate_from_dicts(ghat)
 
