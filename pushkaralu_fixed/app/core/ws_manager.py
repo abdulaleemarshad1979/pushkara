@@ -1,52 +1,90 @@
 # ═══════════════════════════════════════════════════════════════════════════════
-# Godavari Pushkaralu 2027 — WebSocket Manager  (v6 — Hardened)
+# Godavari Pushkaralu 2027 — WebSocket Manager  (v7 — Optimized)
 #
-# HARDENING vs v5:
-#   - broadcast() checks redis_available flag before pub/sub
-#   - If Redis circuit is open: routes through local asyncio.Queue event bus
-#     so WebSockets never drop messages during a Redis outage
-#   - Local event bus drains in a background task; no message loss
-#   - All v5 logic (ghat partitioning, heartbeat, dead-conn pruning) preserved
+# Optimizations vs v6:
+#   1. Buckets are sets, not lists       → O(1) add / remove / membership.
+#   2. Reverse `ws → ghat_id` index      → disconnect(ws) needs no extra arg
+#                                          and never leaks bucket entries on
+#                                          mismatched callers.
+#   3. Pre-serialize payload ONCE        → one json.dumps per broadcast,
+#                                          bytes shared across all recipients
+#                                          via send_text() instead of N×
+#                                          send_json() re-encoding.
+#   4. Single publish + single local fan-out per broadcast. Subscriber drops
+#      self-originating echoes via an `_origin` envelope key, eliminating the
+#      old 3–4× duplicate-delivery on the publishing instance.
+#   5. Pattern-subscribe `pushkaralu:ghat:*` instead of hard-coding g01..g19,
+#      so any ghat id is routed correctly.
+#   6. Live circuit-breaker read via redis_manager.is_circuit_open() — the
+#      previous `from redis_manager import _circuit_open` captured the bool
+#      at import time and never updated, silently disabling degraded mode.
+#   7. Centralised heartbeat: WS handlers no longer send their own PING on
+#      receive_text timeout — manager.heartbeat_loop is the single source of
+#      keep-alives.
+#   8. Removed the dead local-event-bus drain task (was unreachable due to
+#      bug #6 above).
 # ═══════════════════════════════════════════════════════════════════════════════
+
+from __future__ import annotations
 
 import asyncio
 import json
 import logging
 import time
 from collections import defaultdict
-from typing import Any, Callable, Dict, List, Optional, Set
+from typing import Any, Callable, Dict, Optional, Set
 
 from fastapi import WebSocket
 
+from app.core import redis_manager
 from app.core.redis_manager import (
-    Keys, _circuit_open, get_pubsub_redis, publish, redis_available,
+    INSTANCE_ID,
+    Keys,
+    get_pubsub_redis,
+    publish,
+    redis_available,
 )
 
 logger = logging.getLogger("pushkaralu.ws")
 
 HEARTBEAT_INTERVAL       = 25
-BROADCAST_INTERVAL       = 2.5
 MAX_CONNECTIONS_PER_GHAT = 5000
+SEND_TIMEOUT_SECONDS     = 3.0
+SUBSCRIBER_BACKOFF_MAX   = 60
 
-# ── Local fallback event bus (asyncio.Queue) ──────────────────────────────────
-# When Redis is unavailable, broadcast() enqueues here.
-# _local_bus_drain_task reads from it and calls _local_broadcast directly,
-# so all connected WebSockets still receive messages.
-_local_event_bus: asyncio.Queue = asyncio.Queue(maxsize=10_000)
+# Envelope key that tags every broadcast with the originating instance id so
+# the local subscriber can drop the message it just published itself.
+ORIGIN_KEY = "_origin"
 
 
 class GhatConnectionManager:
-    def __init__(self):
-        self._connections: Dict[str, List[WebSocket]] = defaultdict(list)
-        self._active: Set[WebSocket] = set()
-        self._subscriber_task: Optional[asyncio.Task] = None
-        self._bus_drain_task:  Optional[asyncio.Task] = None
-        self._lock = asyncio.Lock()
-        self._total_connected    = 0
-        self._total_messages_sent = 0
-        self.on_event: Optional[Callable[[dict], Any]] = None  # Callback for state sync
+    """
+    Per-ghat WebSocket connection manager with a Redis pub/sub fan-out for
+    cross-instance delivery.
 
-    # ── Connection lifecycle ───────────────────────────────────────────────
+    Connections are bucketed by `ghat_id` (use "all" for unscoped clients).
+    A single broadcast performs ONE Redis publish (cross-instance) plus ONE
+    local fan-out (this instance) — the subscriber on this same instance
+    drops its own echo via the `_origin` envelope tag.
+    """
+
+    def __init__(self) -> None:
+        self._connections: Dict[str, Set[WebSocket]] = defaultdict(set)
+        self._ws_to_ghat:  Dict[WebSocket, str]      = {}
+        self._active:      Set[WebSocket]            = set()
+        self._lock = asyncio.Lock()
+
+        self._subscriber_task: Optional[asyncio.Task] = None
+
+        self._total_connected      = 0
+        self._total_messages_sent  = 0
+        self._total_dead_pruned    = 0
+
+        # Optional callback invoked for every Redis-received payload (used by
+        # main.sync_state to mirror DB across instances).
+        self.on_event: Optional[Callable[[dict], Any]] = None
+
+    # ── Connection lifecycle ────────────────────────────────────────────────
 
     async def connect(self, websocket: WebSocket, ghat_id: str = "all") -> bool:
         await websocket.accept()
@@ -54,201 +92,278 @@ class GhatConnectionManager:
             bucket = self._connections[ghat_id]
             if len(bucket) >= MAX_CONNECTIONS_PER_GHAT:
                 logger.warning("[WS] Cap reached ghat=%s — rejecting", ghat_id)
+                # close happens outside the lock (next line) so we don't hold
+                # the manager-wide lock through a network round-trip.
+                full = True
+            else:
+                bucket.add(websocket)
+                self._active.add(websocket)
+                self._ws_to_ghat[websocket] = ghat_id
+                self._total_connected += 1
+                full = False
+        if full:
+            try:
                 await websocket.close(code=1008, reason="Server capacity reached")
-                return False
-            bucket.append(websocket)
-            self._active.add(websocket)
-            self._total_connected += 1
-        logger.debug("[WS] Connected  ghat=%s  total=%d", ghat_id, self._total_connected)
+            except Exception:
+                pass
+            return False
+        logger.debug("[WS] Connected ghat=%s total=%d", ghat_id, self._total_connected)
         return True
 
-    async def disconnect(self, websocket: WebSocket, ghat_id: str = "all"):
+    async def disconnect(self, websocket: WebSocket, ghat_id: Optional[str] = None) -> None:
+        """
+        Remove a websocket from all manager indexes.
+
+        `ghat_id` is accepted for backwards compatibility but ignored — the
+        reverse `_ws_to_ghat` map is the single source of truth.
+        """
         async with self._lock:
-            if websocket in self._active:
-                self._active.discard(websocket)
-                bucket = self._connections.get(ghat_id, [])
-                try:
-                    bucket.remove(websocket)
-                except ValueError:
-                    pass
+            self._active.discard(websocket)
+            gid = self._ws_to_ghat.pop(websocket, None)
+            if gid is not None:
+                bucket = self._connections.get(gid)
+                if bucket is not None:
+                    bucket.discard(websocket)
+                    if not bucket:
+                        # Drop empty bucket so heartbeat / fan-out skips it.
+                        self._connections.pop(gid, None)
 
     def get_count(self, ghat_id: Optional[str] = None) -> int:
         if ghat_id:
-            return len(self._connections.get(ghat_id, []))
+            return len(self._connections.get(ghat_id, ()))
         return len(self._active)
 
-    # ── Local broadcast (this instance only) ──────────────────────────────
+    # ── Local fan-out (single instance) ─────────────────────────────────────
 
-    async def _send_to_socket(self, websocket: WebSocket, message: dict) -> bool:
+    async def _send_text(self, websocket: WebSocket, text: str) -> bool:
         try:
-            await asyncio.wait_for(websocket.send_json(message), timeout=3.0)
+            await asyncio.wait_for(websocket.send_text(text), timeout=SEND_TIMEOUT_SECONDS)
             return True
         except Exception:
             return False
 
-    async def _broadcast_to_bucket(self, ghat_id: str, message: dict):
-        bucket = self._connections.get(ghat_id, [])
+    async def _broadcast_to_bucket_text(self, ghat_id: str, text: str) -> int:
+        """
+        Send a pre-serialised text payload to every websocket in `ghat_id`.
+
+        Returns the number of successful deliveries. Dead sockets are pruned
+        in a single locked pass.
+        """
+        bucket = self._connections.get(ghat_id)
         if not bucket:
-            return
+            return 0
+        # Snapshot to avoid mutation-during-iteration; the gather may take a
+        # while if a socket is slow.
+        snapshot = tuple(bucket)
         results = await asyncio.gather(
-            *[self._send_to_socket(ws, message) for ws in bucket],
+            *(self._send_text(ws, text) for ws in snapshot),
             return_exceptions=True,
         )
-        dead = [ws for ws, ok in zip(bucket, results) if ok is not True]
+        dead = [ws for ws, ok in zip(snapshot, results) if ok is not True]
         if dead:
-            async with self._lock:
-                for ws in dead:
-                    self._active.discard(ws)
-                    try:
-                        self._connections[ghat_id].remove(ws)
-                    except ValueError:
-                        pass
-            logger.debug("[WS] Pruned %d dead connections from ghat=%s", len(dead), ghat_id)
-        self._total_messages_sent += len(bucket) - len(dead)
+            await self._prune(dead)
+        sent = len(snapshot) - len(dead)
+        self._total_messages_sent += sent
+        return sent
 
-    async def _local_broadcast(self, message: dict, ghat_id: Optional[str] = None):
+    async def _prune(self, dead) -> None:
+        async with self._lock:
+            for ws in dead:
+                self._active.discard(ws)
+                gid = self._ws_to_ghat.pop(ws, None)
+                if gid is not None:
+                    bucket = self._connections.get(gid)
+                    if bucket is not None:
+                        bucket.discard(ws)
+                        if not bucket:
+                            self._connections.pop(gid, None)
+            self._total_dead_pruned += len(dead)
+        logger.debug("[WS] Pruned %d dead connections", len(dead))
+
+    async def _local_broadcast(self, message: dict, ghat_id: Optional[str] = None) -> None:
+        """
+        Pre-serialize once, then fan out to every interested bucket.
+
+        - ghat_id None → every bucket.
+        - ghat_id "all" → only the "all" bucket.
+        - any other ghat_id → that ghat's bucket plus the "all" bucket
+          (so dashboards subscribed to "all" still receive per-ghat events).
+        """
+        # Strip the cross-instance origin tag before pushing to clients —
+        # it's an internal protocol detail.
+        if ORIGIN_KEY in message:
+            message = {k: v for k, v in message.items() if k != ORIGIN_KEY}
+        try:
+            text = json.dumps(message, default=str)
+        except Exception as exc:
+            logger.warning("[WS] Failed to serialize broadcast: %s", exc)
+            return
+
         if ghat_id and ghat_id != "all":
             await asyncio.gather(
-                self._broadcast_to_bucket(ghat_id, message),
-                self._broadcast_to_bucket("all", message),
+                self._broadcast_to_bucket_text(ghat_id, text),
+                self._broadcast_to_bucket_text("all", text),
+                return_exceptions=True,
             )
+        elif ghat_id == "all":
+            await self._broadcast_to_bucket_text("all", text)
         else:
-            all_buckets = list(self._connections.keys())
-            await asyncio.gather(
-                *[self._broadcast_to_bucket(b, message) for b in all_buckets]
-            )
-
-    # ── Main broadcast — Redis-aware with local fallback ──────────────────
-
-    async def broadcast(self, message: dict, ghat_id: Optional[str] = None):
-        """
-        Publish via Redis when available; fall back to local asyncio.Queue
-        event bus when the Redis circuit breaker is open so WebSocket
-        connections never drop messages during a Redis outage.
-        """
-        if not _circuit_open:
-            # Normal path: publish to Redis (cross-instance fan-out)
-            channel = Keys.channel_ghat(ghat_id) if ghat_id else Keys.CHANNEL_ALL
-            await publish(channel, message)
-            if ghat_id:
-                await publish(Keys.CHANNEL_ALL, message)
-            # Also deliver locally without Redis round-trip
-            await self._local_broadcast(message, ghat_id)
-        else:
-            # Degraded path: enqueue into local bus, drain task delivers
-            try:
-                _local_event_bus.put_nowait((message, ghat_id))
-            except asyncio.QueueFull:
-                logger.warning("[WS] Local event bus full — message dropped (Redis down)")
-            # Deliver to this instance immediately as well
-            await self._local_broadcast(message, ghat_id)
-
-    # ── Local event bus drain task ─────────────────────────────────────────
-
-    async def _local_bus_drain_loop(self):
-        """
-        Drain the local asyncio.Queue event bus.
-        Runs continuously; delivers queued messages when Redis is unavailable.
-        """
-        while True:
-            try:
-                message, ghat_id = await _local_event_bus.get()
-                await self._local_broadcast(message, ghat_id)
-            except asyncio.CancelledError:
+            keys = list(self._connections.keys())
+            if not keys:
                 return
-            except Exception as exc:
-                logger.debug("[WS-Bus] Drain error: %s", exc)
+            await asyncio.gather(
+                *(self._broadcast_to_bucket_text(k, text) for k in keys),
+                return_exceptions=True,
+            )
 
-    # ── Redis Pub/Sub subscriber ───────────────────────────────────────────
+    # ── Public broadcast entry point ────────────────────────────────────────
 
-    async def start_subscriber(self):
+    async def broadcast(self, message: dict, ghat_id: Optional[str] = None) -> None:
+        """
+        Canonical broadcast: ONE Redis publish + ONE local fan-out.
+
+        - When Redis is up: cross-instance recipients see the payload via
+          the subscriber loop on each instance; the originating instance's
+          subscriber drops its own echo via the `_origin` tag.
+        - When the circuit breaker is open: the publish becomes a no-op via
+          the safe wrapper in redis_manager — local clients still receive
+          the payload through the local fan-out.
+        """
+        # Tag a copy so mutation never leaks into caller-owned dicts.
+        envelope = dict(message)
+        envelope[ORIGIN_KEY] = INSTANCE_ID
+
+        channel = Keys.channel_ghat(ghat_id) if ghat_id else Keys.CHANNEL_ALL
+        # publish() is wrapped in the redis _safe() helper — already swallows
+        # transient errors and returns 0 when the circuit is open.
+        try:
+            await publish(channel, envelope)
+        except Exception as exc:  # belt-and-braces
+            logger.debug("[WS] publish() failed (degraded): %s", exc)
+
+        # Local fan-out is independent of Redis state; clients on this
+        # instance always see the message.
+        await self._local_broadcast(message, ghat_id)
+
+    # ── Redis pub/sub subscriber ────────────────────────────────────────────
+
+    async def start_subscriber(self) -> None:
+        if self._subscriber_task and not self._subscriber_task.done():
+            return
         self._subscriber_task = asyncio.create_task(
-            self._subscriber_loop(), name="ws-redis-subscriber"
+            self._subscriber_loop(), name="ws-redis-subscriber",
         )
-        self._bus_drain_task = asyncio.create_task(
-            self._local_bus_drain_loop(), name="ws-local-bus-drain"
-        )
-        logger.info("[WS] Redis subscriber + local bus drain tasks started")
+        logger.info("[WS] Redis subscriber started")
 
-    async def stop_subscriber(self):
-        for task in (self._subscriber_task, self._bus_drain_task):
-            if task:
-                task.cancel()
-                try:
-                    await task
-                except asyncio.CancelledError:
-                    pass
+    async def stop_subscriber(self) -> None:
+        task = self._subscriber_task
+        if not task:
+            return
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+        self._subscriber_task = None
 
-    async def _subscriber_loop(self):
+    async def _subscriber_loop(self) -> None:
         backoff = 1
         while True:
             try:
                 if not await redis_available():
-                    logger.warning("[WS-Sub] Redis not available, retrying in %ds", backoff)
                     await asyncio.sleep(backoff)
-                    backoff = min(backoff * 2, 60)
+                    backoff = min(backoff * 2, SUBSCRIBER_BACKOFF_MAX)
                     continue
 
                 r = await get_pubsub_redis()
                 pubsub = r.pubsub()
-
-                channels = [Keys.CHANNEL_ALL, Keys.CHANNEL_ADMIN, Keys.CHANNEL_ALERTS]
-                for ghat_id in [f"g{i:02d}" for i in range(1, 20)]:
-                    channels.append(Keys.channel_ghat(ghat_id))
-
-                await pubsub.subscribe(*channels)
-                logger.info("[WS-Sub] Subscribed to %d channels", len(channels))
+                # Pattern-subscribe so ANY ghat id (g01, g42, alphanumeric, …)
+                # is routed correctly without the hard-coded g01..g19 range.
+                await pubsub.subscribe(
+                    Keys.CHANNEL_ALL, Keys.CHANNEL_ADMIN, Keys.CHANNEL_ALERTS,
+                )
+                await pubsub.psubscribe("pushkaralu:ghat:*")
+                logger.info("[WS-Sub] Subscribed: 3 channels + 1 pattern")
                 backoff = 1
 
-                async for raw_msg in pubsub.listen():
-                    if raw_msg["type"] != "message":
+                async for raw in pubsub.listen():
+                    msg_type = raw.get("type")
+                    if msg_type not in ("message", "pmessage"):
                         continue
                     try:
-                        channel: str = raw_msg["channel"]
-                        payload: dict = json.loads(raw_msg["data"])
-
-                        # ── TRIGGER CALLBACK FOR STATE SYNC (Multi-instance consistency) ──
-                        if self.on_event:
-                            try:
-                                if asyncio.iscoroutinefunction(self.on_event):
-                                    await self.on_event(payload)
-                                else:
-                                    self.on_event(payload)
-                            except Exception as sync_err:
-                                logger.error("[WS-Sub] State sync callback failed: %s", sync_err)
-
-                        if channel == Keys.CHANNEL_ALL:
-                            await self._local_broadcast(payload, None)
-                        elif channel.startswith("pushkaralu:ghat:"):
-                            gid = channel.split(":")[-1]
-                            await self._broadcast_to_bucket(gid, payload)
-                        else:
-                            await self._local_broadcast(payload, None)
-
-                    except Exception as e:
-                        logger.debug("[WS-Sub] Message processing error: %s", e)
+                        await self._handle_pubsub_message(raw)
+                    except Exception as exc:
+                        logger.debug("[WS-Sub] dispatch error: %s", exc)
 
             except asyncio.CancelledError:
                 logger.info("[WS-Sub] Subscriber loop cancelled")
                 return
             except Exception as exc:
-                logger.warning("[WS-Sub] Connection lost: %s  Retry in %ds", exc, backoff)
+                logger.warning("[WS-Sub] Connection lost: %s — retry in %ds",
+                               exc, backoff)
                 await asyncio.sleep(backoff)
-                backoff = min(backoff * 2, 60)
+                backoff = min(backoff * 2, SUBSCRIBER_BACKOFF_MAX)
 
-    # ── Heartbeat loop ─────────────────────────────────────────────────────
+    async def _handle_pubsub_message(self, raw: dict) -> None:
+        data = raw.get("data")
+        try:
+            payload = json.loads(data) if isinstance(data, (str, bytes)) else data
+        except Exception:
+            logger.debug("[WS-Sub] Bad payload (not JSON), dropped")
+            return
+        if not isinstance(payload, dict):
+            return
 
-    async def heartbeat_loop(self):
+        # Drop self-originating echoes — we already fanned out locally.
+        if payload.get(ORIGIN_KEY) == INSTANCE_ID:
+            return
+
+        # Multi-instance state-sync hook.
+        cb = self.on_event
+        if cb is not None:
+            try:
+                res = cb(payload)
+                if asyncio.iscoroutine(res):
+                    await res
+            except Exception as exc:
+                logger.error("[WS-Sub] state sync callback failed: %s", exc)
+
+        channel = raw.get("channel") or ""
+        if channel == Keys.CHANNEL_ALL:
+            await self._local_broadcast(payload, None)
+        elif channel.startswith("pushkaralu:ghat:"):
+            gid = channel.rsplit(":", 1)[-1]
+            await self._local_broadcast(payload, gid)
+        else:
+            # Admin / alerts channels also fan to everyone.
+            await self._local_broadcast(payload, None)
+
+    # ── Heartbeat ───────────────────────────────────────────────────────────
+
+    async def heartbeat_loop(self) -> None:
+        """
+        Single source of WebSocket keep-alives. Pre-serialises the PING once
+        per cycle and reuses the bytes across every connected client.
+        """
         while True:
-            await asyncio.sleep(HEARTBEAT_INTERVAL)
-            ping = {"type": "PING", "ts": int(time.time())}
-            all_buckets = list(self._connections.keys())
-            await asyncio.gather(
-                *[self._broadcast_to_bucket(b, ping) for b in all_buckets],
-                return_exceptions=True,
-            )
+            try:
+                await asyncio.sleep(HEARTBEAT_INTERVAL)
+                if not self._active:
+                    continue
+                ping_text = json.dumps({"type": "PING", "ts": int(time.time())})
+                keys = list(self._connections.keys())
+                if not keys:
+                    continue
+                await asyncio.gather(
+                    *(self._broadcast_to_bucket_text(k, ping_text) for k in keys),
+                    return_exceptions=True,
+                )
+            except asyncio.CancelledError:
+                return
+            except Exception as exc:
+                logger.debug("[WS] heartbeat error: %s", exc)
 
-    # ── Stats ──────────────────────────────────────────────────────────────
+    # ── Stats / introspection ───────────────────────────────────────────────
 
     def stats(self) -> dict:
         per_ghat = {gid: len(conns) for gid, conns in self._connections.items() if conns}
@@ -256,9 +371,21 @@ class GhatConnectionManager:
             "total_connections":   len(self._active),
             "per_ghat":            per_ghat,
             "total_messages_sent": self._total_messages_sent,
-            "redis_circuit_open":  _circuit_open,
-            "local_bus_depth":     _local_event_bus.qsize(),
+            "total_dead_pruned":   self._total_dead_pruned,
+            # Live read — not the stale import-time copy.
+            "redis_circuit_open":  redis_manager.is_circuit_open(),
+            "instance":            INSTANCE_ID,
         }
 
+    # ── Backwards-compat shims used by the orchestrator orphan pruner ───────
 
+    async def prune_dead(self, dead) -> int:
+        """Public wrapper around _prune for external callers (orchestrator)."""
+        if not dead:
+            return 0
+        await self._prune(dead)
+        return len(dead)
+
+
+# Module-level singleton consumed by main.py and the orchestrator.
 manager = GhatConnectionManager()
