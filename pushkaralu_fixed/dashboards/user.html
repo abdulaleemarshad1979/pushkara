@@ -18,6 +18,18 @@
 <meta name="twitter:title" content="Godavari Pushkaralu 2027 — Pilgrim Portal">
 <meta name="twitter:description" content="Official pilgrim portal for Godavari Pushkaralu 2027. Live ghat status, emergency SOS, transport tracking, and facilities.">
 <link rel="canonical" href="https://pushkara.vercel.app/user">
+<!-- ── PWA: installable on Android/iOS, offline-first via service worker ── -->
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#0B2E6E">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0B2E6E">
+<meta name="application-name" content="Pushkaralu">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Pushkaralu">
+<link rel="apple-touch-icon" href="/icon-192.svg">
+<link rel="apple-touch-icon" sizes="192x192" href="/icon-192.svg">
+<link rel="apple-touch-icon" sizes="512x512" href="/icon-512.svg">
 <title>Godavari Pushkaralu 2027 — Pilgrim Portal</title>
 <script>
 const API_BASE     = 'https://pushkara.onrender.com';
@@ -950,6 +962,18 @@ html,body{max-width:100%;overflow-x:hidden}
 #ghat-map-header h3{font-family:'DM Serif Display',serif;color:var(--gold2);font-size:.95rem;font-weight:400}
 #ghat-map{height:320px;width:100%;z-index:1}
 @media(min-width:600px){#ghat-map{height:420px}}
+
+/* === MAP LAYER TOGGLE BAR (Phase 1: facility layers on ghat map) ====== */
+.map-layer-bar{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:8px 12px;background:var(--card2,#FAF8F2);border-top:1px solid #E8DDC1}
+.map-layer-bar .mlb-label{font-size:11px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:.5px;margin-right:2px}
+.map-layer-bar .mlb-chip{font-family:'DM Sans',sans-serif;font-size:11.5px;font-weight:600;color:var(--t2);background:#FFFFFF;border:1.5px solid #D8D2C0;border-radius:14px;padding:5px 11px;cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;gap:4px;line-height:1}
+.map-layer-bar .mlb-chip:hover{border-color:var(--saffron);color:var(--saffron-dark,#B27200)}
+.map-layer-bar .mlb-chip[data-active="1"]{background:var(--navy);color:#FFFFFF;border-color:var(--navy)}
+body.dark-mode .map-layer-bar{background:#1A1F2E;border-top-color:#2A3142}
+body.dark-mode .map-layer-bar .mlb-chip{background:#262B3C;border-color:#3A4055;color:#D6D9E2}
+body.dark-mode .map-layer-bar .mlb-chip[data-active="1"]{background:var(--saffron);color:#0B2E6E;border-color:var(--saffron)}
+.map-layer-bar .mlb-count{font-size:10px;color:var(--t3);margin-left:2px;font-weight:500}
+.map-layer-bar .mlb-chip[data-active="1"] .mlb-count{color:rgba(255,255,255,.85)}
 .map-legend{display:flex;gap:12px;flex-wrap:wrap;padding:10px 16px;background:var(--bg);border-top:var(--border);font-size:11px;color:var(--t2)}
 .map-legend-item{display:flex;align-items:center;gap:5px;font-weight:600}
 .map-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
@@ -1043,6 +1067,33 @@ html,body{max-width:100%;overflow-x:hidden}
 .offline-bar .ob-dot{width:8px;height:8px;border-radius:50%;background:#FFD480;animation:blink 2s infinite}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:.4}}
 body.has-offline-bar{padding-top:38px}
+
+/* === SAFETY BANNER STACK (Phase 3 river/weather/safety alerts) ====== */
+#safety-banner-stack{position:fixed;top:0;left:0;right:0;z-index:9990;display:flex;flex-direction:column;pointer-events:none}
+body.has-offline-bar #safety-banner-stack{top:38px}
+.safety-banner{pointer-events:auto;color:#FFF;font-family:'DM Sans',sans-serif;padding:10px 14px 10px 18px;display:flex;align-items:flex-start;gap:10px;box-shadow:0 4px 14px rgba(0,0,0,.28);border-bottom:1px solid rgba(255,255,255,.14);position:relative;overflow:hidden}
+.safety-banner.sev-info{background:linear-gradient(90deg,#1F5BC6,#1A4080)}
+.safety-banner.sev-warning{background:linear-gradient(90deg,#C8850D,#8B5A00)}
+.safety-banner.sev-danger{background:linear-gradient(90deg,#C0392B,#8B1F14);animation:safety-pulse 2.4s infinite}
+.safety-banner.sev-evacuation{background:linear-gradient(90deg,#8B00FF,#4B007A);animation:safety-pulse 1.6s infinite}
+@keyframes safety-pulse{0%,100%{filter:brightness(1)}50%{filter:brightness(1.18)}}
+.safety-banner .sb-icon{font-size:18px;line-height:1.1;flex-shrink:0;margin-top:1px}
+.safety-banner .sb-body{flex:1;min-width:0;font-size:12.5px;line-height:1.45}
+.safety-banner .sb-title{font-weight:800;font-size:13px;letter-spacing:.2px;display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.safety-banner .sb-loc{font-size:11px;font-weight:600;background:rgba(255,255,255,.18);padding:2px 7px;border-radius:10px;letter-spacing:.3px}
+.safety-banner .sb-msg{margin-top:2px;color:rgba(255,255,255,.94)}
+.safety-banner .sb-close{background:rgba(255,255,255,.15);border:0;color:#FFF;width:24px;height:24px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;flex-shrink:0;line-height:1}
+.safety-banner .sb-close:hover{background:rgba(255,255,255,.3)}
+body.has-safety-banner{padding-top:62px}
+body.has-offline-bar.has-safety-banner{padding-top:100px}
+@media(max-width:600px){.safety-banner{padding:9px 10px}.safety-banner .sb-body{font-size:12px}}
+
+/* === ADMIN BROADCAST TOAST/BANNER (Phase 2 mass-notify) ============= */
+.broadcast-banner{pointer-events:auto;background:linear-gradient(90deg,#0B2E6E,#08204D);color:#FFF;padding:9px 14px;font-size:12.5px;display:flex;align-items:center;gap:10px;border-bottom:1px solid rgba(255,255,255,.14);box-shadow:0 3px 10px rgba(0,0,0,.25);font-family:'DM Sans',sans-serif}
+.broadcast-banner .bb-tag{background:var(--saffron);color:#0B2E6E;font-size:10px;font-weight:800;letter-spacing:.4px;padding:2px 7px;border-radius:10px;text-transform:uppercase}
+.broadcast-banner .bb-title{font-weight:700}
+.broadcast-banner .bb-msg{flex:1;min-width:0;line-height:1.45}
+.broadcast-banner .sb-close{background:rgba(255,255,255,.18);border:0;color:#FFF;width:22px;height:22px;border-radius:50%;cursor:pointer;font-size:12px;line-height:1}
 
 /* === STICKY SOS FAB (always visible — even before location granted) === */
 .sos-fab{position:fixed;right:18px;bottom:18px;z-index:8500;display:flex;flex-direction:column;align-items:flex-end;gap:8px;pointer-events:none}
@@ -1202,6 +1253,9 @@ button:focus-visible,a:focus-visible,select:focus-visible,input:focus-visible,te
   <span class="ob-dot"></span>
   <span id="offline-msg">You are offline · Showing saved data · Helplines still work via phone</span>
 </div>
+
+<!-- SAFETY ALERT STACK (Phase 3 — admin-issued river/weather/safety banners) -->
+<div id="safety-banner-stack" role="region" aria-label="Safety alerts" aria-live="polite"></div>
 
 <!-- LOCATION OVERLAY (mandatory — no skip; manual fallback if denied) -->
 <div id="loc-overlay">
@@ -1662,6 +1716,13 @@ button:focus-visible,a:focus-visible,select:focus-visible,input:focus-visible,te
       <span class="map-legend-item"><span class="map-dot medium"></span> Moderate</span>
       <span class="map-legend-item"><span class="map-dot low"></span> Less Crowded</span>
       <span style="margin-left:auto;color:var(--t3);font-style:italic">Tap a pin to see details</span>
+    </div>
+    <!-- Layer toggle bar — pilgrim can show/hide facility pins on the map -->
+    <div class="map-layer-bar" id="ghat-map-layer-bar" role="toolbar" aria-label="Map layers">
+      <span class="mlb-label">Show:</span>
+      <button class="mlb-chip" data-layer="medical_camp" data-active="0" onclick="toggleFacilityLayer('medical_camp',this)" aria-pressed="false">🏥 Medical <span class="mlb-count" id="mlb-c-medical_camp"></span></button>
+      <button class="mlb-chip" data-layer="drinking_water" data-active="0" onclick="toggleFacilityLayer('drinking_water',this)" aria-pressed="false">💧 Water <span class="mlb-count" id="mlb-c-drinking_water"></span></button>
+      <button class="mlb-chip" data-layer="toilet" data-active="0" onclick="toggleFacilityLayer('toilet',this)" aria-pressed="false">🚻 Toilets <span class="mlb-count" id="mlb-c-toilet"></span></button>
     </div>
   </div>
 
@@ -2767,6 +2828,9 @@ async function loadFac(){
     allFac=d.facilities||[];
     if(window._offlineCache && !params.length) window._offlineCache.set('fac', allFac);
     buildFacBtns();renderFacFull();
+    // Keep map facility layers in sync, but only when the fetch was unfiltered
+    // (a filtered fetch returns a subset that would shrink the on-map pins)
+    if(!params.length) _refreshFacilityLayers();
   }catch(e){
     const cached = window._offlineCache && window._offlineCache.get('fac');
     if(cached && cached.length){
@@ -2996,6 +3060,21 @@ const GHAT_INFO = {
 };
 
 // ═══ GHAT DETAIL MODAL v2 ════════════════════════════════════════════
+// Suggest the nearest meaningfully-less-crowded ghat when the user is looking
+// at a high/critical one. Pure haversine — uses already-loaded allGhats.
+function _suggestAlternativeGhat(g){
+  if(!g || !allGhats || !allGhats.length) return null;
+  const sev = (lvl) => ({low:0, medium:1, high:2, critical:3})[lvl] ?? 1;
+  if(sev(g.crowd_level) < 2) return null; // only when target is high/critical
+  const candidates = allGhats
+    .filter(x => x.id !== g.id && x.latitude && x.longitude)
+    .filter(x => sev(x.crowd_level) <= sev(g.crowd_level) - 1)  // at least one rung better
+    .map(x => ({...x, _km: hvs(g.latitude, g.longitude, x.latitude, x.longitude)}))
+    .filter(x => x._km <= 25)                                   // within reasonable travel
+    .sort((a,b) => sev(a.crowd_level) - sev(b.crowd_level) || a._km - b._km);
+  return candidates[0] || null;
+}
+
 function showGhatDetail(ghatId) {
   const g = allGhats.find(x => x.id === ghatId);
   if (!g) return;
@@ -3065,7 +3144,30 @@ function showGhatDetail(ghatId) {
         <span>${pct}% of ${(g.capacity||0).toLocaleString()} capacity</span>
       </div>
       <div class="cb-track"><div class="cb-fill ${g.crowd_level}" style="width:${pct}%"></div></div>
+      ${_waitPill(g)}
     </div>
+
+    ${(() => {
+      const alt = _suggestAlternativeGhat(g);
+      if(!alt) return '';
+      const altPct = Math.min(100, Math.round((alt.current_count/alt.capacity)*100));
+      const altWait = _waitTimeEstimate(alt);
+      const altMaps = `https://www.google.com/maps/dir/?api=1&destination=${alt.latitude},${alt.longitude}`;
+      const sevColor = alt.crowd_level === 'medium' ? '#C8850D' : '#0B6B30';
+      return `
+        <div class="reroute-callout" style="margin-top:10px;border:1.5px solid ${sevColor};background:linear-gradient(90deg,${sevColor}14,${sevColor}06);border-radius:10px;padding:12px 14px">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+            <span style="font-size:18px">↪️</span>
+            <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:${sevColor}">Quieter alternative nearby</div>
+          </div>
+          <div style="font-weight:700;color:var(--t1);font-size:14px;margin-bottom:3px">${alt.name}</div>
+          <div style="font-size:11.5px;color:var(--t2);margin-bottom:8px">${alt._km.toFixed(1)} km away · ${altWait.mins} min wait · ${altPct}% capacity</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button onclick="closeGhatModal&&closeGhatModal();showGhatDetail('${alt.id}')" style="background:${sevColor};color:#FFF;border:none;padding:8px 14px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif">View ${alt.name}</button>
+            <a href="${altMaps}" target="_blank" style="background:#FFF;color:${sevColor};border:1.5px solid ${sevColor};padding:7px 14px;border-radius:6px;font-size:12px;font-weight:700;text-decoration:none;font-family:'DM Sans',sans-serif">🗺️ Directions</a>
+          </div>
+        </div>`;
+    })()}
 
     <div class="gm-body">
 
@@ -3309,6 +3411,48 @@ function facCard(f){
 }
 
 // ═══ GHATS FULL PAGE ══════════════════════════════════════════
+// Wait-time estimator — derived from current_count / capacity ratio.
+// Calibrated so a 100% full ghat yields ~45 min wait, scaling linearly down to 0.
+// Returns { mins, label, severity } where severity ∈ {low, medium, high, critical}
+// — usable to colour the pill and choose copy.
+function _waitTimeEstimate(g){
+  const cap = Math.max(1, +g.capacity || 1);
+  const cnt = Math.max(0, +g.current_count || 0);
+  const ratio = cnt / cap;                  // 0..>1
+  // Effective bathing throughput baseline ≈ 1.3 bathers per slot per hour;
+  // ratio*45 yields a relatable upper bound (45 min) at full capacity.
+  let mins = Math.round(ratio * 45);
+  if(ratio > 1) mins = Math.min(60, Math.round(ratio * 50));
+  // Crowd-level overrides — backend may flag "critical" before count crosses 100%
+  const lvl = (g.crowd_level||'').toLowerCase();
+  if(lvl === 'critical' && mins < 50) mins = 50;
+  if(lvl === 'high' && mins < 25) mins = 25;
+  let severity = 'low', label;
+  if(mins <= 5)       { severity='low';      label='Walk-in, no wait'; }
+  else if(mins <= 15) { severity='low';      label='Short wait'; }
+  else if(mins <= 30) { severity='medium';   label='Moderate wait'; }
+  else if(mins <= 45) { severity='high';     label='Long wait'; }
+  else                { severity='critical'; label='Very long — try another ghat'; }
+  return { mins, label, severity };
+}
+function _waitPill(g, opts){
+  const w = _waitTimeEstimate(g);
+  const colors = { low:'#0B6B30', medium:'#C8850D', high:'#C0392B', critical:'#8B00FF' };
+  const bg = colors[w.severity] || '#0B6B30';
+  const compact = opts && opts.compact;
+  if(compact){
+    return `<span class="wait-pill" style="display:inline-flex;align-items:center;gap:4px;background:${bg};color:#FFF;font-size:10.5px;font-weight:700;padding:3px 8px;border-radius:10px;line-height:1;letter-spacing:.2px;font-family:'DM Sans',sans-serif">⏱ ${w.mins} min</span>`;
+  }
+  return `
+    <div class="wait-time-block" style="display:flex;align-items:center;gap:10px;background:linear-gradient(90deg,${bg}18,${bg}08);border:1px solid ${bg}40;border-radius:8px;padding:8px 12px;margin-top:8px;font-family:'DM Sans',sans-serif">
+      <div style="width:34px;height:34px;border-radius:50%;background:${bg};color:#FFF;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">⏱</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:${bg};line-height:1.1">Estimated wait</div>
+        <div style="font-size:14px;font-weight:700;color:var(--t1);line-height:1.2"><strong>${w.mins} min</strong> &middot; <span style="font-weight:600;color:var(--t2)">${w.label}</span></div>
+      </div>
+    </div>`;
+}
+
 function renderGhats(){
   const el=document.getElementById('ghats-list');
   const data=gFilter==='all'?allGhats:allGhats.filter(g=>g.crowd_level===gFilter);
@@ -3339,6 +3483,10 @@ function renderGhats(){
             <span>${pct}% full</span>
           </div>
           <div class="cb-track"><div class="cb-fill ${g.crowd_level}" style="width:${pct}%"></div></div>
+          <div style="margin-top:6px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+            ${_waitPill(g, {compact:true})}
+            <span style="font-size:10.5px;color:var(--t3)">est. time to bathe</span>
+          </div>
         </div>
         ${impSnippet}
         <div class="gc-pills">
@@ -4299,6 +4447,7 @@ function _placeGhatMarkers(){
         <div class="lp-body">
           <div class="lp-crowd">${cl} · <strong>${(g.current_count||0).toLocaleString()}</strong> pilgrims</div>
           <div class="lp-bar"><div class="lp-fill ${g.crowd_level}" style="height:4px;border-radius:2px;width:${pct}%;background:${fillColor}"></div></div>
+          <div style="margin:6px 0 8px">${_waitPill(g, {compact:true})} <span style="font-size:10.5px;color:#5C6478;margin-left:4px">to bathe</span></div>
           ${info.importance?`<div style="font-size:11px;color:#3D4558;margin-bottom:8px;line-height:1.5">${info.importance.substring(0,110)}…</div>`:''}
           <div style="display:flex;gap:6px;margin-bottom:8px">
             <button class="lp-btn" style="flex:1" onclick="closeGhatModal&&closeGhatModal();showGhatDetail('${g.id}')">📋 Full Details</button>
@@ -4315,7 +4464,99 @@ function _placeGhatMarkers(){
 
 // Called after ghats load — update markers if map is open
 function _refreshMapMarkers(){
-  if(_leafletMap && _leafletLoaded) _placeGhatMarkers();
+  if(_leafletMap && _leafletLoaded){
+    _placeGhatMarkers();
+    _refreshFacilityLayers();   // keep enabled facility pins in sync with allFac
+  }
+}
+
+// ═══ MAP FACILITY LAYERS (Phase 1) ═════════════════════════════
+// Pilgrims toggle Medical / Water / Toilet pins on the live ghat map.
+// Each type is a Leaflet LayerGroup so add/remove is O(1) and keeps Z order.
+const _FAC_LAYER_META = {
+  medical_camp:   { emoji:'🏥', label:'Medical', color:'#C0392B' },
+  drinking_water: { emoji:'💧', label:'Water',   color:'#1F75D6' },
+  toilet:         { emoji:'🚻', label:'Toilet',  color:'#5B6B8A' },
+};
+const _facLayers   = {};   // type -> L.LayerGroup
+const _facActive   = {};   // type -> boolean (currently on the map?)
+
+function _facMarkerIcon(type){
+  const meta = _FAC_LAYER_META[type] || { emoji:'•', color:'#666' };
+  return L.divIcon({
+    className: '',
+    html: `<div style="width:22px;height:22px;background:${meta.color};border:2px solid #FFFFFF;border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;font-size:11px;line-height:1">${meta.emoji}</div>`,
+    iconSize: [22,22],
+    iconAnchor: [11,11],
+    popupAnchor: [0,-12],
+  });
+}
+
+function _ensureFacLayer(type){
+  if(!_leafletMap || !window.L) return null;
+  if(!_facLayers[type]) _facLayers[type] = L.layerGroup();
+  return _facLayers[type];
+}
+
+function _populateFacLayer(type){
+  const layer = _ensureFacLayer(type);
+  if(!layer) return 0;
+  layer.clearLayers();
+  const items = (allFac||[]).filter(f => f.type === type && f.latitude && f.longitude);
+  items.forEach(f => {
+    const meta = _FAC_LAYER_META[type] || {};
+    const dirUrl = `https://www.google.com/maps/dir/?api=1&destination=${f.latitude},${f.longitude}`;
+    const popup = `
+      <div style="min-width:180px">
+        <div style="background:${meta.color||'#0B2E6E'};color:#FFF;padding:6px 10px;font-weight:700;font-size:12px;border-radius:4px 4px 0 0">${meta.emoji||''} ${meta.label||type}</div>
+        <div style="padding:8px 10px;font-size:12px;color:#1A1F2E;line-height:1.45">
+          <div style="font-weight:700;margin-bottom:3px">${f.name||''}</div>
+          ${f.zone?`<div style="font-size:11px;color:#5C6478">📍 ${f.zone}</div>`:''}
+          ${f.capacity?`<div style="font-size:11px;color:#5C6478">👥 ${f.capacity}</div>`:''}
+          ${f.contact?`<div style="font-size:11px;color:#5C6478">📞 ${f.contact}</div>`:''}
+          <a href="${dirUrl}" target="_blank" style="display:inline-block;margin-top:6px;background:#0B2E6E;color:#FFF;padding:5px 9px;border-radius:4px;text-decoration:none;font-size:11px;font-weight:600">🗺️ Directions</a>
+        </div>
+      </div>`;
+    L.marker([f.latitude, f.longitude], { icon: _facMarkerIcon(type) })
+      .bindPopup(popup, { maxWidth:240, minWidth:180 })
+      .addTo(layer);
+  });
+  // Update count label on chip
+  const cEl = document.getElementById('mlb-c-' + type);
+  if(cEl) cEl.textContent = items.length ? `(${items.length})` : '';
+  return items.length;
+}
+
+function toggleFacilityLayer(type, btn){
+  if(!_leafletMap){
+    // Map not ready yet — load Leaflet first, then retry
+    if(!_leafletLoaded){
+      _loadLeaflet(()=>{ initGhatMap(); setTimeout(()=>toggleFacilityLayer(type, btn), 150); });
+      return;
+    }
+    initGhatMap();
+  }
+  const layer = _ensureFacLayer(type);
+  if(!layer) return;
+  const active = !_facActive[type];
+  _facActive[type] = active;
+  if(active){
+    _populateFacLayer(type);
+    layer.addTo(_leafletMap);
+  } else {
+    _leafletMap.removeLayer(layer);
+  }
+  if(btn){
+    btn.dataset.active = active ? '1' : '0';
+    btn.setAttribute('aria-pressed', active ? 'true' : 'false');
+  }
+}
+
+// Refresh contents of any active facility layers — called when allFac updates
+function _refreshFacilityLayers(){
+  Object.keys(_facActive).forEach(type => {
+    if(_facActive[type]) _populateFacLayer(type);
+  });
 }
 
 // ═══ THEME TOGGLE ════════════════════════════════════════════
@@ -4396,6 +4637,43 @@ function _readCache(key, maxAgeMs){
 }
 // Expose simple offline data fallback hook
 window._offlineCache = { set:_cacheData, get:_readCache };
+
+// ═══ PWA SERVICE WORKER REGISTRATION ═══════════════════════════
+// Registers /sw.js with scope "/" so it controls /user, /admin, /volunteer.
+// Skipped in non-secure contexts (file://, plain http) and dev environments
+// without the SW served. Errors are swallowed — the page must work without SW.
+(function _initPWA(){
+  if (!('serviceWorker' in navigator)) return;
+  // Only register on https or localhost (browser security requirement)
+  const ok = location.protocol === 'https:' ||
+             location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+  if (!ok) return;
+  // Defer registration until window load to avoid contending with first paint
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js', { scope: '/' })
+      .then((reg) => {
+        // If a new SW is found, prompt it to activate immediately
+        reg.addEventListener('updatefound', () => {
+          const sw = reg.installing;
+          if (!sw) return;
+          sw.addEventListener('statechange', () => {
+            if (sw.state === 'installed' && navigator.serviceWorker.controller) {
+              // New SW is waiting; ask it to skip waiting so the next reload picks it up
+              try { sw.postMessage({ type: 'SKIP_WAITING' }); } catch(e) {}
+            }
+          });
+        });
+      })
+      .catch((err) => { /* silent: PWA is progressive enhancement */ });
+  });
+  // Reload page once when a new SW takes control (so user sees fresh UI)
+  let _refreshing = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (_refreshing) return;
+    _refreshing = true;
+    // Don't auto-reload mid-action; just on next navigation cycle
+  });
+})();
 
 // ═══ PRE-TRAVEL PLANNER ══════════════════════════════════════
 const PLAN_KEY = 'pushkara_trip_plan_v1';
@@ -5133,6 +5411,20 @@ function handleUserWSMessage(msg) {
       if(hdr) { hdr.style.transition='background .2s'; hdr.style.background='rgba(220,38,38,.35)'; setTimeout(()=>hdr.style.background='',2500); }
       break;
     }
+    case 'BROADCAST': {
+      // Admin-issued mass notification (Phase 2)
+      try { _onBroadcast(msg.data || {}); } catch(e) {}
+      break;
+    }
+    case 'SAFETY_ALERT': {
+      // Admin-issued sticky river/weather/safety banner (Phase 3)
+      try { _onSafetyAlert(msg.data || {}); } catch(e) {}
+      break;
+    }
+    case 'SAFETY_ALERT_CLEARED': {
+      try { _onSafetyAlertCleared((msg.data||{}).id); } catch(e) {}
+      break;
+    }
     case 'INIT':
     case 'PING':
       break; // ignore
@@ -5143,6 +5435,105 @@ function handleUserWSMessage(msg) {
 
 // Start WS connection after a short delay (don't block first paint)
 setTimeout(connectUserWS, 3000);
+
+// ─── BROADCAST + SAFETY ALERT HANDLERS (Phase 2 / Phase 3) ────────
+// Sticky safety banners are rendered into #safety-banner-stack and persisted
+// in localStorage so they survive page reloads / offline. Per-user dismissals
+// are also persisted so a closed banner doesn't reappear unless re-issued.
+const _SAFETY_LS_KEY = 'pushkara_safety_alerts_v1';
+const _SAFETY_DISMISS_KEY = 'pushkara_safety_dismissed_v1';
+function _readSafetyAlerts(){
+  try { return JSON.parse(localStorage.getItem(_SAFETY_LS_KEY) || '[]') || []; } catch(e) { return []; }
+}
+function _writeSafetyAlerts(arr){
+  try { localStorage.setItem(_SAFETY_LS_KEY, JSON.stringify(arr.slice(-25))); } catch(e) {}
+}
+function _readSafetyDismissed(){
+  try { return new Set(JSON.parse(localStorage.getItem(_SAFETY_DISMISS_KEY) || '[]') || []); } catch(e) { return new Set(); }
+}
+function _writeSafetyDismissed(set){
+  try { localStorage.setItem(_SAFETY_DISMISS_KEY, JSON.stringify(Array.from(set).slice(-100))); } catch(e) {}
+}
+function _isSafetyExpired(a){
+  if(!a || !a.expires_at) return false;
+  const t = Date.parse(a.expires_at);
+  return Number.isFinite(t) && t < Date.now();
+}
+function _renderSafetyStack(){
+  const stack = document.getElementById('safety-banner-stack');
+  if(!stack) return;
+  const dismissed = _readSafetyDismissed();
+  const items = _readSafetyAlerts()
+    .filter(a => a && a.active !== false && !_isSafetyExpired(a) && !dismissed.has(a.id));
+  stack.innerHTML = items.map(a => {
+    const sev = ['info','warning','danger','evacuation'].includes(a.severity) ? a.severity : 'warning';
+    const icon = sev === 'danger' ? '⚠️' : sev === 'evacuation' ? '🚨' : sev === 'info' ? 'ℹ️' : '⚠️';
+    const loc = a.location ? `<span class="sb-loc">📍 ${a.location}</span>` : '';
+    return `
+      <div class="safety-banner sev-${sev}" data-id="${a.id}">
+        <div class="sb-icon">${icon}</div>
+        <div class="sb-body">
+          <div class="sb-title">${a.title || 'Safety Alert'} ${loc}</div>
+          <div class="sb-msg">${a.message || ''}</div>
+        </div>
+        <button class="sb-close" onclick="_dismissSafetyAlert('${a.id}')" aria-label="Dismiss">&times;</button>
+      </div>`;
+  }).join('');
+  if(items.length){ document.body.classList.add('has-safety-banner'); }
+  else { document.body.classList.remove('has-safety-banner'); }
+}
+function _dismissSafetyAlert(id){
+  const set = _readSafetyDismissed(); set.add(id); _writeSafetyDismissed(set);
+  _renderSafetyStack();
+}
+function _onSafetyAlert(a){
+  if(!a || !a.id) return;
+  const arr = _readSafetyAlerts().filter(x => x.id !== a.id);
+  arr.push(a);
+  _writeSafetyAlerts(arr);
+  _renderSafetyStack();
+  if(a.severity === 'danger' || a.severity === 'evacuation'){
+    try { if(navigator.vibrate) navigator.vibrate([120, 60, 120]); } catch(e) {}
+  }
+}
+function _onSafetyAlertCleared(id){
+  if(!id) return;
+  const arr = _readSafetyAlerts().map(a => a.id === id ? Object.assign({}, a, {active:false}) : a);
+  _writeSafetyAlerts(arr);
+  _renderSafetyStack();
+}
+function _onBroadcast(d){
+  if(!d || !d.message) return;
+  const tgt = (d.target || 'all').toLowerCase();
+  if(tgt.startsWith('volunteer:')) return; // pilgrim ignores per-volunteer targets
+  const cat = d.category || 'info';
+  if(cat === 'safety' || cat === 'warning' || cat === 'evacuation' || cat === 'weather'){
+    const sev = (cat === 'evacuation') ? 'evacuation' : 'warning';
+    _onSafetyAlert({
+      id:        d.id || ('bc-' + Date.now()),
+      title:     d.title || 'Notice',
+      message:   d.message,
+      severity:  sev,
+      location:  '',
+      issued_at: d.ts || new Date().toISOString(),
+      expires_at: new Date(Date.now() + 30*60*1000).toISOString(),
+      active:    true,
+    });
+  } else {
+    if(typeof toast === 'function'){
+      toast(d.title || 'Notice', d.message, 'info');
+    }
+  }
+}
+(function _bootSafetyAlerts(){
+  _renderSafetyStack();
+  setInterval(_renderSafetyStack, 60000);
+  fetch(`${API_BASE}/safety_alerts`).then(r => r.ok ? r.json() : null).then(d => {
+    if(!d || !Array.isArray(d.alerts)) return;
+    _writeSafetyAlerts(d.alerts);
+    _renderSafetyStack();
+  }).catch(() => {});
+})();
 </script>
 
 

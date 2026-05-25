@@ -17,6 +17,8 @@
 <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+Telugu&family=DM+Serif+Display&family=DM+Sans:wght@400;500;600;700&family=Source+Code+Pro:wght@500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<!-- Leaflet.heat — used by the unified Command Map for the SOS incident heatmap (Phase 3) -->
+<script defer src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
 <script src="config.js"></script>
 <style>
 :root {
@@ -242,6 +244,19 @@ select.level-select{background:var(--bg2);border:1px solid var(--border);color:v
 /* ── MAP ── */
 #admin-map{height:420px;border-radius:8px;border:1px solid var(--border);overflow:hidden}
 .leaflet-container{background:#040810}
+
+/* ── COMMAND MAP LAYER CHIPS (Phase 2/3) ── */
+.cmd-chip{font-family:'DM Sans',sans-serif;font-size:11.5px;font-weight:600;color:var(--text-dim);background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:5px 11px;cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;gap:5px;line-height:1}
+.cmd-chip:hover{border-color:var(--cyan);color:var(--cyan)}
+.cmd-chip[data-active="1"]{background:rgba(0,200,255,.15);color:var(--cyan);border-color:var(--cyan)}
+.cmd-chip .cmd-c{font-size:10px;color:var(--text-dim);font-weight:500}
+.cmd-chip[data-active="1"] .cmd-c{color:var(--cyan)}
+.light-mode .cmd-chip{background:#FFF;color:#475569;border-color:#E2E8F0}
+.light-mode .cmd-chip[data-active="1"]{background:rgba(11,46,110,.08);color:#0B2E6E;border-color:#0B2E6E}
+/* Dispatch toast (drag SOS onto volunteer) */
+.dispatch-toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:10000;background:#111827;color:#FFF;padding:14px 20px;border-radius:10px;box-shadow:0 8px 32px rgba(0,0,0,.45);font-family:'DM Sans',sans-serif;font-size:13px;display:flex;align-items:center;gap:14px;border:1px solid rgba(0,200,255,.3)}
+.dispatch-toast button{background:#00c8ff;color:#0B2E6E;border:0;padding:7px 14px;border-radius:6px;font-weight:700;cursor:pointer;font-size:12.5px}
+.dispatch-toast button.cancel{background:transparent;color:#FFF;border:1px solid rgba(255,255,255,.3)}
 
 /* ── FORM ── */
 .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
@@ -533,6 +548,16 @@ select.level-select{ font-size: 12px; padding: 5px 10px; }
   <div class="nav-item" data-panel="analytics" onclick="showPanel(this)">
     <span class="nav-icon">📊</span> Daily Analytics
   </div>
+  <div class="nav-section">Communications</div>
+  <div class="nav-item" data-panel="broadcast" onclick="showPanel(this)">
+    <span class="nav-icon">📣</span> Broadcast
+  </div>
+  <div class="nav-item" data-panel="safety" onclick="showPanel(this)">
+    <span class="nav-icon">⚠️</span> Safety Alerts
+  </div>
+  <div class="nav-item" data-panel="forecast" onclick="showPanel(this)">
+    <span class="nav-icon">🔮</span> Crowd Forecast
+  </div>
 </nav>
 
 <!-- ── MAIN AREA ── -->
@@ -713,8 +738,24 @@ select.level-select{ font-size: 12px; padding: 5px 10px; }
 <!-- MAP VIEW -->
 <div id="panel-map" class="panel">
   <div class="card">
-    <div class="card-hdr"><div class="card-title">Live <span class="accent">Map</span> View</div>
-      <button class="btn btn-cyan btn-sm" onclick="refreshMap()">↻ Refresh Markers</button>
+    <div class="card-hdr"><div class="card-title">Live <span class="accent">Command Map</span></div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-cyan btn-sm" onclick="refreshMap()">↻ Refresh</button>
+        <button class="btn btn-sm" onclick="resetMapView()">📍 Recenter</button>
+      </div>
+    </div>
+    <!-- Layer toggle bar — show/hide each pin type + heatmap (Phase 2/3) -->
+    <div class="cmd-layer-bar" id="cmd-layer-bar" role="toolbar" aria-label="Map layers" style="display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:8px 0 10px">
+      <span style="font-size:11px;font-weight:700;letter-spacing:.4px;color:var(--text-dim);text-transform:uppercase;margin-right:4px">Layers:</span>
+      <button class="cmd-chip" data-layer="ghats"    data-active="1" onclick="toggleCmdLayer('ghats',this)">🌊 Ghats <span class="cmd-c" id="cmd-c-ghats"></span></button>
+      <button class="cmd-chip" data-layer="vols"     data-active="1" onclick="toggleCmdLayer('vols',this)">👮 Volunteers <span class="cmd-c" id="cmd-c-vols"></span></button>
+      <button class="cmd-chip" data-layer="sos"      data-active="1" onclick="toggleCmdLayer('sos',this)">🆘 SOS <span class="cmd-c" id="cmd-c-sos"></span></button>
+      <button class="cmd-chip" data-layer="medical"  data-active="1" onclick="toggleCmdLayer('medical',this)">🏥 Medical <span class="cmd-c" id="cmd-c-medical"></span></button>
+      <button class="cmd-chip" data-layer="contacts" data-active="0" onclick="toggleCmdLayer('contacts',this)">📞 Contacts <span class="cmd-c" id="cmd-c-contacts"></span></button>
+      <button class="cmd-chip" data-layer="lost"     data-active="0" onclick="toggleCmdLayer('lost',this)">🔍 Lost <span class="cmd-c" id="cmd-c-lost"></span></button>
+      <span style="margin:0 6px;color:var(--text-dim)">·</span>
+      <button class="cmd-chip" data-layer="heat"     data-active="0" onclick="toggleCmdLayer('heat',this)">🔥 Incident Heatmap</button>
+      <span style="margin-left:auto;font-size:11px;color:var(--text-dim);font-style:italic">Tip: drag an SOS pin onto a volunteer to reassign</span>
     </div>
     <div id="admin-map"></div>
     <div class="map-legend">
@@ -823,6 +864,125 @@ select.level-select{ font-size: 12px; padding: 5px 10px; }
     </div>
   </div>
 </div>
+
+<!-- ── BROADCAST PANEL (Phase 2) ─────────────────────────────────────────── -->
+<div id="panel-broadcast" class="panel">
+  <div class="card">
+    <div class="card-hdr">
+      <div class="card-title">📣 Mass <span class="accent">Broadcast</span></div>
+      <span style="font-size:11px;color:var(--text-dim)">Reaches every connected pilgrim & volunteer over WebSocket</span>
+    </div>
+    <div class="form-grid" style="margin-bottom:12px">
+      <div class="form-group full">
+        <label>Title (optional headline)</label>
+        <input type="text" id="bc-title" maxlength="120" placeholder="e.g. Crowd diversion in effect">
+      </div>
+      <div class="form-group full">
+        <label>Message *</label>
+        <textarea id="bc-message" rows="3" maxlength="1000" placeholder="What should pilgrims/volunteers know? Keep it short and clear."></textarea>
+        <div style="font-size:10px;color:var(--text-dim);margin-top:4px"><span id="bc-charcount">0</span>/1000</div>
+      </div>
+      <div class="form-group">
+        <label>Category</label>
+        <select id="bc-category">
+          <option value="info">ℹ️ Info — non-urgent</option>
+          <option value="warning">⚠️ Warning — heads-up</option>
+          <option value="weather">🌧️ Weather</option>
+          <option value="safety">🚨 Safety — sticky banner</option>
+          <option value="evacuation">🚨 Evacuation — highest priority</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Target</label>
+        <select id="bc-target">
+          <option value="all">All connected (pilgrims + volunteers)</option>
+          <option value="zone:Zone A">Zone A only</option>
+          <option value="zone:Zone B">Zone B only</option>
+          <option value="zone:Zone C">Zone C only</option>
+          <option value="zone:Zone D">Zone D only</option>
+          <option value="vol-pick">Specific volunteer…</option>
+        </select>
+      </div>
+      <div class="form-group full" id="bc-vol-pick-wrap" style="display:none">
+        <label>Volunteer</label>
+        <select id="bc-volunteer-id"></select>
+      </div>
+    </div>
+    <div class="form-row">
+      <button class="btn btn-cyan" onclick="submitBroadcast()">📤 Send Broadcast</button>
+      <button class="btn" onclick="document.getElementById('bc-message').value=''">Clear</button>
+    </div>
+    <div id="bc-result" style="margin-top:14px"></div>
+  </div>
+
+  <div class="card" style="margin-top:14px">
+    <div class="card-hdr"><div class="card-title">🕒 Recent <span class="accent">Broadcasts</span> (this session)</div></div>
+    <div id="bc-history"><div class="empty-state"><div class="icon">📭</div>No broadcasts sent yet</div></div>
+  </div>
+</div>
+
+<!-- ── SAFETY ALERTS PANEL (Phase 3 — sticky river/weather/evac banners) ── -->
+<div id="panel-safety" class="panel">
+  <div class="card">
+    <div class="card-hdr">
+      <div class="card-title">⚠️ Safety <span class="accent">Alerts</span></div>
+      <span style="font-size:11px;color:var(--text-dim)">Sticky banner on pilgrim portal until cleared/expired</span>
+    </div>
+    <div class="form-grid" style="margin-bottom:12px">
+      <div class="form-group full">
+        <label>Title *</label>
+        <input type="text" id="sa-title" maxlength="120" placeholder="e.g. Rising Godavari water level">
+      </div>
+      <div class="form-group full">
+        <label>Message *</label>
+        <textarea id="sa-message" rows="2" maxlength="1000" placeholder="What pilgrims should do — be specific."></textarea>
+      </div>
+      <div class="form-group">
+        <label>Severity</label>
+        <select id="sa-severity">
+          <option value="info">Info</option>
+          <option value="warning" selected>Warning</option>
+          <option value="danger">Danger</option>
+          <option value="evacuation">Evacuation</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Location (optional)</label>
+        <input type="text" id="sa-location" maxlength="120" placeholder="e.g. Pushkar Ghat / Zone A">
+      </div>
+      <div class="form-group">
+        <label>Auto-expire (minutes)</label>
+        <input type="number" id="sa-expires" value="120" min="1" max="1440">
+      </div>
+    </div>
+    <div class="form-row">
+      <button class="btn btn-red" onclick="submitSafetyAlert()">🚨 Issue Safety Alert</button>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:14px">
+    <div class="card-hdr"><div class="card-title">🟢 Active <span class="accent">Safety Alerts</span></div>
+      <button class="btn btn-sm" onclick="loadSafetyAlerts()">↻ Refresh</button>
+    </div>
+    <div id="sa-list"><div class="empty-state"><div class="icon">✅</div>No active safety alerts</div></div>
+  </div>
+</div>
+
+<!-- ── CROWD FORECAST PANEL (Phase 3) ───────────────────────────────────── -->
+<div id="panel-forecast" class="panel">
+  <div class="card">
+    <div class="card-hdr">
+      <div class="card-title">🔮 Crowd <span class="accent">Forecast</span> (next 60 min)</div>
+      <button class="btn btn-cyan btn-sm" onclick="loadForecast()">↻ Refresh</button>
+    </div>
+    <div style="font-size:12px;color:var(--text-dim);margin-bottom:10px">
+      Predicted crowd level for each ghat in 60 min — derived from recent occupancy trend.
+      Use this to pre-position volunteers and pre-emptively divert crowds.
+    </div>
+    <div id="fc-list"><div class="empty-state"><div class="icon">⏳</div>Click Refresh to compute forecast</div></div>
+  </div>
+</div>
+
 </main>
 </div>
 
@@ -1036,16 +1196,19 @@ function handleWS(msg) {
     case 'SOS_ALERT':
       S.sos_alerts.unshift(msg.data);
       renderSOS(); renderOverview(); updateTopbar();
+      if (mapInited) refreshMap();
       toast('🆘 NEW SOS ALERT — ' + msg.data.user_name, 'error');
       break;
     case 'SOS_RESOLVED':
       updateItem(S.sos_alerts, msg.data);
       renderSOS(); renderOverview(); updateTopbar();
+      if (mapInited) refreshMap();
       toast('✅ SOS resolved', 'success');
       break;
     case 'SOS_ASSIGNED':
       updateItem(S.sos_alerts, msg.data);
       renderSOS();
+      if (mapInited) refreshMap();
       break;
     case 'NEW_ISSUE':
       S.issues.unshift(msg.data);
@@ -1067,6 +1230,7 @@ function handleWS(msg) {
         });
       }
       renderGhats(); renderOverview(); updateTopbar();
+      if (mapInited) refreshMap();
       if (msg.data.level === 'high' || msg.data.level === 'critical') {
         toast('🌊 ' + (msg.data.name||'Ghat') + ' → ' + msg.data.level.toUpperCase(), 'info');
       }
@@ -1097,16 +1261,19 @@ function handleWS(msg) {
     case 'VOLUNTEER_UPDATED':
       updateItem(S.volunteers, msg.data);
       renderVolunteers(); updateTopbar();
+      if (mapInited) refreshMap();   // live volunteer pin position update
       break;
     case 'VOLUNTEER_CREATED':
       if (!S.volunteers.find(v => v.id === msg.data.id)) {
         S.volunteers.push(msg.data);
       }
       renderVolunteers(); updateTopbar();
+      if (mapInited) refreshMap();
       break;
     case 'VOLUNTEER_DELETED':
       S.volunteers = S.volunteers.filter(v => v.id !== msg.data.id);
       renderVolunteers(); updateTopbar();
+      if (mapInited) refreshMap();
       break;
   }
 }
@@ -1134,6 +1301,9 @@ const PANEL_RENDERERS = {
   medical:    () => renderMedical(),
   map:        () => { initMap(); refreshMap(); },
   analytics:  () => loadDailyAnalytics(),
+  broadcast:  () => { populateBroadcastVolunteers(); renderBroadcastHistory(); },
+  safety:     () => loadSafetyAlerts(),
+  forecast:   () => loadForecast(),
 };
 
 function showPanel(el) {
@@ -1288,6 +1458,168 @@ function startCrowdPoll() {
 }
 function stopCrowdPoll() {
   if (_crowdPollTimer) { clearInterval(_crowdPollTimer); _crowdPollTimer = null; }
+}
+
+// ═══════════════════════════════════════════════════
+// BROADCAST / SAFETY ALERTS / FORECAST  (Phase 2 + 3)
+// ═══════════════════════════════════════════════════
+const _bcSentHistory = [];   // session-only history of broadcasts sent from this admin
+
+function populateBroadcastVolunteers() {
+  const sel = document.getElementById('bc-volunteer-id');
+  if (!sel) return;
+  const opts = ['<option value="">-- choose volunteer --</option>'];
+  (S.volunteers || []).slice().sort((a,b)=>(a.name||'').localeCompare(b.name||'')).forEach(v => {
+    opts.push(`<option value="${v.id}">${v.name} · ${v.zone || ''} · ${v.status || ''}</option>`);
+  });
+  sel.innerHTML = opts.join('');
+  // Wire dynamic show/hide of vol-pick row
+  const tgt = document.getElementById('bc-target');
+  if (tgt && !tgt._bound) {
+    tgt._bound = true;
+    tgt.addEventListener('change', () => {
+      document.getElementById('bc-vol-pick-wrap').style.display = (tgt.value === 'vol-pick') ? '' : 'none';
+    });
+  }
+  // Wire char counter
+  const txt = document.getElementById('bc-message');
+  const cc = document.getElementById('bc-charcount');
+  if (txt && cc && !txt._bound) {
+    txt._bound = true;
+    txt.addEventListener('input', () => { cc.textContent = String((txt.value || '').length); });
+  }
+}
+
+async function submitBroadcast() {
+  const message = (document.getElementById('bc-message').value || '').trim();
+  const title   = (document.getElementById('bc-title').value || '').trim();
+  const cat     = document.getElementById('bc-category').value;
+  let target    = document.getElementById('bc-target').value;
+  const result  = document.getElementById('bc-result');
+  if (!message) { result.innerHTML = `<div class="empty-state" style="background:rgba(255,51,85,.12);color:#FCA5A5">⚠️ Message required</div>`; return; }
+  if (target === 'vol-pick') {
+    const vid = document.getElementById('bc-volunteer-id').value;
+    if (!vid) { result.innerHTML = `<div class="empty-state" style="background:rgba(255,51,85,.12);color:#FCA5A5">⚠️ Pick a volunteer</div>`; return; }
+    target = 'volunteer:' + vid;
+  }
+  const fd = new FormData();
+  fd.append('message', message);
+  if (title) fd.append('title', title);
+  fd.append('category', cat);
+  fd.append('target', target);
+  try {
+    const r = await api('/admin/broadcast', { method: 'POST', body: fd });
+    if (r && r.success) {
+      _bcSentHistory.unshift({ ...(r.data||{}), sent_at: new Date().toISOString() });
+      if (_bcSentHistory.length > 30) _bcSentHistory.length = 30;
+      result.innerHTML = `<div class="empty-state" style="background:rgba(0,255,136,.10);color:#86EFAC"><div class="icon">✅</div>Broadcast delivered (${target})</div>`;
+      document.getElementById('bc-message').value = '';
+      document.getElementById('bc-title').value = '';
+      const cc = document.getElementById('bc-charcount'); if (cc) cc.textContent = '0';
+      renderBroadcastHistory();
+    } else {
+      result.innerHTML = `<div class="empty-state" style="background:rgba(255,51,85,.12);color:#FCA5A5">⚠️ Server rejected the broadcast</div>`;
+    }
+  } catch(e) {
+    result.innerHTML = `<div class="empty-state" style="background:rgba(255,51,85,.12);color:#FCA5A5">⚠️ Network error</div>`;
+  }
+}
+
+function renderBroadcastHistory() {
+  const el = document.getElementById('bc-history'); if (!el) return;
+  if (!_bcSentHistory.length) {
+    el.innerHTML = `<div class="empty-state"><div class="icon">📭</div>No broadcasts sent yet</div>`;
+    return;
+  }
+  el.innerHTML = _bcSentHistory.map(b => `
+    <div class="row" style="padding:10px 0;border-bottom:1px solid var(--border);font-size:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+        <div style="font-weight:700;color:var(--text)">${b.title || '(no title)'} <span style="font-weight:500;color:var(--text-dim);font-size:10px">· ${b.category || 'info'} · ${b.target || 'all'}</span></div>
+        <div style="font-size:10px;color:var(--text-dim);font-family:'Source Code Pro',monospace">${new Date(b.sent_at || b.ts || Date.now()).toLocaleString()}</div>
+      </div>
+      <div style="margin-top:4px;color:var(--text-dim)">${(b.message || '').replace(/</g,'&lt;')}</div>
+    </div>`).join('');
+}
+
+async function submitSafetyAlert() {
+  const title    = (document.getElementById('sa-title').value || '').trim();
+  const message  = (document.getElementById('sa-message').value || '').trim();
+  const severity = document.getElementById('sa-severity').value;
+  const location = (document.getElementById('sa-location').value || '').trim();
+  const expires  = parseInt(document.getElementById('sa-expires').value, 10) || 120;
+  if (!title || !message) { alert('Title and message are required'); return; }
+  const fd = new FormData();
+  fd.append('title', title); fd.append('message', message);
+  fd.append('severity', severity); fd.append('location', location);
+  fd.append('expires_in_min', String(expires));
+  try {
+    const r = await api('/admin/safety_alert', { method: 'POST', body: fd });
+    if (r && r.success) {
+      document.getElementById('sa-title').value = '';
+      document.getElementById('sa-message').value = '';
+      loadSafetyAlerts();
+    }
+  } catch(e) { alert('Failed to issue safety alert'); }
+}
+
+async function loadSafetyAlerts() {
+  const el = document.getElementById('sa-list'); if (!el) return;
+  try {
+    const r = await api('/safety_alerts');
+    const alerts = (r && r.alerts) || [];
+    if (!alerts.length) { el.innerHTML = `<div class="empty-state"><div class="icon">✅</div>No active safety alerts</div>`; return; }
+    el.innerHTML = alerts.map(a => `
+      <div class="row" style="padding:10px;border:1px solid var(--border);border-radius:6px;margin-bottom:8px;background:var(--bg2)">
+        <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start">
+          <div style="flex:1">
+            <div style="font-weight:700">⚠️ ${a.title} <span class="level-badge" style="background:rgba(255,140,0,.18);color:#fdba74;font-size:10px;margin-left:6px">${a.severity}</span></div>
+            <div style="margin-top:4px;color:var(--text-dim);font-size:12px">${a.message}</div>
+            <div style="margin-top:6px;font-size:10px;color:var(--text-dim);font-family:'Source Code Pro',monospace">${a.location || ''} · expires ${a.expires_at || 'n/a'}</div>
+          </div>
+          <button class="btn btn-sm btn-red" onclick="clearSafetyAlert('${a.id}')">Clear</button>
+        </div>
+      </div>`).join('');
+  } catch(e) { el.innerHTML = `<div class="empty-state"><div class="icon">⚠️</div>Failed to load</div>`; }
+}
+
+async function clearSafetyAlert(id) {
+  if (!confirm('Clear this safety alert from all pilgrim portals?')) return;
+  try { await api('/admin/safety_alert/clear/' + id, { method: 'POST' }); loadSafetyAlerts(); }
+  catch(e) { alert('Could not clear'); }
+}
+
+async function loadForecast() {
+  const el = document.getElementById('fc-list'); if (!el) return;
+  el.innerHTML = `<div class="empty-state"><div class="icon">⏳</div>Computing forecast…</div>`;
+  try {
+    const r = await api('/crowd/forecast?horizon_min=60');
+    const items = (r && r.forecast) || [];
+    if (!items.length) { el.innerHTML = `<div class="empty-state"><div class="icon">📭</div>No forecast data available yet</div>`; return; }
+    el.innerHTML = items.map(it => {
+      const next = it.predicted_level || 'low';
+      const cur  = it.current_level   || 'low';
+      const arrow = (cur !== next)
+        ? (['low','medium','high','critical'].indexOf(next) > ['low','medium','high','critical'].indexOf(cur) ? '↑' : '↓')
+        : '→';
+      const sevColor = next === 'critical' ? '#aa44ff' : next === 'high' ? '#ff3355' : next === 'medium' ? '#f4b942' : '#00ff88';
+      return `
+        <div class="row" style="padding:10px;border:1px solid var(--border);border-radius:6px;margin-bottom:8px;background:var(--bg2);display:flex;align-items:center;gap:12px">
+          <div style="flex:1">
+            <div style="font-weight:700">${it.name || it.ghat_id}</div>
+            <div style="font-size:11px;color:var(--text-dim);font-family:'Source Code Pro',monospace">${it.ghat_id} · ${it.confidence ? Math.round(it.confidence*100)+'% conf' : ''}</div>
+          </div>
+          <div style="text-align:center">
+            <div style="font-size:10px;color:var(--text-dim)">NOW</div>
+            <div class="level-badge" style="background:rgba(255,255,255,.06)">${cur}</div>
+          </div>
+          <div style="font-size:18px;color:${sevColor};font-weight:700">${arrow}</div>
+          <div style="text-align:center">
+            <div style="font-size:10px;color:var(--text-dim)">+60 min</div>
+            <div class="level-badge" style="background:${sevColor}33;color:${sevColor}">${next}</div>
+          </div>
+        </div>`;
+    }).join('');
+  } catch(e) { el.innerHTML = `<div class="empty-state"><div class="icon">⚠️</div>Failed to compute forecast</div>`; }
 }
 
 // ═══════════════════════════════════════════════════
@@ -1884,6 +2216,111 @@ function makeIcon(color, emoji) {
 
 function clearMarkerGroup(group) { group.forEach(m=>map.removeLayer(m)); group.length=0; }
 
+// ═══════════════════════════════════════════════════
+// COMMAND MAP — layer toggles, heatmap, dynamic dispatch (Phase 2/3)
+// ═══════════════════════════════════════════════════
+// State of each toggleable layer. Defaults match the data-active attributes
+// on the chip buttons in HTML.
+const _cmdLayer = { ghats:true, vols:true, sos:true, medical:true, contacts:false, lost:false, heat:false };
+let _heatLayer = null;
+
+function _refreshCmdCounts() {
+  const setC = (k, n) => { const el = document.getElementById('cmd-c-' + k); if (el) el.textContent = n ? `(${n})` : ''; };
+  setC('ghats',    (S.ghats||[]).length);
+  setC('vols',     (S.volunteers||[]).length);
+  setC('sos',      (S.sos_alerts||[]).filter(a=>a.status==='active').length);
+  setC('medical',  (S.medical||[]).length);
+  setC('contacts', (S.contacts||[]).length);
+  setC('lost',     (S.lost||[]).filter(p=>p.status==='missing').length);
+}
+
+function toggleCmdLayer(name, btn) {
+  const next = !_cmdLayer[name];
+  _cmdLayer[name] = next;
+  if (btn) { btn.dataset.active = next ? '1' : '0'; btn.setAttribute('aria-pressed', next ? 'true' : 'false'); }
+  if (name === 'heat') {
+    _toggleHeatLayer(next);
+  } else {
+    refreshMap();
+  }
+}
+
+function _toggleHeatLayer(on) {
+  if (!map) return;
+  if (_heatLayer) { map.removeLayer(_heatLayer); _heatLayer = null; }
+  if (!on) return;
+  if (typeof L === 'undefined' || !L.heatLayer) {
+    console.warn('[CmdMap] Leaflet.heat not loaded yet — retrying in 800ms');
+    setTimeout(() => _toggleHeatLayer(true), 800);
+    return;
+  }
+  // Build heatmap from SOS coordinates (last 24h). Active SOS gets higher weight.
+  const cutoff = Date.now() - 24*60*60*1000;
+  const pts = [];
+  (S.sos_alerts || []).forEach(a => {
+    if (!a || !a.latitude || !a.longitude) return;
+    const t = Date.parse(a.timestamp || a.created_at || '') || 0;
+    if (t && t < cutoff) return;
+    const w = (a.status === 'active') ? 1.0 : 0.55;
+    pts.push([a.latitude, a.longitude, w]);
+  });
+  // Include resolved issues too — they show *where problems happened*
+  (S.issues || []).forEach(i => {
+    if (!i || !i.latitude || !i.longitude) return;
+    const t = Date.parse(i.timestamp || i.created_at || '') || 0;
+    if (t && t < cutoff) return;
+    pts.push([i.latitude, i.longitude, 0.4]);
+  });
+  if (!pts.length) {
+    console.info('[CmdMap] No incidents in last 24h to plot on heatmap');
+    return;
+  }
+  _heatLayer = L.heatLayer(pts, { radius: 35, blur: 28, maxZoom: 17,
+                                  gradient: { 0.2:'#00ffaa', 0.45:'#f4b942', 0.7:'#ff8c00', 1.0:'#ff3355' } })
+                .addTo(map);
+}
+
+function resetMapView() { if (map) map.setView([16.984, 81.782], 13); }
+
+// Find the volunteer marker nearest to a given lat/lng (drag-drop dispatch)
+function _nearestVolunteerTo(lat, lon) {
+  let best = null, bestD = Infinity;
+  (S.volunteers || []).forEach(v => {
+    if (v.status !== 'available' || !v.latitude || !v.longitude) return;
+    const dx = lat - v.latitude, dy = lon - v.longitude;
+    const d = Math.sqrt(dx*dx + dy*dy);
+    if (d < bestD) { bestD = d; best = v; }
+  });
+  return best ? { volunteer: best, distance_deg: bestD } : null;
+}
+
+function _showDispatchPrompt(alert, target, onConfirm, onCancel) {
+  document.querySelectorAll('.dispatch-toast').forEach(el => el.remove());
+  const t = document.createElement('div');
+  t.className = 'dispatch-toast';
+  t.innerHTML = `
+    <div style="flex:1;line-height:1.5">
+      <div style="font-weight:700">Reassign SOS?</div>
+      <div style="font-size:12px;color:rgba(255,255,255,.78)">${alert.user_name || 'SOS'} → <strong>${target.name}</strong> (${target.zone || 'no zone'})</div>
+    </div>
+    <button class="cancel" id="__dt-cancel">Cancel</button>
+    <button id="__dt-confirm">Reassign</button>`;
+  document.body.appendChild(t);
+  document.getElementById('__dt-cancel').onclick  = () => { t.remove(); onCancel && onCancel(); };
+  document.getElementById('__dt-confirm').onclick = () => { t.remove(); onConfirm(); };
+  // Auto-cancel after 12s of inactivity
+  setTimeout(() => { if (document.body.contains(t)) { t.remove(); onCancel && onCancel(); } }, 12000);
+}
+
+async function _dispatchSOSToVolunteer(alertId, volunteerId) {
+  try {
+    const fd = new FormData();
+    fd.append('volunteer_id', volunteerId);
+    const r = await api(`/assign_sos/${alertId}`, { method: 'POST', body: fd });
+    if (r && r.success) toast(`📡 SOS reassigned`, 'info');
+  } catch(e) { toast('Dispatch failed', 'error'); }
+}
+
 function refreshMap() {
   if (!map) return;
   clearMarkerGroup(markers.ghats);
@@ -1893,29 +2330,52 @@ function refreshMap() {
   clearMarkerGroup(markers.medical);
   clearMarkerGroup(markers.contacts);
 
-  S.ghats.forEach(g=>{
+  if (_cmdLayer.ghats) S.ghats.forEach(g=>{
     const m = L.marker([g.latitude, g.longitude], {icon:makeIcon('#f4b942','⛱️')})
       .addTo(map)
       .bindPopup(`<b>${g.name}</b><br>Crowd: <b>${g.crowd_level}</b><br>${g.current_count||0}/${g.capacity||0}`);
     markers.ghats.push(m);
   });
 
-  S.volunteers.forEach(v=>{
+  if (_cmdLayer.vols) S.volunteers.forEach(v=>{
+    if (!v.latitude || !v.longitude) return;
     const c = v.status==='available'?'#00ff88':v.status==='busy'?'#ff8c00':'#ff3355';
     const m = L.marker([v.latitude, v.longitude], {icon:makeIcon(c,'👮')})
       .addTo(map)
       .bindPopup(`<b>${v.name}</b><br>Zone: ${v.zone}<br>Status: ${v.status}`);
+    m._volunteerId = v.id;
     markers.vols.push(m);
   });
 
-  S.sos_alerts.filter(a=>a.status==='active').forEach(a=>{
-    const m = L.marker([a.latitude, a.longitude], {icon:makeIcon('#ff3355','🆘')})
+  if (_cmdLayer.sos) S.sos_alerts.filter(a=>a.status==='active' || a.status==='assigned').forEach(a=>{
+    if (!a.latitude || !a.longitude) return;
+    const m = L.marker([a.latitude, a.longitude], {
+        icon: makeIcon(a.status==='assigned' ? '#ff8c00' : '#ff3355', '🆘'),
+        draggable: true,    // Phase 3: drag SOS onto a volunteer to reassign
+        autoPan: true,
+      })
       .addTo(map)
-      .bindPopup(`<b>SOS: ${a.user_name}</b><br>${a.phone||'No phone'}`);
+      .bindPopup(`<b>SOS: ${a.user_name}</b><br>${a.phone||'No phone'}<br><i>Status: ${a.status}</i><br><small>Drag onto a volunteer to reassign</small>`);
+    // On dragend: snap back to original location, prompt to reassign
+    m.on('dragend', (ev) => {
+      const ll = ev.target.getLatLng();
+      const nearest = _nearestVolunteerTo(ll.lat, ll.lng);
+      // Restore the original marker position regardless of outcome
+      ev.target.setLatLng([a.latitude, a.longitude]);
+      if (!nearest) { toast('No available volunteer nearby', 'error'); return; }
+      // Don't reassign if it's the already-assigned volunteer
+      if (a.assigned_volunteer === nearest.volunteer.id) {
+        toast('Already assigned to that volunteer', 'info'); return;
+      }
+      _showDispatchPrompt(a, nearest.volunteer,
+        () => _dispatchSOSToVolunteer(a.id, nearest.volunteer.id),
+        null
+      );
+    });
     markers.sos.push(m);
   });
 
-  S.lost.filter(p=>p.status==='missing').forEach(p=>{
+  if (_cmdLayer.lost) S.lost.filter(p=>p.status==='missing').forEach(p=>{
     const lat = 16.984 + (Math.random()-0.5)*0.01;
     const lon = 81.782 + (Math.random()-0.5)*0.01;
     const m = L.marker([lat, lon], {icon:makeIcon('#f4b942','🔍')})
@@ -1924,7 +2384,7 @@ function refreshMap() {
     markers.lost.push(m);
   });
 
-  S.medical.forEach(f=>{
+  if (_cmdLayer.medical) S.medical.forEach(f=>{
     const c = f.type==='medical_camp'?'#00ffaa':f.type==='government_hospital'?'#00c8ff':'#f4b942';
     const m = L.marker([f.latitude, f.longitude], {icon:makeIcon(c,'🏥')})
       .addTo(map)
@@ -1932,12 +2392,17 @@ function refreshMap() {
     markers.medical.push(m);
   });
 
-  S.contacts.forEach(c=>{
+  if (_cmdLayer.contacts) S.contacts.forEach(c=>{
+    if (!c.latitude || !c.longitude) return;
     const m = L.marker([c.latitude, c.longitude], {icon:makeIcon('#aa44ff','📞')})
       .addTo(map)
       .bindPopup(`<b>${c.name}</b><br>${c.designation}<br>📞 ${c.phone}`);
     markers.contacts.push(m);
   });
+
+  // Refresh chip counters and any active heat layer
+  _refreshCmdCounts();
+  if (_cmdLayer.heat) _toggleHeatLayer(true);
 }
 
 // ═══════════════════════════════════════════════════

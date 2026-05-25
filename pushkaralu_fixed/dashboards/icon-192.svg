@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" width="192" height="192">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"  stop-color="#0B2E6E"/>
+      <stop offset="100%" stop-color="#08204D"/>
+    </linearGradient>
+    <linearGradient id="wave" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"  stop-color="#F0A830"/>
+      <stop offset="100%" stop-color="#E8600A"/>
+    </linearGradient>
+  </defs>
+  <rect width="192" height="192" rx="32" fill="url(#bg)"/>
+  <!-- saffron sun/disc -->
+  <circle cx="96" cy="78" r="38" fill="url(#wave)"/>
+  <!-- godavari wave bands -->
+  <path d="M16 130 q24 -16 48 0 t48 0 t48 0 t48 0 V160 H16 Z" fill="#1F5BC6" opacity="0.55"/>
+  <path d="M16 142 q24 -14 48 0 t48 0 t48 0 t48 0 V172 H16 Z" fill="#0B2E6E"/>
+  <!-- "P" mark -->
+  <text x="96" y="96" font-family="Georgia, 'DM Serif Display', serif" font-size="56" font-weight="700"
+        text-anchor="middle" fill="#FFFFFF" dominant-baseline="middle">P</text>
+</svg>

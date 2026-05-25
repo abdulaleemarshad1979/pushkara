@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- maskable icon: full-bleed background, content within central 80% safe zone -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"  stop-color="#0B2E6E"/>
+      <stop offset="100%" stop-color="#08204D"/>
+    </linearGradient>
+    <linearGradient id="wave" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"  stop-color="#F0A830"/>
+      <stop offset="100%" stop-color="#E8600A"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" fill="url(#bg)"/>
+  <circle cx="256" cy="232" r="80" fill="url(#wave)"/>
+  <text x="256" y="280" font-family="Georgia, serif" font-size="120" font-weight="700"
+        text-anchor="middle" fill="#FFFFFF" dominant-baseline="middle">P</text>
+</svg>

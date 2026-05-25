@@ -113,6 +113,17 @@ body.dark-mode .leaflet-popup-content b { color: var(--navy); }
 }
 .theme-toggle:hover { background: rgba(255,255,255,0.2); transform: scale(1.1) rotate(15deg); }
 
+/* ═══ AVAILABILITY TOGGLE (Active / On Break) ════════════════════════ */
+.avail-toggle{display:inline-flex;align-items:center;gap:6px;background:rgba(11,107,48,0.15);border:1px solid rgba(11,107,48,0.5);color:#86E89C;padding:6px 12px;border-radius:18px;font-size:11.5px;font-weight:700;font-family:'DM Sans',sans-serif;cursor:pointer;transition:all .15s;text-transform:uppercase;letter-spacing:.4px;line-height:1}
+.avail-toggle:hover{filter:brightness(1.15)}
+.avail-toggle .avail-dot{width:8px;height:8px;border-radius:50%;background:#22C55E;box-shadow:0 0 6px rgba(34,197,94,0.7);animation:pulse-avail 2s infinite}
+.avail-toggle.on-break{background:rgba(192,57,43,0.18);border-color:rgba(192,57,43,0.55);color:#FCA5A5}
+.avail-toggle.on-break .avail-dot{background:#F59E0B;box-shadow:0 0 6px rgba(245,158,11,0.7);animation:none}
+.avail-toggle.busy{background:rgba(232,96,10,0.18);border-color:rgba(232,96,10,0.55);color:#FED7AA}
+.avail-toggle.busy .avail-dot{background:#E8600A;box-shadow:0 0 6px rgba(232,96,10,0.7)}
+@keyframes pulse-avail{0%,100%{opacity:1}50%{opacity:.55}}
+@media(max-width:720px){.avail-toggle{padding:5px 9px;font-size:10.5px}.avail-toggle-label{display:none}}
+
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
 body { font-family: 'DM Sans', 'Noto Serif Telugu', sans-serif; background: var(--bg); color: var(--gray-800); font-size: 19px; line-height: 1.7; letter-spacing: 0.2px; transition: background 0.3s ease, color 0.3s ease; }
 
@@ -767,6 +778,11 @@ body.dark-mode .time-ago{
             <div class="vol-info-zone" id="vol-zone">–</div>
           </div>
         </div>
+        <button class="avail-toggle" id="avail-toggle" onclick="toggleAvailability()"
+                title="Toggle availability for SOS auto-assignment" aria-pressed="true">
+          <span class="avail-dot"></span>
+          <span class="avail-toggle-label" id="avail-toggle-label">Active</span>
+        </button>
         <button class="theme-toggle" id="theme-toggle" onclick="toggleTheme()" title="Toggle Dark/Light Mode">🌓</button>
         <button class="btn-logout" onclick="doLogout()">⬅ Logout</button>
         <a href="user.html" class="a-href-vol" style="background:rgba(255,107,0,0.2);border:1px solid var(--saffron);color:var(--gold-light);padding:6px 12px;border-radius:3px;font-size:12px;font-weight:600;text-decoration:none;" target="_blank">🙏 Pilgrim Portal</a>
@@ -989,10 +1005,59 @@ function showDashboard() {
   document.getElementById('dashboard-screen').style.display = 'block';
   document.getElementById('vol-name').textContent = currentVol.name;
   document.getElementById('vol-zone').textContent = currentVol.zone + ' · ' + (currentVol.tasks_completed || 0) + ' tasks';
+  // Restore last availability choice from localStorage (per-volunteer key); fallback to server-reported status
+  try {
+    const saved = localStorage.getItem('vol_availability_' + currentVol.id);
+    if (saved && ['available','offline','busy'].includes(saved)) currentVol.status = saved;
+  } catch(e) {}
+  if (!currentVol.status) currentVol.status = 'available';
+  applyAvailabilityUI();
+  // Push current status to backend so server is authoritative match for what the volunteer sees
+  _pushAvailability(currentVol.status, /*silent=*/true);
   connectWS();
   loadAll();
   // Send volunteer GPS location to backend so SOS proximity works correctly
   _pushVolunteerLocation();
+}
+
+// ── Availability toggle: cycles Active (available) ↔ On Break (offline)
+// "busy" is set automatically by the backend when an SOS is assigned; the
+// volunteer cannot set it directly here.
+function toggleAvailability() {
+  if (!currentVol) return;
+  const next = (currentVol.status === 'available') ? 'offline' : 'available';
+  currentVol.status = next;
+  try { localStorage.setItem('vol_availability_' + currentVol.id, next); } catch(e) {}
+  applyAvailabilityUI();
+  _pushAvailability(next);
+}
+
+function applyAvailabilityUI() {
+  const btn = document.getElementById('avail-toggle');
+  const lbl = document.getElementById('avail-toggle-label');
+  if (!btn || !lbl) return;
+  const s = currentVol && currentVol.status;
+  btn.classList.remove('on-break','busy');
+  if (s === 'offline')      { btn.classList.add('on-break'); lbl.textContent = 'On Break'; btn.setAttribute('aria-pressed','false'); btn.title = 'Currently on break — tap to go Active'; }
+  else if (s === 'busy')    { btn.classList.add('busy');     lbl.textContent = 'Busy';     btn.setAttribute('aria-pressed','true');  btn.title = 'Handling an active task'; }
+  else                      {                                lbl.textContent = 'Active';   btn.setAttribute('aria-pressed','true');  btn.title = 'Available for SOS auto-assignment — tap to go on break'; }
+}
+
+function _pushAvailability(status, silent) {
+  if (!currentVol) return;
+  const fd = new FormData();
+  fd.append('status', status);
+  authFetch(`${API_BASE}/volunteer/${currentVol.id}`, { method: 'PUT', body: fd })
+    .then(r => {
+      if (!silent && r.ok) {
+        const msg = status === 'offline' ? '☕ You are now On Break — auto-dispatch paused' : '✅ You are now Active — ready for assignments';
+        if (typeof toast === 'function') toast(msg, status === 'offline' ? 'info' : 'success');
+        else console.log('[avail]', msg);
+      }
+    })
+    .catch(() => {
+      if (!silent && typeof toast === 'function') toast('Could not update availability — will retry', 'error');
+    });
 }
 
 function _pushVolunteerLocation() {
@@ -1139,7 +1204,70 @@ function handleWS(msg) {
       renderLost(); updateLostBadge();
       break;
     }
+    case 'VOLUNTEER_UPDATED': {
+      // Sync this volunteer's own status (server is authoritative when admin/auto changes it,
+      // e.g. backend flips us to "busy" on SOS auto-assignment)
+      if (msg.data && currentVol && msg.data.id === currentVol.id) {
+        const prev = currentVol.status;
+        currentVol.status = msg.data.status || currentVol.status;
+        if (prev !== currentVol.status) applyAvailabilityUI();
+      }
+      break;
+    }
+    case 'BROADCAST': {
+      // Phase 2 mass notification + Phase 3 admin->volunteer comms
+      try { _onVolBroadcast(msg.data || {}); } catch(e) {}
+      break;
+    }
+    case 'SAFETY_ALERT': {
+      // Volunteers also see safety alerts so they can prepare/relocate
+      const a = msg.data || {};
+      if (typeof toast === 'function') {
+        const sev = a.severity || 'warning';
+        const icon = sev === 'danger' ? '⚠️' : sev === 'evacuation' ? '🚨' : '⚠️';
+        toast(`${icon} ${a.title || 'Safety Alert'}`, `${a.location ? '['+a.location+'] ' : ''}${a.message || ''}`,
+              sev === 'danger' || sev === 'evacuation' ? 't-sos' : 't-issue');
+        playAlert(720);
+      }
+      break;
+    }
   }
+}
+
+// ── Admin->Volunteer broadcast handler (Phase 2 / Phase 3) ──
+// Maintains a small in-memory inbox so the user can review recent broadcasts.
+let _volBroadcastInbox = [];
+function _onVolBroadcast(d) {
+  if (!d || !d.message || !currentVol) return;
+  const tgt = (d.target || 'all').toLowerCase();
+  // Targeting filter: keep only messages addressed to this volunteer
+  const isForMe =
+    tgt === 'all' ||
+    (tgt.startsWith('volunteer:') && tgt.slice('volunteer:'.length) === currentVol.id) ||
+    (tgt.startsWith('zone:')      && tgt.slice('zone:'.length).trim().toLowerCase() === (currentVol.zone || '').trim().toLowerCase());
+  if (!isForMe) return;
+  _volBroadcastInbox.unshift({
+    id: d.id || ('bc-' + Date.now()),
+    title: d.title || '',
+    message: d.message,
+    category: d.category || 'info',
+    target: d.target || 'all',
+    ts: d.ts || new Date().toISOString(),
+  });
+  if (_volBroadcastInbox.length > 30) _volBroadcastInbox.length = 30;
+  // Update unread badge
+  const badge = document.getElementById('vol-bc-badge');
+  if (badge) { badge.style.display = 'inline-flex'; badge.textContent = _volBroadcastInbox.length; }
+  // Toast: distinct icon per category
+  const cat = (d.category || 'info').toLowerCase();
+  const icon = cat === 'safety' || cat === 'evacuation' ? '🚨'
+             : cat === 'warning' ? '⚠️'
+             : cat === 'weather' ? '🌧️'
+             : '📣';
+  if (typeof toast === 'function') {
+    toast(`${icon} ${d.title || 'Command Centre'}`, d.message, cat === 'evacuation' || cat === 'safety' ? 't-sos' : 't-issue');
+  }
+  if (typeof playAlert === 'function' && (cat === 'safety' || cat === 'evacuation')) playAlert(900);
 }
 
 // ─── API ─────────────────────────────────────────────────────────────────────
@@ -1353,13 +1481,23 @@ async function acceptIssue(id) {
 }
 
 async function resolveIssue(id) {
+  // Phase 2: prompt for optional incident report (note + photo) before completing
+  const r = await _captureResolutionDetails('Issue Resolution Notes');
+  if (r === null) return; // user cancelled
+  await _doResolveIssue(id, r);
+}
+
+async function _doResolveIssue(id, extra) {
   // Optimistically update local state
   const item = allIssues.find(i => i.id === id);
   const prevStatus = item ? item.status : null;
   if (item) { item.status = 'resolved'; item.resolved_at = new Date().toISOString(); }
   renderIssues(); updateBadges(); updateStats();
   try {
-    const fd = new FormData(); fd.append('volunteer_id', currentVol.id);
+    const fd = new FormData();
+    fd.append('volunteer_id', currentVol.id);
+    if (extra && extra.note)  fd.append('resolution_note', extra.note);
+    if (extra && extra.photo) fd.append('photo', extra.photo);
     const d = await (await authFetch(`${API_BASE}/resolve_issue/${id}`, { method: 'POST', body: fd })).json();
     if (d.success) {
       toast('✅ Resolved', 'Issue marked as resolved.', 't-success');
@@ -1376,12 +1514,21 @@ async function resolveIssue(id) {
 }
 
 async function resolveSOS(id) {
+  const r = await _captureResolutionDetails('SOS Resolution Notes');
+  if (r === null) return;
+  await _doResolveSOS(id, r);
+}
+
+async function _doResolveSOS(id, extra) {
   // Optimistically update local array immediately so the list doesn't blank out
   const item = allSOS.find(s => s.id === id);
   if (item) { item.status = 'resolved'; item.resolved_at = new Date().toISOString(); }
   renderSOS(); updateBadges(); updateStats();
   try {
-    const fd = new FormData(); fd.append('volunteer_id', currentVol.id);
+    const fd = new FormData();
+    fd.append('volunteer_id', currentVol.id);
+    if (extra && extra.note)  fd.append('resolution_note', extra.note);
+    if (extra && extra.photo) fd.append('photo', extra.photo);
     const d = await (await authFetch(`${API_BASE}/resolve_sos/${id}`, { method: 'POST', body: fd })).json();
     if (d.success) {
       toast('✅ SOS Resolved', 'Emergency marked resolved.', 't-success');
@@ -1404,6 +1551,52 @@ async function resolveSOS(id) {
     if (item) { item.status = 'active'; delete item.resolved_at; }
     renderSOS(); updateBadges();
   }
+}
+
+// ── Resolution capture modal (Phase 2 digital incident report) ──
+// Returns a Promise resolving to { note: string, photo: File|null } or null
+// if the volunteer cancelled. Photo upload is optional.
+function _captureResolutionDetails(title) {
+  return new Promise((resolve) => {
+    const modalId = '__resolve_capture_modal';
+    let modal = document.getElementById(modalId);
+    if (modal) modal.remove();
+    modal = document.createElement('div');
+    modal.id = modalId;
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9000;display:flex;align-items:center;justify-content:center;padding:16px;font-family:DM Sans,sans-serif';
+    modal.innerHTML = `
+      <div style="background:#FFF;border-radius:10px;box-shadow:0 8px 32px rgba(0,0,0,.3);width:100%;max-width:460px;overflow:hidden">
+        <div style="background:#0B2E6E;color:#FFF;padding:14px 18px;display:flex;justify-content:space-between;align-items:center">
+          <div style="font-family:'DM Serif Display',serif;font-size:.95rem;font-weight:700">📋 ${title}</div>
+          <button id="__rc-cancel" style="background:rgba(255,255,255,.18);border:0;color:#FFF;width:26px;height:26px;border-radius:50%;cursor:pointer;font-size:14px">✕</button>
+        </div>
+        <div style="padding:16px 18px;display:flex;flex-direction:column;gap:10px">
+          <div>
+            <label style="font-size:11px;font-weight:700;color:#5C6478;text-transform:uppercase;letter-spacing:.5px">Notes (optional)</label>
+            <textarea id="__rc-note" rows="3" maxlength="1000" placeholder="What happened? How did you handle it?" style="width:100%;border:1.5px solid #D0D5DD;border-radius:6px;padding:9px 11px;font-size:13px;margin-top:5px;resize:vertical;font-family:inherit"></textarea>
+          </div>
+          <div>
+            <label style="font-size:11px;font-weight:700;color:#5C6478;text-transform:uppercase;letter-spacing:.5px">Photo evidence (optional)</label>
+            <input id="__rc-photo" type="file" accept="image/*" capture="environment" style="display:block;margin-top:5px;font-size:12px">
+            <div style="font-size:10.5px;color:#5C6478;margin-top:3px">Tip: snap a quick photo of the resolved scene for the audit trail.</div>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:6px">
+            <button id="__rc-skip" style="flex:1;background:#F1F2F4;color:#5C6478;border:1px solid #D0D5DD;border-radius:6px;padding:10px;font-size:13px;font-weight:600;cursor:pointer">Skip & Resolve</button>
+            <button id="__rc-submit" style="flex:1;background:#0B6B30;color:#FFF;border:0;border-radius:6px;padding:10px;font-size:13px;font-weight:700;cursor:pointer">✓ Submit & Resolve</button>
+          </div>
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+    const cleanup = () => modal.remove();
+    document.getElementById('__rc-cancel').onclick = () => { cleanup(); resolve(null); };
+    document.getElementById('__rc-skip').onclick   = () => { cleanup(); resolve({ note: '', photo: null }); };
+    document.getElementById('__rc-submit').onclick = () => {
+      const note  = (document.getElementById('__rc-note').value || '').trim();
+      const photo = (document.getElementById('__rc-photo').files && document.getElementById('__rc-photo').files[0]) || null;
+      cleanup();
+      resolve({ note, photo });
+    };
+  });
 }
 
 // ─── RENDER ───────────────────────────────────────────────────────────────────
