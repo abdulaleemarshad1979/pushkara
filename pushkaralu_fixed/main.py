@@ -224,6 +224,13 @@ app.include_router(chat_router)
 # ═══════════════════════════════════════════════════════════════════════════════
 def haversine(lat1, lon1, lat2, lon2): return _hvs(lat1, lon1, lat2, lon2)
 
+def _sanitize_volunteer(vol: Optional[dict]) -> Optional[dict]:
+    """Strip password / password_hash before exposing a volunteer record over the wire."""
+    if not vol:
+        return None
+    return {k: v for k, v in vol.items() if k not in ("password", "password_hash")}
+
+
 def find_nearest_volunteer(lat, lon):
     # Guard: skip volunteers missing lat/lon (admin-created without coordinates)
     available = [
@@ -232,10 +239,18 @@ def find_nearest_volunteer(lat, lon):
         and v.get("latitude") is not None
         and v.get("longitude") is not None
     ]
-    return min(available, key=lambda v: haversine(lat, lon, v["latitude"], v["longitude"])) if available else None
+    if not available:
+        return None
+    nearest = min(available, key=lambda v: haversine(lat, lon, v["latitude"], v["longitude"]))
+    # FIX (A1 — CRITICAL): never leak password / password_hash via SOS response.
+    # The full record stays in DB["volunteers"]; the SOS handler only ever
+    # receives the sanitised view.
+    return _sanitize_volunteer(nearest)
 
 def safe_volunteers():
-    return [{k: v for k, v in vol.items() if k != "password"} for vol in DB["volunteers"]]
+    # FIX (A1 — defence in depth): strip both legacy `password` and the modern
+    # `password_hash` fields before returning volunteers to any client.
+    return [_sanitize_volunteer(vol) for vol in DB["volunteers"]]
 
 def _utc_now() -> str:
     return datetime.now(timezone.utc).isoformat()
@@ -778,28 +793,53 @@ async def get_transport(type: Optional[str] = None):
 
 @app.get("/get_hospitals")
 async def get_hospitals():
-    return {"hospitals": DB["hospitals"], "helplines": DB["helplines"]}
+    # FIX (A8): cache static-ish reference data (60s TTL) — same response shape.
+    cached = await cache_get("cache:hospitals:all")
+    if cached is not None: return cached
+    result = {"hospitals": DB["hospitals"], "helplines": DB["helplines"]}
+    await cache_set("cache:hospitals:all", result, ttl=60)
+    return result
 
 @app.get("/get_police")
 async def get_police():
-    return {"police_stations": DB["police_stations"]}
+    cached = await cache_get("cache:police:all")
+    if cached is not None: return cached
+    result = {"police_stations": DB["police_stations"]}
+    await cache_set("cache:police:all", result, ttl=60)
+    return result
 
 @app.get("/get_hotels")
 async def get_hotels():
-    return {"hotels": DB["hotels"]}
+    cached = await cache_get("cache:hotels:all")
+    if cached is not None: return cached
+    result = {"hotels": DB["hotels"]}
+    await cache_set("cache:hotels:all", result, ttl=60)
+    return result
 
 @app.get("/get_tourism")
 async def get_tourism():
-    return {"tourism_spots": DB["tourism_spots"]}
+    cached = await cache_get("cache:tourism:all")
+    if cached is not None: return cached
+    result = {"tourism_spots": DB["tourism_spots"]}
+    await cache_set("cache:tourism:all", result, ttl=60)
+    return result
 
 @app.get("/get_poojas")
 async def get_poojas():
-    return {"poojas": DB["poojas"]}
+    cached = await cache_get("cache:poojas:all")
+    if cached is not None: return cached
+    result = {"poojas": DB["poojas"]}
+    await cache_set("cache:poojas:all", result, ttl=60)
+    return result
 
 @app.get("/get_app_data")
 async def get_app_data():
     """Single endpoint returning all supplementary data for the frontend."""
-    return {
+    # FIX (A8): cache the heavy aggregate payload — admin/pilgrim dashboards
+    # call this on init; previously every page-load rebuilt the whole blob.
+    cached = await cache_get("cache:app_data:all")
+    if cached is not None: return cached
+    result = {
         "hospitals": DB["hospitals"],
         "helplines": DB["helplines"],
         "police_stations": DB["police_stations"],
@@ -807,6 +847,8 @@ async def get_app_data():
         "tourism_spots": DB["tourism_spots"],
         "poojas": DB["poojas"],
     }
+    await cache_set("cache:app_data:all", result, ttl=60)
+    return result
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # Volunteers
@@ -877,12 +919,18 @@ async def admin_create_volunteer(
     if any(v.get("username", "").lower() == uname for v in DB["volunteers"]):
         raise HTTPException(status_code=409, detail=f"Username '{username}' is already taken")
 
+    # FIX (A7): hash once — the previous code called hash_password() twice,
+    # producing two DIFFERENT bcrypt hashes (each call uses a fresh random salt)
+    # which wasted ~100 ms/CPU per create and caused inconsistency between the
+    # `password` (used by authenticate_volunteer) and `password_hash` (used by
+    # PostgreSQL persistence) fields.
+    pw_hashed = hash_password(password)
     vol = {
         "id":            str(uuid.uuid4()),
         "name":          name.strip(),
         "username":      uname,
-        "password_hash": hash_password(password),
-        "password":      hash_password(password),   # kept for in-memory index compat
+        "password_hash": pw_hashed,
+        "password":      pw_hashed,   # kept for in-memory index compat
         "phone":         phone.strip(),
         "zone":          zone.strip(),
         "status":        status,
