@@ -290,7 +290,10 @@ async def _event_loop_guardian_loop():
         try:
             await asyncio.sleep(LOOP_CHECK_INTERVAL)
 
-            loop   = asyncio.get_event_loop()
+            # FIX (A2): asyncio.get_event_loop() is deprecated inside async
+            # context (DeprecationWarning on 3.10+, breaks on 3.12+).
+            # get_running_loop() is the correct call here.
+            loop   = asyncio.get_running_loop()
             future = loop.create_future()
             t0     = time.perf_counter()
             loop.call_soon(future.set_result, None)

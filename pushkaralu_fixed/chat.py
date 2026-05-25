@@ -28,6 +28,16 @@ router = APIRouter()
 
 _cache: dict[str, tuple[str, float]] = {}
 
+# ── FIX (A6): cache the heavy system prompt ──────────────────────────────────
+# Building the prompt iterates over every ghat / train / bus / facility /
+# pooja / hotel / hospital and produces a ~10 KB string. Doing this on EVERY
+# request burns ~5–8 ms CPU per chat. Since the underlying data only changes
+# slowly (admin updates), we cache the rendered prompt for SYSTEM_PROMPT_TTL
+# seconds keyed by a cheap stable signature of the input data.
+SYSTEM_PROMPT_TTL = 30   # seconds
+_system_prompt_cache: tuple[str, str, float] | None = None  # (signature, prompt, expiry)
+
+
 def _cache_get(key: str) -> Optional[str]:
     entry = _cache.get(key)
     if entry and (time.time() - entry[1]) < CACHE_TTL_SECONDS:
@@ -35,11 +45,20 @@ def _cache_get(key: str) -> Optional[str]:
     return None
 
 def _cache_set(key: str, value: str) -> None:
+    # FIX (A5): the previous version only evicted *stale* entries — under
+    # sustained load (all entries fresh) the dict grew unbounded past 500.
+    # If no stale entries exist, fall back to LRU drop of the oldest items
+    # so memory stays bounded.
     if len(_cache) > 500:
         cutoff = time.time() - CACHE_TTL_SECONDS
         stale = [k for k, (_, t) in _cache.items() if t < cutoff]
         for k in stale:
             _cache.pop(k, None)
+        # If stale cleanup didn't reclaim enough room, drop the oldest entries.
+        if len(_cache) > 500:
+            oldest = sorted(_cache.items(), key=lambda kv: kv[1][1])[:max(1, len(_cache) - 400)]
+            for k, _ in oldest:
+                _cache.pop(k, None)
     _cache[key] = (value, time.time())
 
 
@@ -286,6 +305,57 @@ End every on-topic reply with: — TourGO Pushkara AI 🕊
 """
 
 
+# ── FIX (A6): cached wrapper for the heavy prompt builder ────────────────────
+def _cheap_db_signature(db: dict) -> str:
+    """
+    Cheap, stable signature of the prompt-relevant DB state.
+    Uses lengths only — does not iterate items — so it's O(1) and skips the
+    cache only when the admin actually adds/removes a record.
+    """
+    return (
+        f"g{len(db.get('ghats', []))}"
+        f":t{len(db.get('transport_routes', []))}"
+        f":f{len(db.get('facilities', []))}"
+        f":p{len(db.get('poojas', []))}"
+        f":h{len(db.get('hotels', []))}"
+        f":m{len(db.get('hospitals', []))}"
+    )
+
+
+def _get_cached_system_prompt(db: dict) -> str:
+    global _system_prompt_cache
+    sig = _cheap_db_signature(db)
+    now = time.time()
+    if _system_prompt_cache is not None:
+        cached_sig, cached_prompt, expiry = _system_prompt_cache
+        if cached_sig == sig and now < expiry:
+            return cached_prompt
+    prompt = _build_system_prompt(db)
+    _system_prompt_cache = (sig, prompt, now + SYSTEM_PROMPT_TTL)
+    return prompt
+
+
+def _real_client_ip(request: Request) -> str:
+    """
+    FIX (A4): in production all chat traffic hits the API through nginx, so
+    `request.client.host` returns the nginx container IP and rate-limit triggers
+    globally for every user. Honour the X-Forwarded-For chain (left-most entry
+    is the original client) when present, with a safe fallback.
+    """
+    xff = request.headers.get("x-forwarded-for") or request.headers.get("X-Forwarded-For")
+    if xff:
+        first = xff.split(",")[0].strip()
+        if first:
+            return first
+    real_ip = request.headers.get("x-real-ip") or request.headers.get("X-Real-IP")
+    if real_ip:
+        return real_ip.strip()
+    try:
+        return request.client.host or "unknown"
+    except Exception:
+        return "unknown"
+
+
 # ── REQUEST / RESPONSE MODELS ─────────────────────────────────────────────────
 
 class ChatMessage(BaseModel):
@@ -324,7 +394,7 @@ async def chat(req: ChatRequest, request: Request):
         return {"reply": refusal, "cached": False, "filtered": True}
 
     # Rate limiting
-    client_ip = request.client.host
+    client_ip = _real_client_ip(request)
     try:
         from app.core.redis_manager import check_rate_limit
         allowed, _ = await check_rate_limit(
@@ -341,12 +411,12 @@ async def chat(req: ChatRequest, request: Request):
     if cached:
         return {"reply": cached, "cached": True}
 
-    # Build system prompt with live DB data
+    # Build system prompt with live DB data (cached, see A6)
     try:
         from main import DB
-        system_prompt = _build_system_prompt(DB)
+        system_prompt = _get_cached_system_prompt(DB)
     except ImportError:
-        system_prompt = _build_system_prompt({})
+        system_prompt = _get_cached_system_prompt({})
 
     history = req.history[-(MAX_HISTORY_TURNS * 2):]
     messages = [{"role": "system", "content": system_prompt}]

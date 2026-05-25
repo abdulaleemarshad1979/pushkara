@@ -68,7 +68,10 @@ async def _measure_loop_lag_ms() -> float:
     the event loop took to execute it. A high value indicates the loop
     is blocked by a slow coroutine or sync call.
     """
-    loop = asyncio.get_event_loop()
+    # FIX (A3): asyncio.get_event_loop() is deprecated inside an async
+    # function (DeprecationWarning on 3.10+, raises on 3.12+).
+    # We are guaranteed to have a running loop here, so use get_running_loop().
+    loop = asyncio.get_running_loop()
     future: asyncio.Future = loop.create_future()
     t0 = time.perf_counter()
     loop.call_soon(future.set_result, None)

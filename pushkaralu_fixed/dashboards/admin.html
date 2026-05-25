@@ -1276,7 +1276,15 @@ async function loadRiskData() {
 function startCrowdPoll() {
   stopCrowdPoll();
   loadRiskData();
-  _crowdPollTimer = setInterval(loadRiskData, 5000);
+  // FIX (A9): the WebSocket already streams CROWD_UPDATE messages with the
+  // same data, so we only need this HTTP poll as a fallback when the WS is
+  // not connected. While the WS is OPEN we just refresh from local state at
+  // 15s instead of hammering /crowd/risk/all every 5s. Original behaviour
+  // (5s polling) is preserved when the WS is closed/reconnecting.
+  _crowdPollTimer = setInterval(() => {
+    if (ws && ws.readyState === WebSocket.OPEN) return;   // WS is delivering live data
+    loadRiskData();
+  }, 5000);
 }
 function stopCrowdPoll() {
   if (_crowdPollTimer) { clearInterval(_crowdPollTimer); _crowdPollTimer = null; }
