@@ -73,13 +73,22 @@ jobs:
           restore-keys: ${{ runner.os }}-gradle-
 
       - name: Install npm deps
-        run: npm install --no-audit --no-fund
+        run: |
+          npm install --no-audit --no-fund --legacy-peer-deps
+          # Print top-level Capacitor versions so any peer-dep downgrade is visible in the log.
+          npx cap --version || true
+          npm ls @capacitor/core @capacitor/android @capacitor/cli || true
 
       - name: Generate icon + splash PNGs
-        run: npm run icons:generate
+        run: |
+          npm run icons:generate
+          ls -la resources/
 
       - name: Sync website into www/
-        run: npm run sync:web
+        run: |
+          npm run sync:web
+          echo "--- www/ contents ---"
+          ls -la www/
 
       - name: Add Android platform
         run: npx cap add android
@@ -88,10 +97,30 @@ jobs:
         run: npm run android:overrides
 
       - name: Generate Android assets (mipmaps, splash)
-        run: npx capacitor-assets generate --android
+        run: npx capacitor-assets generate --android --verbose
 
       - name: Capacitor sync
         run: npx cap sync android
+
+      - name: Diagnostic dump on failure
+        if: failure()
+        working-directory: pushkaralu_fixed/mobile-app
+        run: |
+          echo "::group::resources/"
+          ls -la resources/ || true
+          echo "::endgroup::"
+          echo "::group::www/"
+          ls -la www/ || true
+          echo "::endgroup::"
+          echo "::group::android/app/src/main/AndroidManifest.xml"
+          cat android/app/src/main/AndroidManifest.xml || echo "(no manifest)"
+          echo "::endgroup::"
+          echo "::group::android/app/build.gradle"
+          cat android/app/build.gradle || echo "(no app/build.gradle)"
+          echo "::endgroup::"
+          echo "::group::npm ls (top-level)"
+          npm ls --depth=0 || true
+          echo "::endgroup::"
 
       - name: Build debug APK
         if: ${{ github.event.inputs.build_type != 'release' }}

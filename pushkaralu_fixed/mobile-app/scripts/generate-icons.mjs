@@ -38,9 +38,25 @@ async function rasterize(svgPath, outPath, size) {
   console.log(`[icons] ${path.basename(outPath)}  ${size}x${size}`);
 }
 
+// @capacitor/assets v3 expected filenames:
+//   icon-only.png          – 1024×1024, used for adaptive-icon foreground
+//                            and as legacy launcher icon
+//   icon-foreground.png    – optional override for adaptive icon foreground
+//   icon-background.png    – optional override for adaptive icon background
+//   splash.png             – 2732×2732 splash (light)
+//   splash-dark.png        – 2732×2732 splash (dark)
+//
+// Naming the icon `icon.png` (as we did originally) makes
+// `capacitor-assets generate` skip every output silently, which is what
+// caused the first CI run to fail with no usable mipmaps. Match the
+// expected names exactly.
 (async () => {
-  await rasterize(ICON_SVG,   path.join(RES_DIR, 'icon.png'),         1024);
-  await rasterize(SPLASH_SVG, path.join(RES_DIR, 'splash.png'),       2732);
-  await rasterize(SPLASH_SVG, path.join(RES_DIR, 'splash-dark.png'),  2732);
+  await rasterize(ICON_SVG,   path.join(RES_DIR, 'icon-only.png'),       1024);
+  // Provide explicit foreground (transparent-able) + solid background so
+  // capacitor-assets emits a proper Android adaptive icon.
+  await rasterize(ICON_SVG,   path.join(RES_DIR, 'icon-foreground.png'), 1024);
+  await rasterize(ICON_SVG,   path.join(RES_DIR, 'icon-background.png'), 1024);
+  await rasterize(SPLASH_SVG, path.join(RES_DIR, 'splash.png'),          2732);
+  await rasterize(SPLASH_SVG, path.join(RES_DIR, 'splash-dark.png'),     2732);
   console.log('[icons] done');
 })().catch((e) => { console.error(e); process.exit(1); });

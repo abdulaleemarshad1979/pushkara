@@ -9,8 +9,11 @@ www/
 android/
 ios/
 
-# Generated assets
+# Generated assets (rasterised by scripts/generate-icons.mjs from the SVG sources)
 resources/icon.png
+resources/icon-only.png
+resources/icon-foreground.png
+resources/icon-background.png
 resources/splash.png
 resources/splash-dark.png
 
