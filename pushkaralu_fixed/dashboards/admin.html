@@ -2492,7 +2492,7 @@ async function submitAdminLogin(ev) {
   _setLoginError('');
   const u = (document.getElementById('admin-login-username').value || '').trim();
   const p = document.getElementById('admin-login-password').value || '';
-  if (!u || !p) { _setLoginError('Operator ID and passphrase are required.'); return; }
+  if (!u || !p) { _setLoginError('Operator ID and password are required.'); return; }
 
   const btn = document.getElementById('admin-login-submit');
   if (btn) { btn.disabled = true; btn.textContent = 'Authenticating…'; }
