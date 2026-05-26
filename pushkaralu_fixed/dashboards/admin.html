@@ -500,7 +500,7 @@ select.level-select{ font-size: 12px; padding: 5px 10px; }
       <input id="admin-login-username" name="username" type="text" autocomplete="username" required autofocus>
     </div>
     <div class="login-field">
-      <label for="admin-login-password">Passphrase</label>
+      <label for="admin-login-password">Password</label>
       <input id="admin-login-password" name="password" type="password" autocomplete="current-password" required>
     </div>
     <button id="admin-login-submit" class="login-submit" type="submit">Authenticate</button>
@@ -2492,7 +2492,7 @@ async function submitAdminLogin(ev) {
   _setLoginError('');
   const u = (document.getElementById('admin-login-username').value || '').trim();
   const p = document.getElementById('admin-login-password').value || '';
-  if (!u || !p) { _setLoginError('Operator ID and password are required.'); return; }
+  if (!u || !p) { _setLoginError('Operator ID and Passphrase are required.'); return; }
 
   const btn = document.getElementById('admin-login-submit');
   if (btn) { btn.disabled = true; btn.textContent = 'Authenticating…'; }
