@@ -15,7 +15,7 @@
  * stale caches automatically.
  * ────────────────────────────────────────────────────────────────────────── */
 
-const SW_VERSION    = 'v1.1.0';
+const SW_VERSION    = 'v1.2.0';
 const SHELL_CACHE   = `pushkara-shell-${SW_VERSION}`;
 const TILE_CACHE    = `pushkara-tiles-${SW_VERSION}`;
 const API_CACHE     = `pushkara-api-${SW_VERSION}`;
@@ -28,9 +28,12 @@ const SHELL_URLS = [
   '/icon-192.svg',
   '/icon-512.svg',
   '/icon-maskable.svg',
+  '/icon-96.png',
   '/icon-192.png',
   '/icon-512.png',
   '/icon-maskable-512.png',
+  '/screenshot-narrow.png',
+  '/screenshot-wide.png',
   // Leaflet from CDN — used by the ghat map
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',

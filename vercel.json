@@ -12,9 +12,12 @@
     { "source": "/icon-192.svg",           "destination": "/pushkaralu_fixed/dashboards/icon-192.svg" },
     { "source": "/icon-512.svg",           "destination": "/pushkaralu_fixed/dashboards/icon-512.svg" },
     { "source": "/icon-maskable.svg",      "destination": "/pushkaralu_fixed/dashboards/icon-maskable.svg" },
+    { "source": "/icon-96.png",            "destination": "/pushkaralu_fixed/dashboards/icon-96.png" },
     { "source": "/icon-192.png",           "destination": "/pushkaralu_fixed/dashboards/icon-192.png" },
     { "source": "/icon-512.png",           "destination": "/pushkaralu_fixed/dashboards/icon-512.png" },
     { "source": "/icon-maskable-512.png",  "destination": "/pushkaralu_fixed/dashboards/icon-maskable-512.png" },
+    { "source": "/screenshot-narrow.png",  "destination": "/pushkaralu_fixed/dashboards/screenshot-narrow.png" },
+    { "source": "/screenshot-wide.png",    "destination": "/pushkaralu_fixed/dashboards/screenshot-wide.png" },
     { "source": "/",                       "destination": "/pushkaralu_fixed/dashboards/user.html" }
   ],
   "headers": [
@@ -42,6 +45,13 @@
     },
     {
       "source": "/(icon-.*\\.png)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=2592000, immutable" },
+        { "key": "Content-Type",  "value": "image/png" }
+      ]
+    },
+    {
+      "source": "/(screenshot-.*\\.png)",
       "headers": [
         { "key": "Cache-Control", "value": "public, max-age=2592000, immutable" },
         { "key": "Content-Type",  "value": "image/png" }
