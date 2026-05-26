@@ -460,6 +460,58 @@ select.level-select{ font-size: 12px; padding: 5px 10px; }
 </head>
 <body>
 
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     ADMIN LOGIN OVERLAY
+     Replaces the previously-hardcoded ADMIN_API_KEY in config.js. The dashboard
+     is hidden until POST /admin/login succeeds; the returned key is held in
+     sessionStorage only and never written to disk or static JS.
+     ═══════════════════════════════════════════════════════════════════════════ -->
+<style>
+#admin-login-overlay{position:fixed;inset:0;z-index:99999;background:linear-gradient(135deg,#040810 0%,#0d1829 100%);display:none;align-items:center;justify-content:center;padding:20px;font-family:'DM Sans',sans-serif}
+#admin-login-overlay.show{display:flex}
+#admin-login-overlay .login-card{background:rgba(13,24,41,0.95);border:1px solid rgba(0,200,255,0.35);border-radius:14px;padding:32px 28px;width:100%;max-width:380px;box-shadow:0 0 40px rgba(0,200,255,0.18),0 8px 30px rgba(0,0,0,0.6);backdrop-filter:blur(8px)}
+#admin-login-overlay .login-emblem{width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#00c8ff,#0066aa);display:flex;align-items:center;justify-content:center;font-size:30px;margin:0 auto 18px;box-shadow:0 0 24px rgba(0,200,255,0.4)}
+#admin-login-overlay h2{font-family:'DM Serif Display',serif;font-size:22px;color:#00c8ff;text-align:center;margin-bottom:6px;letter-spacing:1.5px}
+#admin-login-overlay .login-sub{font-family:'Source Code Pro',monospace;font-size:11px;color:rgba(200,224,255,0.5);text-align:center;margin-bottom:24px;letter-spacing:1px}
+#admin-login-overlay .login-tricolor{height:3px;background:linear-gradient(90deg,#FF6B00 33%,#fff 33%,#fff 66%,#138808 66%);border-radius:2px;max-width:120px;margin:0 auto 22px}
+#admin-login-overlay .login-field{margin-bottom:14px}
+#admin-login-overlay .login-field label{display:block;font-family:'Source Code Pro',monospace;font-size:10px;color:rgba(200,224,255,0.7);letter-spacing:1px;text-transform:uppercase;margin-bottom:5px;font-weight:700}
+#admin-login-overlay .login-field input{width:100%;background:rgba(0,0,0,0.4);border:1px solid rgba(0,200,255,0.25);color:#c8e0ff;padding:10px 12px;border-radius:5px;font-family:'DM Sans',sans-serif;font-size:14px;transition:border-color .15s, box-shadow .15s}
+#admin-login-overlay .login-field input:focus{outline:none;border-color:#00c8ff;box-shadow:0 0 0 3px rgba(0,200,255,0.18)}
+#admin-login-overlay .login-error{display:none;background:rgba(255,51,85,0.12);border:1px solid rgba(255,51,85,0.4);color:#ff8095;padding:9px 12px;border-radius:5px;font-size:12px;margin-bottom:12px;font-family:'Source Code Pro',monospace}
+#admin-login-overlay .login-error.show{display:block}
+#admin-login-overlay .login-submit{width:100%;background:linear-gradient(135deg,#00c8ff 0%,#0099cc 100%);border:none;color:#040810;padding:12px;border-radius:5px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:700;cursor:pointer;letter-spacing:1px;text-transform:uppercase;transition:filter .15s, transform .15s;margin-top:6px}
+#admin-login-overlay .login-submit:hover:not(:disabled){filter:brightness(1.1)}
+#admin-login-overlay .login-submit:disabled{opacity:0.6;cursor:not-allowed}
+#admin-login-overlay .login-foot{font-family:'Source Code Pro',monospace;font-size:10px;color:rgba(200,224,255,0.4);text-align:center;margin-top:18px;letter-spacing:0.5px;line-height:1.6}
+#admin-logout-btn{display:none}
+#admin-logout-btn.show{display:inline-block}
+</style>
+
+<div id="admin-login-overlay" role="dialog" aria-modal="true" aria-labelledby="admin-login-title">
+  <form class="login-card" onsubmit="submitAdminLogin(event)" autocomplete="on">
+    <div class="login-emblem">🛡️</div>
+    <h2 id="admin-login-title">ADMIN COMMAND CENTER</h2>
+    <div class="login-sub">GODAVARI PUSHKARALU 2027 · SECURE PORTAL</div>
+    <div class="login-tricolor"></div>
+    <div id="admin-login-error" class="login-error" role="alert"></div>
+    <div class="login-field">
+      <label for="admin-login-username">Operator ID</label>
+      <input id="admin-login-username" name="username" type="text" autocomplete="username" required autofocus>
+    </div>
+    <div class="login-field">
+      <label for="admin-login-password">Passphrase</label>
+      <input id="admin-login-password" name="password" type="password" autocomplete="current-password" required>
+    </div>
+    <button id="admin-login-submit" class="login-submit" type="submit">Authenticate</button>
+    <div class="login-foot">
+      Restricted access. All login attempts are logged and rate-limited.<br>
+      District Administration · East Godavari · GoAP
+    </div>
+  </form>
+</div>
+
+
 <div class="layout">
 <!-- ── TOPBAR ── -->
 <header class="topbar">
@@ -500,6 +552,7 @@ select.level-select{ font-size: 12px; padding: 5px 10px; }
   <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:2px">
       <button id="theme-toggle" onclick="toggleTheme()" style="background:var(--bg2);border:1px solid var(--border-bright);color:var(--text);padding:4px 8px;border-radius:4px;cursor:pointer;font-size:14px;transition:all 0.2s">🌙</button>
+      <button id="admin-logout-btn" onclick="logoutAdmin()" title="Sign out of admin portal" style="background:var(--bg2);border:1px solid rgba(255,51,85,0.4);color:var(--red);padding:4px 10px;border-radius:4px;cursor:pointer;font-size:11px;font-weight:700;letter-spacing:0.6px;transition:all 0.2s">SIGN OUT</button>
       <div class="topbar-time" id="live-time">--:--:--</div>
     </div>
     <div class="ws-badge">
@@ -2406,12 +2459,93 @@ function refreshMap() {
 }
 
 // ═══════════════════════════════════════════════════
+// ADMIN LOGIN — gates the dashboard until POST /admin/login succeeds
+// ═══════════════════════════════════════════════════
+function showAdminLogin() {
+  const ov = document.getElementById('admin-login-overlay');
+  if (ov) ov.classList.add('show');
+  const lg = document.getElementById('admin-logout-btn');
+  if (lg) lg.classList.remove('show');
+  // Focus the username input (autofocus is unreliable across browsers)
+  setTimeout(() => {
+    const u = document.getElementById('admin-login-username');
+    if (u) u.focus();
+  }, 50);
+}
+
+function hideAdminLogin() {
+  const ov = document.getElementById('admin-login-overlay');
+  if (ov) ov.classList.remove('show');
+  const lg = document.getElementById('admin-logout-btn');
+  if (lg) lg.classList.add('show');
+}
+
+function _setLoginError(msg) {
+  const el = document.getElementById('admin-login-error');
+  if (!el) return;
+  if (msg) { el.textContent = msg; el.classList.add('show'); }
+  else { el.textContent = ''; el.classList.remove('show'); }
+}
+
+async function submitAdminLogin(ev) {
+  if (ev) ev.preventDefault();
+  _setLoginError('');
+  const u = (document.getElementById('admin-login-username').value || '').trim();
+  const p = document.getElementById('admin-login-password').value || '';
+  if (!u || !p) { _setLoginError('Operator ID and passphrase are required.'); return; }
+
+  const btn = document.getElementById('admin-login-submit');
+  if (btn) { btn.disabled = true; btn.textContent = 'Authenticating…'; }
+
+  try {
+    const fd = new FormData();
+    fd.append('username', u);
+    fd.append('password', p);
+    const r = await fetch(API_BASE + '/admin/login', { method: 'POST', body: fd });
+    if (r.status === 429) {
+      _setLoginError('Too many attempts. Please wait a minute and try again.');
+      return;
+    }
+    if (!r.ok) {
+      _setLoginError('Invalid credentials.');
+      return;
+    }
+    const d = await r.json().catch(() => ({}));
+    if (!d || !d.success || !d.admin_key) {
+      _setLoginError('Login failed. Please try again.');
+      return;
+    }
+    // Store key in sessionStorage (clears on tab close), update runtime var.
+    try { sessionStorage.setItem('pushkara_admin_key', d.admin_key); } catch (_e) {}
+    ADMIN_API_KEY = d.admin_key;
+    // Wipe the password field even though sessionStorage handles persistence.
+    document.getElementById('admin-login-password').value = '';
+    hideAdminLogin();
+    bootDashboard();
+  } catch (err) {
+    console.warn('[AdminLogin] network error', err);
+    _setLoginError('Network error. Check your connection and try again.');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Authenticate'; }
+  }
+}
+
+function logoutAdmin() {
+  try { sessionStorage.removeItem('pushkara_admin_key'); } catch (_e) {}
+  ADMIN_API_KEY = '';
+  // Reload to reset all in-memory state and re-show the login modal cleanly.
+  location.reload();
+}
+
+// ═══════════════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════════════
-window.addEventListener('load', () => {
-  // Check if admin key already stored in session
+function bootDashboard() {
   connectWS();
   loadStats();
+  // Show the SIGN OUT control once authenticated.
+  const lg = document.getElementById('admin-logout-btn');
+  if (lg) lg.classList.add('show');
   // WS client heartbeat — prevents Render's 55s idle disconnect
   setInterval(() => {
     if (ws && ws.readyState === WebSocket.OPEN) {
@@ -2439,7 +2573,35 @@ window.addEventListener('load', () => {
       renderAll();
     } catch(e) { console.warn('HTTP data load failed:', e); }
   }, 800);
+}
+
+window.addEventListener('load', () => {
+  // Refresh ADMIN_API_KEY from sessionStorage in case config.js loaded before
+  // the previous tab finished its login.
+  try {
+    const stored = sessionStorage.getItem('pushkara_admin_key');
+    if (stored) ADMIN_API_KEY = stored;
+  } catch (_e) {}
+
+  if (!ADMIN_API_KEY) {
+    showAdminLogin();
+    return;
+  }
+  bootDashboard();
 });
+
+// Auto-recover from a 401: the server says our key is no longer valid.
+// Tear down state and re-prompt for credentials.
+window.addEventListener('unhandledrejection', (e) => {
+  const msg = (e && e.reason && (e.reason.message || e.reason.toString())) || '';
+  if (/401/.test(msg) && ADMIN_API_KEY) {
+    console.warn('[AdminLogin] 401 detected — re-authenticating');
+    try { sessionStorage.removeItem('pushkara_admin_key'); } catch (_e) {}
+    ADMIN_API_KEY = '';
+    showAdminLogin();
+  }
+});
+
 
 // ═══════════════════════════════════════════════════
 // VOLUNTEER CRUD

@@ -44,6 +44,11 @@ JWT_EXPIRY_HOURS = int(os.getenv("JWT_EXPIRY_HOURS", "8"))
 # Generate: python -c "import secrets; print(secrets.token_hex(32))"
 ADMIN_API_KEY = os.getenv("ADMIN_API_KEY", "admin123")
 
+# Admin portal credentials — used by /admin/login to gate the X-Admin-Key handover.
+# These MUST be set in production. The fail-fast block below also validates them.
+ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "admin")
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "")
+
 # ── FIX (Issue 5): Fail-Fast Secret Validation ───────────────────────────────
 # PROBLEM: The old code logs a warning but allows the app to start with
 # hardcoded insecure defaults. If deployed without proper .env configuration,
@@ -84,6 +89,13 @@ if _ENVIRONMENT != "development":
         _errors.append(
             "ADMIN_API_KEY is missing or set to an insecure default ('admin123', 'admin', etc). "
             "Generate one with: python -c \"import secrets; print(secrets.token_hex(32))\""
+        )
+    if not ADMIN_PASSWORD or len(ADMIN_PASSWORD) < 12 or ADMIN_PASSWORD.lower() in (
+        "changeme", "password", "admin", "admin123", "pushkara"
+    ):
+        _errors.append(
+            "ADMIN_PASSWORD is missing, too short (< 12 chars), or set to a guessable value. "
+            "Set a strong passphrase in your environment — this gates the admin portal login."
         )
     if _errors:
         raise RuntimeError(
@@ -314,6 +326,33 @@ async def require_admin_key(key: Optional[str] = Depends(_api_key_header)) -> No
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or missing admin key. Set X-Admin-Key header.",
         )
+
+
+# ── Admin portal credential check ─────────────────────────────────────────────
+# Used by POST /admin/login to gate the X-Admin-Key handover so the key is
+# never embedded in static JavaScript shipped to every browser.
+
+def verify_admin_credentials(username: str, password: str) -> bool:
+    """
+    Constant-time admin credential comparison.
+    Both comparisons always run — prevents short-circuit timing attacks that
+    could leak whether the username or the password was the wrong half.
+    """
+    # Reject obviously empty inputs without doing crypto work.
+    if not username or not password:
+        return False
+    # If ADMIN_PASSWORD is empty (e.g. dev mode unconfigured), reject — never
+    # allow a blank-password login to succeed silently.
+    if not ADMIN_PASSWORD:
+        return False
+    ok_user = hmac.compare_digest(username.strip(), ADMIN_USERNAME)
+    ok_pass = hmac.compare_digest(password, ADMIN_PASSWORD)
+    return ok_user and ok_pass
+
+
+def get_admin_api_key() -> str:
+    """Return the configured admin API key. Used by /admin/login response."""
+    return ADMIN_API_KEY
 
 
 # ── Volunteer login helper ────────────────────────────────────────────────────
