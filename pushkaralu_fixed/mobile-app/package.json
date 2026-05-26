@@ -1,0 +1,45 @@
+{
+  "name": "pushkaralu-app",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Godavari Pushkaralu 2027 — native Android/iOS shell wrapping the pilgrim portal",
+  "license": "UNLICENSED",
+  "scripts": {
+    "sync:web": "node scripts/sync-web.mjs",
+    "icons:generate": "node scripts/generate-icons.mjs",
+    "android:add": "cap add android",
+    "android:overrides": "node scripts/apply-android-overrides.mjs",
+    "android:sync": "npm run sync:web && cap sync android",
+    "android:build:debug": "npm run android:sync && cd android && ./gradlew assembleDebug",
+    "android:build:release": "npm run android:sync && cd android && ./gradlew assembleRelease",
+    "ios:add": "cap add ios",
+    "ios:sync": "npm run sync:web && cap sync ios",
+    "open:android": "cap open android",
+    "open:ios": "cap open ios"
+  },
+  "dependencies": {
+    "@capacitor/android": "^6.1.2",
+    "@capacitor/app": "^6.0.1",
+    "@capacitor/browser": "^6.0.3",
+    "@capacitor/camera": "^6.1.0",
+    "@capacitor/core": "^6.1.2",
+    "@capacitor/geolocation": "^6.1.0",
+    "@capacitor/haptics": "^6.0.1",
+    "@capacitor/ios": "^6.1.2",
+    "@capacitor/local-notifications": "^6.1.0",
+    "@capacitor/network": "^6.0.3",
+    "@capacitor/preferences": "^6.0.2",
+    "@capacitor/push-notifications": "^6.0.2",
+    "@capacitor/share": "^6.0.2",
+    "@capacitor/splash-screen": "^6.0.2",
+    "@capacitor/status-bar": "^6.0.1"
+  },
+  "devDependencies": {
+    "@capacitor/assets": "^3.0.5",
+    "@capacitor/cli": "^6.1.2",
+    "sharp": "^0.33.5"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
