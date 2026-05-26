@@ -17,6 +17,77 @@ Convene a kickoff meeting with the **District Collector, East Godavari** and the
 
 Until these four things exist, every subsequent ask below will stall at the data-owner department.
 
+### 0.1 Stakeholder map (who owns what)
+
+```mermaid
+flowchart TB
+    subgraph apex["Apex authority"]
+        CM["CM Office / Chief Secretary, AP"]
+    end
+
+    subgraph district["District-level (festival operations HQ)"]
+        DC["District Collector<br/>East Godavari<br/>(Nodal Officer)"]
+        SP["SP East Godavari<br/>(Police + CCTV)"]
+        DMHO["DM&HO<br/>(Hospitals + Ambulance)"]
+        FIRE["Director Fire Services<br/>East Godavari"]
+        END["Endowments<br/>(Ghats + Rituals)"]
+    end
+
+    subgraph state["State-level departments"]
+        APIT["AP IT&E<br/>Department"]
+        APSDMA["APSDMA<br/>(Disaster Mgmt)"]
+        RTGS["RTGS<br/>(Mana Mitra)"]
+        APSRTC["APSRTC<br/>(Buses)"]
+        APTDC["APTDC<br/>(Tourism)"]
+        APMAR["AP Maritime Board<br/>(Boats)"]
+    end
+
+    subgraph central["Central / GoI"]
+        NIC["NIC<br/>(.gov.in + cloud + SMS)"]
+        IRCTC["IRCTC + DRM<br/>Vijayawada (SCR)"]
+        NDRF["NDRF<br/>+ DGCA (drones)"]
+        IMD["IMD + CWC<br/>(weather + river)"]
+        UIDAI["UIDAI + DigiLocker<br/>+ ABDM (ABHA)"]
+        MEITY["MeitY<br/>(CERT-In + STQC + DPB)"]
+    end
+
+    subgraph commercial["Commercial / vendors"]
+        TSP["Telecom: Jio /<br/>Airtel / Vi / BSNL"]
+        CDN["CDN + WAF vendor"]
+        AUDITOR["CERT-In auditor<br/>(empanelled)"]
+        VENDOR["Implementation<br/>+ NOC vendor"]
+    end
+
+    PLAT["Pushkaralu Platform<br/>(this codebase)"]
+
+    CM -.directs.-> DC
+    DC --> SP & DMHO & FIRE & END
+    DC -.coordinates.-> APIT & APSDMA & RTGS & APSRTC & APTDC & APMAR
+
+    SP --MoU--> PLAT
+    DMHO --MoU--> PLAT
+    END --MoU--> PLAT
+    APSDMA --MoU--> PLAT
+    RTGS --API--> PLAT
+    APSRTC --feed--> PLAT
+    APIT -.tenancy.-> PLAT
+
+    NIC --hosting + SMS + .gov.in--> PLAT
+    IRCTC --feed--> PLAT
+    NDRF --drones--> PLAT
+    IMD --weather + river--> PLAT
+    UIDAI -.optional eKYC.-> PLAT
+    MEITY --audits + DPDP--> PLAT
+    TSP --tower density--> PLAT
+    CDN --edge--> PLAT
+    AUDITOR --audit cert--> PLAT
+    VENDOR --24x7 ops--> PLAT
+
+    style DC fill:#ffe1e1
+    style PLAT fill:#dfd
+    style CM fill:#fff4e1
+```
+
 ---
 
 ## 1. Hosting & infrastructure (from Govt. AP / Govt. India)
@@ -37,6 +108,43 @@ Until these four things exist, every subsequent ask below will stall at the data
 ## 2. Real-time data feeds (the heart of the system)
 
 These are the integrations that make the crowd-prediction engine actually predictive instead of cosmetic.
+
+### 2.0 Data-feed ownership at a glance
+
+```mermaid
+flowchart LR
+    subgraph owners["Govt-owned data sources"]
+        CCTV["CCTV Cameras<br/>RTSP/ONVIF<br/>1.5 FPS<br/>👁️ AP Police"]
+        TEL["Telecom-tower density<br/>devices/min/cell<br/>📡 DoT TERM + TSPs"]
+        DRN["Drone video<br/>peak hours only<br/>🚁 NDRF + DGCA"]
+        BUS["APSRTC GTFS-RT<br/>routes + occupancy<br/>🚌 APSRTC HQ"]
+        TRN["IRCTC NTES<br/>train arrival/dep<br/>🚆 DRM Vijayawada"]
+        WX["Weather + river gauge<br/>1-min poll<br/>🌧️ IMD + CWC"]
+    end
+
+    subgraph platform["Pushkaralu Platform"]
+        ING["Ingest endpoints<br/>/crowd/ingest/cctv<br/>/crowd/ingest/telecom"]
+        WORK["Workers<br/>cctv-worker<br/>(future: weather poller)"]
+        CHAT["Chatbot context<br/>(static daily refresh<br/>for buses + trains)"]
+        ALERT["Evacuation kill-switch<br/>(future, river-level driven)"]
+    end
+
+    CCTV -->|RTSP secure VLAN| WORK
+    WORK --> ING
+    TEL -->|HTTPS push| ING
+    DRN -->|same as CCTV| WORK
+    BUS -->|daily import<br/>+ live API| CHAT
+    TRN -->|daily import| CHAT
+    WX -.future.-> ALERT
+
+    ING --> RE["Risk engine"]
+    CHAT --> AI["/api/chat"]
+    ALERT --> WS["WS broadcast<br/>+ WhatsApp + PA"]
+
+    style CCTV fill:#e1f5ff
+    style TEL fill:#fff4e1
+    style WX fill:#fee
+```
 
 ### 2.1 CCTV camera feeds — **mandatory**
 | Item | Detail |
@@ -275,6 +383,42 @@ These are not "asked for from govt" but you'll need budget approval through Dist
 ---
 
 ## 12. Single-page summary — the critical path
+
+```mermaid
+flowchart TB
+    W1["Week 1<br/>📜 Letter of Permission<br/>📅 Lock festival dates"]
+    W2["Week 2-3<br/>☁️ AP State Data Centre tenancy<br/>🌐 pushkaralu.ap.gov.in + TLS"]
+    W3["Week 3<br/>🔍 CERT-In audit booked"]
+    W4["Week 4<br/>📹 CCTV from top 5 ghats"]
+    W5["Week 5<br/>💬 Mana Mitra / Twilio creds"]
+    W6A["Week 6<br/>👥 Volunteer master list +<br/>training"]
+    W6B["Week 6<br/>📋 Ghat / hospital / police<br/>directory signed off"]
+    W8A["Week 8<br/>📢 PA + LED-board integration"]
+    W8B["Week 8<br/>✅ CERT-In audit clean"]
+    W10["Week 10<br/>🎭 Tabletop drill<br/>(APSDMA + NDRF + Police +<br/>Medical + Fire)"]
+    W12["Week 12<br/>🛡️ DPDP audit closure"]
+    GO["🚀 PUBLIC GO-LIVE<br/>72 h before festival"]
+
+    W1 --> W2
+    W1 --> W3
+    W1 --> W4
+    W1 --> W5
+    W2 --> W6B
+    W4 --> W6B
+    W5 --> W6A
+    W6A --> W8A
+    W6B --> W8A
+    W3 --> W8B
+    W8A --> W10
+    W8B --> W10
+    W10 --> W12
+    W12 --> GO
+
+    style W1 fill:#ffe1e1
+    style GO fill:#dfd
+    style W8B fill:#fee
+    style W12 fill:#fee
+```
 
 If everything else above is delayed, **these eleven items are the minimum viable rollout** for using this platform at the festival:
 

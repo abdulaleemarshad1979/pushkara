@@ -8,6 +8,80 @@
 
 The list is organised as **gates**: each gate must close before the next opens. Treat it like a CI pipeline — do not "skip ahead".
 
+### Visual: the 12 gates
+
+```mermaid
+flowchart TB
+    G0["Gate 0<br/>Pre-code<br/>📅 lock dates<br/>📜 letter of permission"]
+    G1["Gate 1<br/>Repo hygiene<br/>🧹 delete legacy files"]
+    G2["Gate 2<br/>Secrets<br/>🔐 rotate everything<br/>ENVIRONMENT=production"]
+    G3["Gate 3<br/>Infrastructure<br/>☁️ AP SDC tenancy<br/>🌐 domain + TLS + CDN + WAF"]
+    G4["Gate 4<br/>Database<br/>🗄️ schema + reference data"]
+    G5["Gate 5<br/>Data feeds<br/>📹 CCTV + 📡 telecom +<br/>💬 Mana Mitra wired"]
+    G6["Gate 6<br/>Load testing<br/>⚡ 2× projected peak<br/>admission gates work"]
+    G7["Gate 7<br/>Security & compliance<br/>🛡️ CERT-In + STQC + DPDP"]
+    G8["Gate 8<br/>Missing features<br/>🚨 evac broadcast,<br/>👶 lost-child wristband, ..."]
+    G9["Gate 9<br/>Operational readiness<br/>📖 runbook + 🎭 tabletop drill"]
+    G10["Gate 10<br/>Soft launch (T-14d) →<br/>Stage launch (T-7d) →<br/>🚀 Public launch (T-72h)"]
+    G11["Gate 11<br/>Festival-day ops<br/>🟢 24×7 NOC"]
+    G12["Gate 12<br/>Post-festival<br/>📊 close, rotate, opensource"]
+
+    G0 --> G1 --> G2 --> G3 --> G4 --> G5 --> G6 --> G7 --> G8 --> G9 --> G10 --> G11 --> G12
+
+    style G0 fill:#ffe1e1
+    style G7 fill:#fee
+    style G10 fill:#fff4e1
+    style G11 fill:#dfd
+    style G12 fill:#eef
+```
+
+### Visual: rough rollout timeline (assuming festival = T)
+
+```mermaid
+gantt
+    title Pushkaralu rollout timeline (T = first day of festival)
+    dateFormat  YYYY-MM-DD
+    axisFormat  %b %Y
+    todayMarker off
+
+    section Pre-work
+    Letter of Permission + Nodal Officer    :crit, w1, 2027-01-01, 7d
+    Lock festival dates                      :crit, w1b, 2027-01-01, 7d
+    Repo hygiene + secrets                   :     w2, 2027-01-08, 7d
+
+    section Infrastructure
+    AP SDC tenancy + .gov.in domain + TLS    :crit, inf1, 2027-01-15, 21d
+    Postgres HA + Redis Sentinel + S3 + CDN  :     inf2, 2027-02-05, 14d
+    WAF + DDoS                               :     inf3, 2027-02-12, 14d
+
+    section Data feeds
+    CCTV from top 5 ghats                    :crit, df1, after inf1, 21d
+    Telecom-tower density push                :     df2, after inf1, 28d
+    APSRTC + IRCTC schedules                  :     df3, after inf1, 14d
+    Mana Mitra credentials + templates        :crit, df4, after inf1, 21d
+
+    section Database & content
+    Schema applied + reference data imported  :     db1, after inf1, 14d
+    Volunteer master list + training          :     db2, after db1, 21d
+
+    section Quality & compliance
+    Load testing                              :     lt1, after db2, 14d
+    CERT-In audit                             :crit, sec1, 2027-02-15, 42d
+    STQC GIGW + DPDP audit                    :crit, sec2, after sec1, 21d
+
+    section Drills
+    Tabletop drill (APSDMA + NDRF + ...)      :crit, dr1, after sec1, 7d
+
+    section Launch
+    Soft launch (volunteers only) (T-14d)     :     l1, 2027-06-15, 7d
+    Stage launch (T-7d)                       :     l2, after l1, 5d
+    Public launch (T-72h)                     :crit, l3, after l2, 3d
+    Festival window (T to T+12d)              :crit, fest, 2027-07-01, 12d
+    Read-only post-festival (T+90d)           :     post, after fest, 90d
+```
+
+> Dates are **illustrative** — replace with real figures once Gate 0 closes.
+
 ---
 
 ## Gate 0 — Before any code is touched

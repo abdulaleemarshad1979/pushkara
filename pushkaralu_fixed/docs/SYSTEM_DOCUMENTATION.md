@@ -76,48 +76,71 @@ The codebase currently has **three** different date ranges, which is a blocker f
 
 ### 3.1 High-level diagram
 
-```
-                   ┌──────────────────────────────────┐
-                   │  Pilgrims / Volunteers / Admin   │
-                   │  (mobile + desktop browsers)     │
-                   └──────────────┬───────────────────┘
-                                  │ HTTPS + WSS
-                                  ▼
-                   ┌──────────────────────────────────┐
-                   │   Nginx (edge: TLS, gzip,        │
-                   │   per-IP rate-limiting,          │
-                   │   WebSocket upgrade)             │
-                   └──────────────┬───────────────────┘
-                                  │
-              ┌───────────────────┼───────────────────┐
-              ▼                   ▼                   ▼
-        ┌──────────┐        ┌──────────┐        ┌──────────┐
-        │ FastAPI  │  ...   │ FastAPI  │   ...  │ FastAPI  │
-        │  api-1   │        │  api-N   │        │  api-N   │
-        └────┬─────┘        └────┬─────┘        └────┬─────┘
-             │                   │                   │
-             └─────┐         ┌───┴───┐         ┌─────┘
-                   ▼         ▼       ▼         ▼
-             ┌────────────────────────────────────┐
-             │  Redis  (cache + pub/sub + streams │
-             │   + rate-limit + leader election)  │
-             └────────────────┬───────────────────┘
-                              │
-                              ▼
-             ┌────────────────────────────────────┐
-             │  PostgreSQL  (source of truth)     │
-             │  ghats, sos_alerts, issues,        │
-             │  lost_persons, volunteers,         │
-             │  facilities, app_events, ...       │
-             └────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph clients["Clients"]
+        P["Pilgrim<br/>(user.html / WhatsApp)"]
+        V["Volunteer<br/>(index.html)"]
+        A["Admin / NOC<br/>(admin.html)"]
+    end
 
-   Side workers (Docker containers, share the same Redis/Postgres):
-     • db-writer       — drains stream:events into Postgres in batches
-     • cctv-worker     — pulls RTSP frames, runs YOLOv8, posts head counts
-     • whatsapp ingest — Meta / Twilio / Mana Mitra webhook → router
+    subgraph edge["Edge"]
+        NG["Nginx<br/>TLS · gzip · per-IP rate-limit<br/>WebSocket upgrade"]
+        CDN["CDN + WAF<br/>(NIC / Cloudflare)"]
+    end
 
-   Object storage (image uploads):
-     • Cloudflare R2  /  AWS S3  /  local disk fallback
+    subgraph api["API tier (Docker, scaled out)"]
+        API1["FastAPI api-1"]
+        API2["FastAPI api-2"]
+        API3["FastAPI api-3"]
+        API4["FastAPI api-4"]
+    end
+
+    subgraph state["Stateful tier"]
+        RD[("Redis<br/>cache · pub/sub · streams<br/>rate-limit · leader-election")]
+        PG[("PostgreSQL<br/>ghats · sos · issues · lost<br/>volunteers · facilities · audit")]
+        OS[("Object storage<br/>S3 / R2 / disk")]
+    end
+
+    subgraph workers["Side workers"]
+        DBW["db-writer<br/>(stream → batched insert)"]
+        CCTV["cctv-worker<br/>(RTSP → YOLOv8 → ingest)"]
+        WAW["whatsapp ingest<br/>(Meta / Twilio / Mana Mitra)"]
+    end
+
+    subgraph external["External systems"]
+        CAM["CCTV cameras<br/>(RTSP from AP Police)"]
+        TEL["Telecom towers<br/>(Jio/Airtel/Vi/BSNL)"]
+        WX["Weather / River level<br/>(IMD + CWC)"]
+        WA["WhatsApp / SMS"]
+        AI["Groq LLM"]
+    end
+
+    P -->|HTTPS+WSS| CDN
+    V -->|HTTPS+WSS| CDN
+    A -->|HTTPS+WSS| CDN
+    CDN --> NG
+    NG --> API1 & API2 & API3 & API4
+    API1 & API2 & API3 & API4 <--> RD
+    API1 & API2 & API3 & API4 <--> PG
+    API1 & API2 & API3 & API4 --> OS
+
+    DBW <-->|consume stream| RD
+    DBW -->|batched writes| PG
+    CAM --> CCTV
+    CCTV -->|head counts| API1
+    TEL -->|/crowd/ingest/telecom| API1
+    WX -.->|future feed| API1
+    WAW -.->|webhook in| API1
+    API1 & API2 -->|WhatsApp out| WA
+    API1 & API2 -->|/api/chat| AI
+
+    style P fill:#e1f5ff
+    style V fill:#fff4e1
+    style A fill:#ffe1e1
+    style RD fill:#fee
+    style PG fill:#efe
+    style OS fill:#eef
 ```
 
 ### 3.2 Process model
@@ -151,6 +174,46 @@ The codebase currently has **three** different date ranges, which is a blocker f
 
 ### 3.4 Data flow — SOS alert (the most critical path)
 
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Pilgrim
+    participant Nginx
+    participant FastAPI as FastAPI<br/>(any of api-1..N)
+    participant Gate as SOS_GATE<br/>(admission control)
+    participant PG as PostgreSQL
+    participant Redis as Redis<br/>(pub/sub + stream)
+    participant Peers as Other API<br/>replicas
+    participant DBW as db-writer
+    participant WA as WhatsApp<br/>provider
+    participant V as Volunteer<br/>dashboard
+
+    Pilgrim->>Nginx: POST /sos_alert<br/>{name, phone, lat, lon, photo?}
+    Nginx->>Nginx: rate-limit per X-Forwarded-For<br/>(10/min, burst 5)
+    Nginx->>FastAPI: forwarded
+    FastAPI->>Gate: acquire slot (32 in-flight, 16 waiters)
+    Gate-->>FastAPI: ok (or 503 Retry-After)
+    FastAPI->>PG: INSERT sos_alerts (status='pending')
+    PG-->>FastAPI: alert_id
+    FastAPI->>PG: SELECT nearest available volunteer<br/>(haversine on volunteers.lat/lon)
+    PG-->>FastAPI: volunteer row
+    FastAPI->>Redis: PUBLISH cache:invalidate sos:active
+    FastAPI->>Redis: PUBLISH SOS_ALERT
+    Redis-->>Peers: fan-out
+    Peers->>V: WS push (volunteer dashboards)
+    FastAPI->>Redis: XADD stream:events {type:SOS,...}
+    Redis-->>DBW: stream item
+    DBW->>PG: batched INSERT app_events
+    par fire-and-forget
+        FastAPI->>WA: send "you have been assigned"
+    and primary response
+        FastAPI-->>Pilgrim: 200 {volunteer_name, volunteer_phone, eta}
+    end
+
+    Note over FastAPI,V: p50 budget &lt; 600 ms<br/>p99 (WA degraded) &lt; 1.2 s
+```
+
+**Step-by-step narrative:**
 1. Pilgrim taps SOS in `user.html` (or sends "SOS" via WhatsApp).
 2. Browser POSTs `/sos_alert` with name, phone, lat/lon, optional photo.
 3. Nginx applies SOS rate-limit (10 req/min per IP, burst 5, no nodelay).
@@ -399,7 +462,243 @@ Unit / integration tests are not present in this repo. The risk engine, admissio
 
 ---
 
-## 11. Glossary
+## 11. Visual references
+
+### 11.1 Risk-engine data fusion
+
+The risk engine fuses three independent signals to compute crowd-density level for each ghat. Vision is the high-resolution signal; telecom is the weatherproof fallback; DB occupancy is the conservative floor. Operator override always wins for 5 minutes.
+
+```mermaid
+flowchart LR
+    subgraph inputs["Inputs (independent, time-stamped)"]
+        VIS["Vision feed<br/>YOLOv8 head count<br/>+ frame_area_sq_m"]
+        TEL["Telecom density<br/>active_devices /<br/>tower_baseline"]
+        DB["DB occupancy<br/>Σ recent SOS + reports<br/>at this ghat"]
+    end
+
+    subgraph fusion["Fusion (app/core/risk_engine.py)"]
+        SCORE["Density score<br/>= 0.75 * vision_density<br/>+ 0.25 * telecom_density"]
+        STALE{"Source<br/>fresh?"}
+        FALLBK["Drop stale source,<br/>reweight remainders"]
+    end
+
+    subgraph thresh["Adaptive thresholds"]
+        DATE{"Today is<br/>Maha/Ardha<br/>Pushkar?"}
+        NORM["Normal<br/>thresholds<br/>(green/amber/red)"]
+        PEAK["Peak<br/>thresholds<br/>~15% earlier"]
+    end
+
+    subgraph output["Output"]
+        LVL["Level: low / medium / high / critical"]
+        SURGE{"Density jump<br/>≥ 20% in last 3<br/>readings?"}
+        EMIT["Emit SURGE_ALERT"]
+        OVR{"Operator<br/>override<br/>active?"}
+        FINAL["Final level<br/>broadcast on WS<br/>+ stored in<br/>crowd_snapshots"]
+    end
+
+    VIS --> STALE
+    TEL --> STALE
+    DB --> STALE
+    STALE -->|fresh| SCORE
+    STALE -->|stale| FALLBK
+    FALLBK --> SCORE
+    SCORE --> DATE
+    DATE -->|no| NORM
+    DATE -->|yes| PEAK
+    NORM --> LVL
+    PEAK --> LVL
+    LVL --> SURGE
+    SURGE -->|yes| EMIT
+    SURGE -->|no| OVR
+    EMIT --> OVR
+    OVR -->|yes, &lt; 5min old| FINAL
+    OVR -->|no| FINAL
+
+    style VIS fill:#e1f5ff
+    style TEL fill:#fff4e1
+    style DB fill:#efe
+    style EMIT fill:#fee
+    style FINAL fill:#dfd
+```
+
+### 11.2 Self-healing orchestrator (5 guardian loops)
+
+Each guardian is an independent asyncio task supervised with exponential-backoff restart. They run forever until SIGTERM. The orchestrator records "OK / WARN / CRIT" state per guardian; `/health` exposes the summary.
+
+```mermaid
+flowchart TB
+    SUP["Healing supervisor<br/>(app/healing/orchestrator.py)"]
+
+    subgraph guards["Five independent guardian tasks"]
+        G1["Heal/Redis<br/>circuit-breaker probe<br/>every 5 s"]
+        G2["Heal/Memory<br/>RSS + GC trigger<br/>every 30 s"]
+        G3["Heal/Loop<br/>event-loop lag sample<br/>every 1 s"]
+        G4["Heal/Bloat<br/>in-mem list pruner<br/>every 60 s"]
+        G5["Heal/WS<br/>orphan WebSocket<br/>pruner every 30 s"]
+    end
+
+    subgraph actions["Self-heal actions"]
+        A1["Reconnect Redis pool"]
+        A2["Force gc.collect()<br/>+ trim hot cache"]
+        A3["Log + raise CRIT<br/>if lag &gt; 50 ms"]
+        A4["Trim DB[*] lists<br/>to last 1000"]
+        A5["close() stale WS<br/>+ remove from registry"]
+    end
+
+    SUP --> G1 & G2 & G3 & G4 & G5
+    G1 -->|on fault| A1
+    G2 -->|RSS spike| A2
+    G3 -->|lag &gt; 50ms| A3
+    G4 -->|bloat| A4
+    G5 -->|stale| A5
+
+    G1 & G2 & G3 & G4 & G5 -.->|state| HEALTH["/health endpoint"]
+
+    SUP -.->|backoff restart on crash| G1
+    SUP -.->|backoff restart on crash| G2
+    SUP -.->|backoff restart on crash| G3
+    SUP -.->|backoff restart on crash| G4
+    SUP -.->|backoff restart on crash| G5
+
+    style SUP fill:#ffe1e1
+    style HEALTH fill:#dfd
+```
+
+### 11.3 CCTV worker pipeline
+
+Each camera is processed in its own asyncio task. Frames are throttled to 1.5 FPS and downsampled to 640 px before YOLO. We post head counts (not frames) to the API; raw frames never leave the worker.
+
+```mermaid
+flowchart LR
+    subgraph cams["Cameras (RTSP)"]
+        C1["cam-pushkar-01"]
+        C2["cam-pushkar-02"]
+        CN["cam-...-N"]
+    end
+
+    subgraph worker["cctv-worker container"]
+        FF["FFmpeg / OpenCV<br/>RTSP demux<br/>throttle 1.5 FPS"]
+        RS["Resize to 640 px"]
+        YOLO["YOLOv8n<br/>person class only<br/>conf ≥ 0.35"]
+        AGG["Aggregate per camera<br/>10-frame rolling avg"]
+        POST["POST /crowd/ingest/cctv<br/>{camera_id, count, area, ts}"]
+    end
+
+    API["API (admission-controlled<br/>INGEST_GATE)"]
+    RE["Risk engine"]
+    PG[("crowd_snapshots")]
+
+    C1 & C2 & CN --> FF
+    FF --> RS --> YOLO --> AGG --> POST --> API
+    API --> RE
+    API --> PG
+
+    note["Frames never leave the worker.<br/>No face data is extracted.<br/>DPDP-compliant by design."]
+    YOLO -.- note
+
+    style note fill:#ffffcc,stroke:#888,stroke-dasharray: 5 5
+```
+
+### 11.4 Authentication & authorisation
+
+Three identities, three different mechanisms. The fail-fast secret guard refuses to start in production if any secret is weak.
+
+```mermaid
+flowchart TB
+    subgraph users["Three identity types"]
+        PIL["Pilgrim<br/>(anonymous)"]
+        VOL["Volunteer<br/>(login)"]
+        ADM["Admin / NOC<br/>(login + key)"]
+    end
+
+    subgraph mech["Auth mechanism"]
+        IP["X-Forwarded-For<br/>+ Redis Lua<br/>sliding-window<br/>rate-limit"]
+        JWT["bcrypt verify<br/>→ JWT HS256<br/>8h expiry<br/>(off-loop hash)"]
+        AKEY["username+password<br/>(constant-time)<br/>→ X-Admin-Key<br/>(32-byte hex)"]
+    end
+
+    subgraph routes["What they can call"]
+        PUB["GET /get_*<br/>POST /sos_alert<br/>POST /report_issue<br/>POST /lost_person<br/>POST /api/chat<br/>WS /ws/pilgrim"]
+        VOLR["+ POST /resolve_*<br/>+ POST /accept_*<br/>+ PUT /lost/{id}<br/>+ POST /update_crowd/*<br/>+ WS /ws/volunteer"]
+        ADMR["+ POST /admin/volunteer<br/>+ DELETE /admin/volunteer/{id}<br/>+ POST /whatsapp/send<br/>+ all ops endpoints"]
+    end
+
+    PIL --> IP --> PUB
+    VOL --> JWT --> VOLR
+    ADM --> AKEY --> ADMR
+
+    VOLR -.includes.-> PUB
+    ADMR -.includes.-> VOLR
+
+    FAIL["Fail-fast on boot:<br/>JWT_SECRET ≥ 32<br/>ADMIN_PASSWORD ≥ 12<br/>no known-bad defaults"]
+    JWT -.checks.-> FAIL
+    AKEY -.checks.-> FAIL
+
+    style PIL fill:#e1f5ff
+    style VOL fill:#fff4e1
+    style ADM fill:#ffe1e1
+    style FAIL fill:#fee
+```
+
+### 11.5 Module dependency graph
+
+Concrete import graph between the main packages. `app/healing/orchestrator.py` uses dependency injection (the accessor pattern) to avoid circular imports against `app/core/*`.
+
+```mermaid
+flowchart LR
+    main["main.py"]
+    chat["chat.py"]
+    wa["whatsapp.py"]
+
+    subgraph core["app/core/"]
+        auth["auth"]
+        pg["pg_store"]
+        st["storage"]
+        rdm["redis_manager"]
+        wsm["ws_manager"]
+        re["risk_engine"]
+        ai["ai_predictor"]
+        adm["admission"]
+        conn["connection"]
+        http["http_client"]
+    end
+
+    subgraph svc["services/"]
+        es["emergency_service"]
+        was["whatsapp_service"]
+        war["whatsapp_router"]
+    end
+
+    heal["app/healing/orchestrator"]
+
+    subgraph wrk["app/workers/"]
+        dbw["db_writer"]
+        cct["cctv_worker"]
+    end
+
+    main --> auth & pg & st & rdm & wsm & re & ai & adm & conn & http
+    main --> chat & wa
+    main --> es & was & war
+    main --> heal
+    chat --> http
+    wa --> war
+    war --> was & es
+    was --> http
+    pg --> conn
+    rdm --> http
+    wsm --> rdm
+    re --> rdm
+    heal -.DI.-> rdm & wsm & ai
+    dbw --> pg & rdm
+    cct --> http
+
+    style main fill:#fff4e1
+    style heal fill:#ffe1e1
+```
+
+---
+
+## 12. Glossary
 
 | Term | Meaning |
 |---|---|
