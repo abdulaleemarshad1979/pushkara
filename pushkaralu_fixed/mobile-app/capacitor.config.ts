@@ -23,7 +23,8 @@ const config: CapacitorConfig = {
   appId: 'in.gov.ap.pushkaralu',
   appName: 'Pushkaralu',
   webDir: 'www',
-  bundledWebRuntime: false,
+  // `bundledWebRuntime` was removed in Capacitor 6 — including it makes
+  // the CLI reject the config when it parses TypeScript, so we omit it.
 
   server: {
     androidScheme: 'https',
