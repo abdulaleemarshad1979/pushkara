@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"  stop-color="#0B2E6E"/>
+      <stop offset="100%" stop-color="#08204D"/>
+    </linearGradient>
+    <linearGradient id="wave" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"  stop-color="#F0A830"/>
+      <stop offset="100%" stop-color="#E8600A"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="172" fill="url(#bg)"/>
+  <circle cx="512" cy="416" r="200" fill="url(#wave)"/>
+  <path d="M80 696 q112 -84 224 0 t224 0 t224 0 t224 0 V856 H80 Z" fill="#1F5BC6" opacity="0.55"/>
+  <path d="M80 760 q112 -76 224 0 t224 0 t224 0 t224 0 V920 H80 Z" fill="#0B2E6E"/>
+  <text x="512" y="512" font-family="Georgia, 'DM Serif Display', serif" font-size="296" font-weight="700"
+        text-anchor="middle" fill="#FFFFFF" dominant-baseline="middle">P</text>
+  <text x="512" y="980" font-family="'DM Sans', system-ui, sans-serif" font-size="68" font-weight="700"
+        text-anchor="middle" fill="#FFFFFF" letter-spacing="8">PUSHKARALU</text>
+</svg>
