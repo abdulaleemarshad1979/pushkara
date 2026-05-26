@@ -514,44 +514,44 @@ async def _handle_chat_fallback(body: str, lang: str) -> RouterReply:
         # Chatbot not configured — fall back to menu but don't error.
         return RouterReply(text=_menu_text(lang), intent="fallback_menu_noai")
 
-    import httpx as _httpx
     try:
         sys_prompt = _get_cached_system_prompt(DB)
         messages = [
             {"role": "system", "content": sys_prompt},
             {"role": "user", "content": body[:400]},
         ]
-        async with _httpx.AsyncClient(timeout=15.0) as client:
-            resp = await client.post(
-                GROQ_API_URL,
-                headers={
-                    "Authorization": f"Bearer {GROQ_API_KEY}",
-                    "Content-Type": "application/json",
-                },
-                json={
-                    "model": GROQ_MODEL,
-                    "messages": messages,
-                    "max_tokens": 300,
-                    "temperature": 0.4,
-                },
-            )
+        # FIX (perf): reuse the singleton groq client. See chat.py for context.
+        from app.core.http_client import groq_client
+        client = await groq_client()
+        resp = await client.post(
+            GROQ_API_URL,
+            headers={
+                "Authorization": f"Bearer {GROQ_API_KEY}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "model": GROQ_MODEL,
+                "messages": messages,
+                "max_tokens": 300,
+                "temperature": 0.4,
+            },
+        )
         if resp.status_code != 200:
             # Try fallback model once on rate limit / error
             if resp.status_code == 429:
-                async with _httpx.AsyncClient(timeout=15.0) as client:
-                    resp = await client.post(
-                        GROQ_API_URL,
-                        headers={
-                            "Authorization": f"Bearer {GROQ_API_KEY}",
-                            "Content-Type": "application/json",
-                        },
-                        json={
-                            "model": GROQ_MODEL_FALLBACK,
-                            "messages": messages,
-                            "max_tokens": 300,
-                            "temperature": 0.4,
-                        },
-                    )
+                resp = await client.post(
+                    GROQ_API_URL,
+                    headers={
+                        "Authorization": f"Bearer {GROQ_API_KEY}",
+                        "Content-Type": "application/json",
+                    },
+                    json={
+                        "model": GROQ_MODEL_FALLBACK,
+                        "messages": messages,
+                        "max_tokens": 300,
+                        "temperature": 0.4,
+                    },
+                )
             if resp.status_code != 200:
                 logger.warning("[WA-Router] groq fallback %s", resp.status_code)
                 return RouterReply(
