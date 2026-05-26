@@ -99,6 +99,7 @@ _ws_pruned_total   = 0
 # mutable state. This registry makes that migration incremental and safe.
 
 _db_accessor = None   # Callable[[], dict] | None
+_db_reindex_hook = None   # Callable[[], None] | None — invoked after every prune
 
 
 def register_db_accessor(fn) -> None:
@@ -110,6 +111,25 @@ def register_db_accessor(fn) -> None:
     global _db_accessor
     _db_accessor = fn
     logger.debug("[Heal] DB accessor registered")
+
+
+def register_db_reindex_hook(fn) -> None:
+    """
+    Register a callback that the bloat guardian invokes EVERY TIME it prunes
+    one of the indexed lists (sos_alerts / issues / lost_persons). The hook
+    must rebuild whatever id→object indexes the application maintains
+    over those lists.
+
+    Without this hook, main.DB_BY_ID would still hold strong references to
+    the popped dicts AND the dashboards/WS sync would reach for stale
+    objects. This caused a slow leak under sustained load even though the
+    list itself was pruned.
+
+    The hook is best-effort: any exception is swallowed and logged at debug.
+    """
+    global _db_reindex_hook
+    _db_reindex_hook = fn
+    logger.debug("[Heal] DB reindex hook registered")
 
 
 def _get_db() -> dict:
@@ -380,6 +400,20 @@ async def _db_bloat_guardian_loop():
                     )
                 except Exception as prune_exc:
                     logger.debug("[Heal/DBBloat] Prune error for %s: %s", list_name, prune_exc)
+
+            # ── CRITICAL FIX: rebuild id→object indexes AFTER pruning ────────
+            # main.DB_BY_ID maps id → live dict. When we replace db[list_name]
+            # with a shorter list, the index still points at the popped dicts,
+            # which (a) prevents GC from reclaiming them and (b) makes
+            # _index_get(...) return zombie records that aren't in the list
+            # anymore. Re-running the registered hook syncs the index.
+            if total_pruned_this_run > 0 and _db_reindex_hook is not None:
+                try:
+                    res = _db_reindex_hook()
+                    if asyncio.iscoroutine(res):
+                        await res
+                except Exception as exc:
+                    logger.debug("[Heal/DBBloat] reindex hook failed: %s", exc)
 
             health_state["db_bloat"].update({
                 "status":        "ok" if total_pruned_this_run == 0 else "pruned",

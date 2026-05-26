@@ -239,7 +239,14 @@ async def update_sos_status(
     volunteer_id: Optional[str] = None,
     volunteer_name: Optional[str] = None,
 ) -> bool:
-    """Update SOS alert status and keep the JSONB payload column in sync."""
+    """
+    Update SOS alert status and keep the JSONB payload column in sync.
+
+    Performance: collapses what used to be TWO sequential UPDATE statements
+    into ONE round-trip. asyncpg + Postgres compute the JSONB merge in a
+    single statement using the column writer's own values, which is both
+    faster and atomic (no window where columns and JSONB disagree).
+    """
     try:
         async with _conn() as conn:
             await conn.execute(
@@ -248,23 +255,17 @@ async def update_sos_status(
                      resolved_at             = $3::timestamptz,
                      assigned_volunteer      = COALESCE($4, assigned_volunteer),
                      assigned_volunteer_name = COALESCE($5, assigned_volunteer_name),
-                     updated_at              = NOW()
-                   WHERE id = $1""",
-                alert_id, status, resolved_at, volunteer_id, volunteer_name,
-            )
-            # Sync payload JSONB so fetch_sos_alerts returns current status
-            await conn.execute(
-                """UPDATE sos_alerts SET
-                     payload = payload
-                       || jsonb_build_object('status', status)
-                       || CASE WHEN assigned_volunteer IS NOT NULL
+                     updated_at              = NOW(),
+                     payload                 = COALESCE(payload, '{}'::jsonb)
+                       || jsonb_build_object('status', $2)
+                       || CASE WHEN $4::text IS NOT NULL
                               THEN jsonb_build_object(
-                                'assigned_volunteer', assigned_volunteer,
-                                'assigned_volunteer_name', assigned_volunteer_name
+                                'assigned_volunteer',      $4,
+                                'assigned_volunteer_name', COALESCE($5, '')
                               )
                               ELSE '{}'::jsonb END
                    WHERE id = $1""",
-                alert_id,
+                alert_id, status, resolved_at, volunteer_id, volunteer_name,
             )
         return True
     except Exception as exc:
@@ -308,7 +309,10 @@ async def update_issue_status(
     volunteer_id: Optional[str] = None,
     resolved_at: Optional[str] = None,
 ) -> bool:
-    """Update issue status and keep the JSONB payload column in sync."""
+    """
+    Update issue status and keep the JSONB payload column in sync.
+    Single round-trip — see update_sos_status for the same optimisation note.
+    """
     try:
         async with _conn() as conn:
             await conn.execute(
@@ -316,16 +320,14 @@ async def update_issue_status(
                      status             = $2,
                      assigned_volunteer = COALESCE($3, assigned_volunteer),
                      resolved_at        = $4::timestamptz,
-                     updated_at         = NOW()
+                     updated_at         = NOW(),
+                     payload            = COALESCE(payload, '{}'::jsonb)
+                       || jsonb_build_object('status', $2)
+                       || CASE WHEN $3::text IS NOT NULL
+                              THEN jsonb_build_object('assigned_volunteer', $3)
+                              ELSE '{}'::jsonb END
                    WHERE id = $1""",
                 issue_id, status, volunteer_id, resolved_at,
-            )
-            # Sync payload JSONB
-            await conn.execute(
-                """UPDATE issues SET
-                     payload = payload || jsonb_build_object('status', status)
-                   WHERE id = $1""",
-                issue_id,
             )
         return True
     except Exception as exc:
@@ -372,29 +374,27 @@ async def update_lost_person_status(
     current_location: Optional[str],
     last_seen_location: Optional[str],
 ) -> bool:
-    """Update lost person record and keep the JSONB payload column in sync."""
+    """
+    Update lost person record and keep the JSONB payload column in sync.
+    Single round-trip — see update_sos_status for the same optimisation note.
+    """
     try:
         async with _conn() as conn:
-            # Step 1: Apply column updates
             await conn.execute(
                 """UPDATE lost_persons SET
                      status             = COALESCE($2, status),
                      current_location   = COALESCE($3, current_location),
                      last_seen_location = COALESCE($4, last_seen_location),
-                     updated_at         = NOW()
+                     updated_at         = NOW(),
+                     payload            = COALESCE(payload, '{}'::jsonb)
+                       || jsonb_build_object('status',
+                            COALESCE($2, payload->>'status'))
+                       || jsonb_build_object('current_location',
+                            COALESCE($3, payload->>'current_location'))
+                       || jsonb_build_object('last_seen_location',
+                            COALESCE($4, payload->>'last_seen_location'))
                    WHERE id = $1""",
                 person_id, status, current_location, last_seen_location,
-            )
-            # Step 2: Sync payload JSONB with the updated column values
-            # so fetch queries reading from payload stay consistent
-            await conn.execute(
-                """UPDATE lost_persons SET
-                     payload = payload
-                       || jsonb_build_object('status', status)
-                       || jsonb_build_object('current_location', current_location)
-                       || jsonb_build_object('last_seen_location', last_seen_location)
-                   WHERE id = $1""",
-                person_id,
             )
         return True
     except Exception as exc:
@@ -406,57 +406,85 @@ async def update_lost_person_status(
 # READ QUERIES — hit by cached_read_pg() on cache miss
 # ═══════════════════════════════════════════════════════════════════════════════
 
-async def fetch_sos_alerts(status: Optional[str] = None) -> dict:
+# Default cap on rows returned by the unfiltered fetch_* queries. Without this
+# every cache miss reads the entire table — when sos_alerts grows past ~50k
+# rows a single GET /get_sos_alerts holds the asyncpg connection for several
+# seconds AND blocks the event loop on the JSON parse pass that follows.
+# Override per-environment via PG_FETCH_LIMIT.
+_FETCH_LIMIT = int(os.getenv("PG_FETCH_LIMIT", "1000"))
+
+
+async def _parse_payloads(rows) -> list:
+    """
+    Run json.loads in the dedicated thread pool when the row count is large
+    enough that the parse cost matters. Below the threshold we parse inline
+    to avoid the to_thread() overhead.
+    """
+    if not rows:
+        return []
+    if len(rows) >= 200:
+        from app.core.admission import run_blocking
+        return await run_blocking(lambda: [json.loads(r["payload"]) for r in rows])
+    return [json.loads(r["payload"]) for r in rows]
+
+
+async def fetch_sos_alerts(status: Optional[str] = None, limit: int = _FETCH_LIMIT) -> dict:
     try:
         async with _conn() as conn:
             if status:
                 rows = await conn.fetch(
-                    "SELECT payload FROM sos_alerts WHERE status=$1 ORDER BY created_at DESC",
-                    status,
+                    "SELECT payload FROM sos_alerts WHERE status=$1 "
+                    "ORDER BY created_at DESC LIMIT $2",
+                    status, limit,
                 )
             else:
                 rows = await conn.fetch(
-                    "SELECT payload FROM sos_alerts ORDER BY created_at DESC",
+                    "SELECT payload FROM sos_alerts ORDER BY created_at DESC LIMIT $1",
+                    limit,
                 )
-        alerts = [json.loads(r["payload"]) for r in rows]
+        alerts = await _parse_payloads(rows)
         return {"sos_alerts": alerts}
     except Exception as exc:
         logger.error("[PGStore] fetch_sos_alerts failed: %s", exc)
         return {"sos_alerts": []}
 
 
-async def fetch_issues(status: Optional[str] = None) -> dict:
+async def fetch_issues(status: Optional[str] = None, limit: int = _FETCH_LIMIT) -> dict:
     try:
         async with _conn() as conn:
             if status:
                 rows = await conn.fetch(
-                    "SELECT payload FROM issues WHERE status=$1 ORDER BY created_at DESC",
-                    status,
+                    "SELECT payload FROM issues WHERE status=$1 "
+                    "ORDER BY created_at DESC LIMIT $2",
+                    status, limit,
                 )
             else:
                 rows = await conn.fetch(
-                    "SELECT payload FROM issues ORDER BY created_at DESC",
+                    "SELECT payload FROM issues ORDER BY created_at DESC LIMIT $1",
+                    limit,
                 )
-        issues = [json.loads(r["payload"]) for r in rows]
+        issues = await _parse_payloads(rows)
         return {"issues": issues}
     except Exception as exc:
         logger.error("[PGStore] fetch_issues failed: %s", exc)
         return {"issues": []}
 
 
-async def fetch_lost_persons(status: Optional[str] = None) -> dict:
+async def fetch_lost_persons(status: Optional[str] = None, limit: int = _FETCH_LIMIT) -> dict:
     try:
         async with _conn() as conn:
             if status:
                 rows = await conn.fetch(
-                    "SELECT payload FROM lost_persons WHERE status=$1 ORDER BY created_at DESC",
-                    status,
+                    "SELECT payload FROM lost_persons WHERE status=$1 "
+                    "ORDER BY created_at DESC LIMIT $2",
+                    status, limit,
                 )
             else:
                 rows = await conn.fetch(
-                    "SELECT payload FROM lost_persons ORDER BY created_at DESC",
+                    "SELECT payload FROM lost_persons ORDER BY created_at DESC LIMIT $1",
+                    limit,
                 )
-        persons = [json.loads(r["payload"]) for r in rows]
+        persons = await _parse_payloads(rows)
         return {"lost_persons": persons}
     except Exception as exc:
         logger.error("[PGStore] fetch_lost_persons failed: %s", exc)
@@ -498,9 +526,16 @@ async def load_db_from_postgres(db: dict) -> bool:
                 def _parse_rows(rows):
                     return [json.loads(r["payload"]) for r in rows]
 
+                # Hydration cap — prevents OOM on a multi-100k row table at boot.
+                # The orchestrator's bloat guardian also caps the in-memory list
+                # at HEAL_DB_LIST_MAX (5000); using the same default here keeps
+                # startup memory predictable.
+                hydrate_cap = int(os.getenv("PG_HYDRATE_LIMIT", "5000"))
+
                 # SOS alerts
                 rows = await conn.fetch(
-                    "SELECT payload FROM sos_alerts ORDER BY created_at DESC"
+                    "SELECT payload FROM sos_alerts ORDER BY created_at DESC LIMIT $1",
+                    hydrate_cap,
                 )
                 if rows:
                     db["sos_alerts"] = await asyncio.to_thread(_parse_rows, rows)
@@ -508,7 +543,8 @@ async def load_db_from_postgres(db: dict) -> bool:
 
                 # Issues
                 rows = await conn.fetch(
-                    "SELECT payload FROM issues ORDER BY created_at DESC"
+                    "SELECT payload FROM issues ORDER BY created_at DESC LIMIT $1",
+                    hydrate_cap,
                 )
                 if rows:
                     db["issues"] = await asyncio.to_thread(_parse_rows, rows)
@@ -516,7 +552,8 @@ async def load_db_from_postgres(db: dict) -> bool:
 
                 # Lost persons
                 rows = await conn.fetch(
-                    "SELECT payload FROM lost_persons ORDER BY created_at DESC"
+                    "SELECT payload FROM lost_persons ORDER BY created_at DESC LIMIT $1",
+                    hydrate_cap,
                 )
                 if rows:
                     db["lost_persons"] = await asyncio.to_thread(_parse_rows, rows)

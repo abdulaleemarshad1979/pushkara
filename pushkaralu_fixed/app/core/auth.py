@@ -137,23 +137,70 @@ def _passlib():
         ) from e
 
 
-# ── In-memory volunteer index (O(1) lookup by username) ──────────────────────
+# ── In-memory volunteer indexes (O(1) lookup by username AND by id) ──────────
 # Populated from main.py after sample_data.json is loaded.
-# Key: username (str)  →  Value: volunteer dict (includes "password" field)
+#   _volunteer_index    — username (lowercased) → volunteer dict (used by login)
+#   _volunteer_id_index — id                    → volunteer dict (used by mutation
+#                                                  routes to skip O(N) scans of
+#                                                  DB["volunteers"])
+#
+# Both indexes share the SAME underlying dict objects, so mutating an entry
+# updates every reader simultaneously (the list, the username index, and the
+# id index). This is critical: assign_sos / admin_update_volunteer /
+# update_volunteer / admin_delete_volunteer used to scan DB["volunteers"]
+# linearly on every call — at festival load with 5,000 volunteers that meant
+# every PUT held the event loop for ~80 µs of pure Python iteration. Indexed
+# lookup is O(1).
 _volunteer_index: dict[str, dict] = {}
+_volunteer_id_index: dict[str, dict] = {}
 
 
 def rebuild_volunteer_index(volunteers: list[dict]) -> None:
     """
     Call this whenever DB["volunteers"] changes.
-    O(n) to build, O(1) to query — replaces the O(n) linear scan on every login.
+    O(n) to build, O(1) to query — replaces the O(n) linear scan on every login
+    AND on every volunteer mutation.
     """
     _volunteer_index.clear()
+    _volunteer_id_index.clear()
     for vol in volunteers:
         uname = vol.get("username", "").strip().lower()
         if uname:
             _volunteer_index[uname] = vol
-    logger.debug("[Auth] Volunteer index rebuilt  entries=%d", len(_volunteer_index))
+        vid = vol.get("id")
+        if vid:
+            _volunteer_id_index[vid] = vol
+    logger.debug(
+        "[Auth] Volunteer indexes rebuilt  by_username=%d  by_id=%d",
+        len(_volunteer_index), len(_volunteer_id_index),
+    )
+
+
+def get_volunteer_by_id(vid: str) -> Optional[dict]:
+    """O(1) volunteer lookup. Returns the live dict (mutating it mutates DB)."""
+    return _volunteer_id_index.get(vid) if vid else None
+
+
+def index_add_volunteer(vol: dict) -> None:
+    """Insert a volunteer into both indexes after it has been appended to DB."""
+    if not vol:
+        return
+    uname = vol.get("username", "").strip().lower()
+    if uname:
+        _volunteer_index[uname] = vol
+    vid = vol.get("id")
+    if vid:
+        _volunteer_id_index[vid] = vol
+
+
+def index_remove_volunteer(vid: str) -> Optional[dict]:
+    """Remove a volunteer from both indexes. Returns the removed dict or None."""
+    vol = _volunteer_id_index.pop(vid, None) if vid else None
+    if vol:
+        uname = vol.get("username", "").strip().lower()
+        if uname and _volunteer_index.get(uname) is vol:
+            _volunteer_index.pop(uname, None)
+    return vol
 
 
 # ── Password helpers ──────────────────────────────────────────────────────────
@@ -161,6 +208,21 @@ def rebuild_volunteer_index(volunteers: list[dict]) -> None:
 def hash_password(plain: str) -> str:
     ctx = _passlib()
     return ctx.hash(plain)
+
+
+async def hash_password_async(plain: str) -> str:
+    """
+    Off-loop bcrypt hash.
+
+    bcrypt is intentionally CPU-expensive (~80–150 ms per call at cost factor 12).
+    Calling it inline from an async route freezes the event loop for that
+    duration, blocking every concurrent request, every WebSocket heartbeat, and
+    every background task. Use this wrapper from async handlers instead.
+    """
+    # Lazy import to avoid a hard dependency cycle if admission.py is ever
+    # imported into auth's own initialisation path.
+    from app.core.admission import run_blocking
+    return await run_blocking(hash_password, plain)
 
 
 def verify_password(plain: str, hashed: str) -> bool:

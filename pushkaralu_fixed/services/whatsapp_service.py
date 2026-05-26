@@ -154,12 +154,13 @@ class TwilioProvider(_BaseProvider):
             return SendResult(ok=False, provider=self.name, error="invalid phone")
         url = f"{TWILIO_API_BASE}/Accounts/{TWILIO_ACCOUNT_SID}/Messages.json"
         try:
-            async with httpx.AsyncClient(timeout=10.0) as client:
-                resp = await client.post(
-                    url,
-                    auth=(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN),
-                    data={"From": TWILIO_FROM_NUMBER, "To": addr, "Body": body[:1500]},
-                )
+            from app.core.http_client import whatsapp_client
+            client = await whatsapp_client()
+            resp = await client.post(
+                url,
+                auth=(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN),
+                data={"From": TWILIO_FROM_NUMBER, "To": addr, "Body": body[:1500]},
+            )
             if resp.status_code in (200, 201):
                 data = resp.json()
                 return SendResult(
@@ -208,8 +209,9 @@ class ManaMitraProvider(_BaseProvider):
             "channel": "whatsapp",
         }
         try:
-            async with httpx.AsyncClient(timeout=10.0) as client:
-                resp = await client.post(MANA_MITRA_API_URL, json=payload, headers=headers)
+            from app.core.http_client import whatsapp_client
+            client = await whatsapp_client()
+            resp = await client.post(MANA_MITRA_API_URL, json=payload, headers=headers)
             if 200 <= resp.status_code < 300:
                 try:
                     data = resp.json()
@@ -260,8 +262,9 @@ class MetaCloudProvider(_BaseProvider):
             "text": {"body": body[:1500]},
         }
         try:
-            async with httpx.AsyncClient(timeout=10.0) as client:
-                resp = await client.post(url, json=payload, headers=headers)
+            from app.core.http_client import whatsapp_client
+            client = await whatsapp_client()
+            resp = await client.post(url, json=payload, headers=headers)
             if 200 <= resp.status_code < 300:
                 try:
                     data = resp.json()
