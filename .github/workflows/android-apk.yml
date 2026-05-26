@@ -5,8 +5,17 @@
 #         If a release tag is pushed (v*), an .aab is also produced for
 #         Play Store upload.
 #
-# Why GitHub Actions: the sandbox where this app is developed has no
-# Android SDK; CI is the canonical place to assemble the binary.
+# Hardening (third pass — root cause confirmed from CI logs):
+#   - Add `typescript` devDep — `npx cap add android` failed with
+#     "Could not find installation of TypeScript" because our config
+#     is `capacitor.config.ts`. Capacitor 6 requires TS to load it.
+#   - Replace `sharp` with `rsvg-convert` (apt librsvg2-bin) — sharp's
+#     prebuilt-binary install is the most common cause of fast-fail
+#     npm-installs on ubuntu-latest.
+#   - JDK 17, not 21. Capacitor 6 + AGP 8.x officially target 17.
+#   - `set -euxo pipefail` in every multi-line `run:` so the failing
+#     command is always visible with a line number.
+#   - Pre-flight Doctor step prints env + network reachability up front.
 # ─────────────────────────────────────────────────────────────────────────
 name: Android APK
 
@@ -21,6 +30,7 @@ on:
     paths:
       - 'pushkaralu_fixed/mobile-app/**'
       - 'pushkaralu_fixed/dashboards/**'
+      - '.github/workflows/android-apk.yml'
   workflow_dispatch:
     inputs:
       build_type:
@@ -42,26 +52,65 @@ jobs:
     defaults:
       run:
         working-directory: pushkaralu_fixed/mobile-app
+        shell: bash
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up JDK 21
+      - name: Doctor — pre-flight environment check
+        working-directory: ${{ github.workspace }}
+        run: |
+          set -euxo pipefail
+          echo "::group::Runner OS"
+          uname -a
+          cat /etc/os-release || true
+          echo "::endgroup::"
+          echo "::group::Disk + memory"
+          df -h .
+          free -h || true
+          echo "::endgroup::"
+          echo "::group::Tooling preinstalled"
+          which bash node npm java javac git curl unzip || true
+          echo "::endgroup::"
+          echo "::group::Network reachability"
+          curl -fsS -o /dev/null -w "registry.npmjs.org -> %{http_code}\n" https://registry.npmjs.org/ || true
+          curl -fsS -o /dev/null -w "dl.google.com -> %{http_code}\n"      https://dl.google.com/ || true
+          curl -fsS -o /dev/null -w "services.gradle.org -> %{http_code}\n" https://services.gradle.org/ || true
+          echo "::endgroup::"
+
+      - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '21'
+          java-version: '17'
 
       - name: Set up Node 20
         uses: actions/setup-node@v4
         with:
           node-version: '20'
 
+      - name: Install librsvg2-bin (for SVG → PNG icon rasterisation)
+        working-directory: ${{ github.workspace }}
+        run: |
+          set -euxo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends librsvg2-bin
+          rsvg-convert --version
+
       - name: Install Android SDK
         uses: android-actions/setup-android@v3
         with:
           packages: 'platform-tools platforms;android-34 build-tools;34.0.0'
+
+      - name: Verify Android SDK installation
+        run: |
+          set -euxo pipefail
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
+          ls -la "$ANDROID_HOME" || true
+          ls -la "$ANDROID_HOME/platforms" || true
+          ls -la "$ANDROID_HOME/build-tools" || true
 
       - name: Cache Gradle
         uses: actions/cache@v4
@@ -74,38 +123,55 @@ jobs:
 
       - name: Install npm deps
         run: |
-          npm install --no-audit --no-fund --legacy-peer-deps
-          # Print top-level Capacitor versions so any peer-dep downgrade is visible in the log.
-          npx cap --version || true
-          npm ls @capacitor/core @capacitor/android @capacitor/cli || true
+          set -euxo pipefail
+          node --version
+          npm  --version
+          npm install --no-audit --no-fund --legacy-peer-deps --foreground-scripts --loglevel=info
+          echo "--- top-level deps after install ---"
+          npm ls --depth=0 || true
+          echo "--- key Capacitor / TS versions ---"
+          npm ls @capacitor/core @capacitor/android @capacitor/cli @capacitor/assets typescript || true
 
       - name: Generate icon + splash PNGs
         run: |
+          set -euxo pipefail
           npm run icons:generate
           ls -la resources/
 
       - name: Sync website into www/
         run: |
+          set -euxo pipefail
           npm run sync:web
           echo "--- www/ contents ---"
           ls -la www/
 
       - name: Add Android platform
-        run: npx cap add android
+        run: |
+          set -euxo pipefail
+          npx cap add android
+          echo "--- android/ tree (top 2 levels) ---"
+          find android -maxdepth 2 -type d | sort
 
       - name: Apply Android overrides (permissions, deep links, theme)
-        run: npm run android:overrides
+        run: |
+          set -euxo pipefail
+          npm run android:overrides
 
       - name: Generate Android assets (mipmaps, splash)
-        run: npx capacitor-assets generate --android --verbose
+        run: |
+          set -euxo pipefail
+          npx capacitor-assets generate --android --verbose
 
       - name: Capacitor sync
-        run: npx cap sync android
+        run: |
+          set -euxo pipefail
+          npx cap sync android
 
       - name: Diagnostic dump on failure
         if: failure()
         working-directory: pushkaralu_fixed/mobile-app
         run: |
+          set +e
           echo "::group::resources/"
           ls -la resources/ || true
           echo "::endgroup::"
@@ -121,11 +187,15 @@ jobs:
           echo "::group::npm ls (top-level)"
           npm ls --depth=0 || true
           echo "::endgroup::"
+          echo "::group::node_modules/.bin"
+          ls node_modules/.bin 2>/dev/null | head -40 || true
+          echo "::endgroup::"
 
       - name: Build debug APK
         if: ${{ github.event.inputs.build_type != 'release' }}
         working-directory: pushkaralu_fixed/mobile-app/android
         run: |
+          set -euxo pipefail
           chmod +x ./gradlew
           ./gradlew assembleDebug --no-daemon --stacktrace
 
@@ -138,12 +208,11 @@ jobs:
           PUSHKARA_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           PUSHKARA_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
+          set -euxo pipefail
           chmod +x ./gradlew
-          # If release secrets are not configured we still produce an
-          # unsigned release APK, then sign it as debug for installability.
           if [ -n "$PUSHKARA_KEYSTORE_BASE64" ]; then
             echo "$PUSHKARA_KEYSTORE_BASE64" | base64 -d > release.keystore
-            cat <<GRADLE >> app/build.gradle
+            cat <<'GRADLE' >> app/build.gradle
 
           android {
             signingConfigs {
@@ -167,6 +236,7 @@ jobs:
       - name: Locate APK / AAB
         id: locate
         run: |
+          set -euxo pipefail
           mkdir -p ../../artifacts
           find android/app/build/outputs -type f \( -name '*.apk' -o -name '*.aab' \) -print -exec cp {} ../../artifacts/ \;
           ls -la ../../artifacts || true
@@ -191,6 +261,7 @@ jobs:
       - name: Summary
         if: always()
         run: |
+          set +e
           echo "### Pushkaralu APK build" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "Artefacts produced:" >> $GITHUB_STEP_SUMMARY
