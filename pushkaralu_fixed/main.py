@@ -68,6 +68,7 @@ from app.core.auth import (
     create_access_token, authenticate_volunteer, hash_password,
     rebuild_volunteer_index,
     require_admin_key,
+    verify_admin_credentials, get_admin_api_key,
 )
 from app.core.pg_store import (
     close_pg_pool, load_db_from_postgres, cached_read_pg,
@@ -249,8 +250,37 @@ app = FastAPI(
     version="8.0.0",
     lifespan=lifespan,
 )
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True,
-                   allow_methods=["*"], allow_headers=["*"])
+
+# ── CORS allowlist (production-ready) ────────────────────────────────────────
+# Reads CORS_ALLOWED_ORIGINS from env (comma-separated). Falls back to the
+# known-good Vercel frontend hosts so the deploy keeps working even if the
+# operator forgets to set the env. The legacy "*" is intentionally NOT used
+# alongside allow_credentials=True (browsers reject that combination anyway).
+_DEFAULT_CORS_ORIGINS = [
+    "https://pushkara.vercel.app",
+    "https://www.pushkara.vercel.app",
+    "http://localhost:8088",
+    "http://127.0.0.1:8088",
+    "http://localhost:5173",
+]
+_cors_env = os.getenv("CORS_ALLOWED_ORIGINS", "").strip()
+if _cors_env:
+    _allowed_origins = [o.strip() for o in _cors_env.split(",") if o.strip()]
+elif os.getenv("ENVIRONMENT", "production").lower() == "development":
+    # Dev convenience — wildcard is OK without credentials in dev mode.
+    _allowed_origins = ["*"]
+else:
+    _allowed_origins = _DEFAULT_CORS_ORIGINS
+
+logger.info("[CORS] allowed_origins=%s", _allowed_origins)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=_allowed_origins,
+    # Only allow credentials when the origins are explicit (not '*').
+    allow_credentials=_allowed_origins != ["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "X-Admin-Key"],
+)
 app.add_middleware(GZipMiddleware, minimum_size=1024)
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 app.include_router(chat_router)
@@ -559,6 +589,41 @@ def volunteer_login(username: str = Form(...), password: str = Form(...)):
     token = create_access_token(subject_id=vol["id"], role="volunteer",
                                  extra={"name": vol.get("name", "")})
     return {"success": True, "token": token, "volunteer": vol}
+
+
+# ── Admin portal login (replaces leaked-key-in-JS) ───────────────────────────
+# The admin dashboard at /admin must POST username + password here.
+# On success the response carries the X-Admin-Key value, which the frontend
+# stores in sessionStorage and sends back as the X-Admin-Key header on every
+# admin call. The key never lives in static JS shipped to the browser.
+#
+# Rate limited per IP (5 attempts / 60s) to slow brute-force attempts.
+
+@app.post("/admin/login")
+async def admin_login(
+    request: Request,
+    username: str = Form(...),
+    password: str = Form(...),
+):
+    client_ip = request.client.host if request.client else "unknown"
+    allowed, _info = await check_rate_limit(
+        f"rate:ip:{client_ip}:admin_login", limit=5, window_seconds=60
+    )
+    if not allowed:
+        raise HTTPException(
+            status_code=429,
+            detail="Too many login attempts. Please wait a minute and try again.",
+        )
+    if not verify_admin_credentials(username, password):
+        # Generic 401 — never leak which half (username vs password) was wrong.
+        logger.warning("[AdminLogin] Failed attempt from %s user=%s", client_ip, username)
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+    logger.info("[AdminLogin] Success from %s", client_ip)
+    return {
+        "success": True,
+        "admin_key": get_admin_api_key(),
+        "expires_hint": "Session-scoped — stored in sessionStorage; clears on tab close.",
+    }
 
 
 
@@ -1537,6 +1602,7 @@ async def get_lost(status: Optional[str] = None):
 
 @app.post("/lost")
 async def register_lost(
+    request: Request,
     name: str = Form(...),
     age: Optional[int] = Form(None),
     last_seen_location: str = Form(default="Unknown"),
@@ -1548,18 +1614,49 @@ async def register_lost(
     gender: Optional[str] = Form(None),
     status: str = Form(default="missing"),
     photo: Optional[UploadFile] = File(None),
-    _auth: dict = Depends(require_volunteer_or_admin),
 ):
+    """
+    Public endpoint: pilgrims report missing family members from user.html.
+    No auth required — but rate-limited by client IP to prevent abuse.
+    Mark-as-found / status updates still require auth (see PUT /lost/{pid}).
+    """
+    client_ip = request.client.host if request.client else "unknown"
+    allowed, _info = await check_rate_limit(
+        f"rate:ip:{client_ip}:lost_report", limit=5, window_seconds=300
+    )
+    if not allowed:
+        raise HTTPException(
+            status_code=429,
+            detail="Too many lost-person reports from this device. Please wait before submitting another.",
+        )
     try:
         photo_url = await upload_image(photo, folder="lost-found")
         # Accept either contact_name or contact_person
         resolved_contact = contact_name or contact_person or "Unknown"
+        # Sanity-clamp untrusted inputs from the public form.
+        clean_name = (name or "").strip()[:120]
+        if not clean_name:
+            raise HTTPException(status_code=400, detail="name is required")
+        clean_phone = (contact_phone or "").strip()[:32]
+        if not clean_phone:
+            raise HTTPException(status_code=400, detail="contact_phone is required")
         person = {
-            "id": str(uuid.uuid4()), "name": name, "age": age, "photo_url": photo_url,
-            "gender": gender,
-            "last_seen_location": last_seen_location, "current_location": current_location,
-            "contact_person": resolved_contact, "contact_phone": contact_phone,
-            "description": description, "status": status, "timestamp": _utc_now()
+            "id": str(uuid.uuid4()),
+            "name": clean_name,
+            "age": age if (age is None or 0 <= age <= 130) else None,
+            "photo_url": photo_url,
+            "gender": (gender or "").strip()[:24] or None,
+            "last_seen_location": (last_seen_location or "Unknown").strip()[:200],
+            "current_location":   (current_location or "Unknown").strip()[:200],
+            "contact_person": resolved_contact.strip()[:120],
+            "contact_phone":  clean_phone,
+            "description":    (description or "").strip()[:1000],
+            # SECURITY: a brand-new public submission can never legitimately
+            # claim "found" / "closed". Force "missing" so no one can plant
+            # a fake found-record. Volunteers/admins can transition status
+            # via PUT /lost/{pid}.
+            "status": "missing",
+            "timestamp": _utc_now(),
         }
         
         # Persist to PG (non-blocking)

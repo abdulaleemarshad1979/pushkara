@@ -1,5 +1,9 @@
-# ── Godavari Pushkaralu 2027 — Render.com Deployment  (v5)
+# ── Godavari Pushkaralu 2027 — Render.com Deployment  (v8 — production-ready)
 # Deploy with: https://dashboard.render.com/select-repo
+#
+# IMPORTANT: every secret below tagged `sync: false` MUST be set in the Render
+# dashboard before the service will start. The app fail-fasts in production
+# if JWT_SECRET_KEY, ADMIN_API_KEY, or ADMIN_PASSWORD are missing or weak.
 
 services:
   - type: web
@@ -8,6 +12,11 @@ services:
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT --workers 1
     envVars:
+      # ── Runtime mode (enables strict secret validation + CORS allow-list) ─
+      - key: ENVIRONMENT
+        value: production
+
+      # ── Redis ──────────────────────────────────────────────────────────────
       - key: ENABLE_REDIS
         value: "true"
       - key: REDIS_URL
@@ -15,18 +24,40 @@ services:
           name: pushkaralu-redis
           type: redis
           property: connectionString
+
+      # ── Crowd loop tuning ──────────────────────────────────────────────────
       - key: CROWD_BROADCAST_INTERVAL
         value: "2.5"
       - key: INSTANCE_ID
         value: render-api-1
+
+      # ── Required secrets (set in dashboard) ────────────────────────────────
+      # Generate each one with:
+      #   python -c "import secrets; print(secrets.token_hex(32))"
+      - key: JWT_SECRET_KEY
+        sync: false
+      - key: JWT_EXPIRY_HOURS
+        value: "8"
+      - key: ADMIN_API_KEY
+        sync: false
+      - key: ADMIN_USERNAME
+        value: admin
+      - key: ADMIN_PASSWORD
+        sync: false
+
+      # ── CORS allow-list (comma-separated origins) ─────────────────────────
+      # Add any additional Vercel preview URLs your district uses here.
+      - key: CORS_ALLOWED_ORIGINS
+        value: "https://pushkara.vercel.app,https://www.pushkara.vercel.app"
+
+      # ── Optional integrations ─────────────────────────────────────────────
       - key: SCRAPERBOT_URL
         sync: false
       - key: GROQ_API_KEY
         sync: false
-      # ── WhatsApp / Mana Mitra integration ────────────────────────────
-      # All optional. Defaults to mock provider so the API never crashes
-      # for a missing credential. Flip WHATSAPP_PROVIDER once real keys
-      # are configured in the Render dashboard.
+
+      # ── WhatsApp / Mana Mitra ─────────────────────────────────────────────
+      # Defaults to mock provider so missing credentials never crash boot.
       - key: WHATSAPP_ENABLED
         value: "true"
       - key: WHATSAPP_PROVIDER
@@ -55,8 +86,24 @@ services:
         value: "pushkaralu-verify"
       - key: META_GRAPH_VERSION
         value: "v20.0"
-      - key: ADMIN_API_KEY
+
+      # ── Optional object storage (Cloudflare R2 / AWS S3) ──────────────────
+      # Leave blank for the local-disk fallback (free-tier friendly).
+      - key: S3_BUCKET_NAME
         sync: false
+      - key: S3_ACCESS_KEY_ID
+        sync: false
+      - key: S3_SECRET_ACCESS_KEY
+        sync: false
+      - key: S3_ENDPOINT_URL
+        sync: false
+      - key: S3_REGION
+        value: "ap-south-1"
+      - key: S3_PUBLIC_BASE_URL
+        sync: false
+      - key: S3_ACL
+        sync: false
+
     healthCheckPath: /ping
     autoDeploy: true
 

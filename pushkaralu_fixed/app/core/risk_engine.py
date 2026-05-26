@@ -18,8 +18,18 @@
 import time
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
+
+try:
+    # Python 3.9+: standard-library timezone database
+    from zoneinfo import ZoneInfo
+    _IST = ZoneInfo("Asia/Kolkata")
+except Exception:                                         # pragma: no cover
+    # Python without tzdata (rare on Render's slim images) — fall back to
+    # a fixed UTC+5:30 offset so we at least get the half-hour right.
+    from datetime import timedelta as _td
+    _IST = timezone(_td(hours=5, minutes=30), name="IST")
 
 logger = logging.getLogger("pushkaralu.risk")
 
@@ -154,9 +164,15 @@ class RiskEngine:
 
     @staticmethod
     def time_multiplier() -> float:
-        """Return peak-hour multiplier based on current hour (IST)."""
-        hour = datetime.utcnow().hour + 5  # rough IST offset (UTC+5:30)
-        hour = hour % 24
+        """
+        Return peak-hour multiplier based on the current hour in IST.
+        FIX: previous version did `datetime.utcnow().hour + 5` which (a) used
+        a deprecated naive-UTC API, and (b) ignored IST's :30 minute offset,
+        so peak-hour boundaries drifted by half an hour. Using ZoneInfo
+        gives the correct local-civil hour, including DST-aware behaviour
+        (a no-op for India, but future-proof).
+        """
+        hour = datetime.now(_IST).hour
         return PEAK_MULTIPLIER if hour in PEAK_HOURS else OFF_PEAK_MULT
 
     @staticmethod
@@ -373,9 +389,12 @@ class AdaptiveThresholds:
         Returns (low, medium, high) threshold tuple for current date.
         Normal days: (0.20, 0.65, 0.85)
         High-traffic: (0.10, 0.50, 0.70) — triggers ~15% earlier on Maha Pushkar
+
+        FIX: previously used date.today() which is server-local (UTC on Render),
+        so the high-traffic window flipped at 05:30 IST instead of midnight IST.
+        Now uses datetime.now(IST).date() for the correct civil-day boundary.
         """
-        from datetime import date
-        today = date_str or date.today().isoformat()
+        today = date_str or datetime.now(_IST).date().isoformat()
         if today in cls.HIGH_TRAFFIC_DATES:
             return (0.10, 0.50, 0.70)
         return (THRESHOLD_LOW, THRESHOLD_MEDIUM, THRESHOLD_HIGH)
