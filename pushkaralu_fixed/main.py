@@ -729,10 +729,17 @@ async def report_issue(
     if not allowed:
         raise HTTPException(status_code=429, detail="Too many requests. Please wait before reporting again.")
     image_url = await upload_image(image, folder="issues")
+    # Route to the NEAREST available volunteer using the same proximity logic
+    # as SOS, so the closest volunteer is the one alerted/assigned instead of
+    # the report being broadcast to everyone with nobody actually responsible.
+    nearest = await asyncio.to_thread(find_nearest_volunteer, latitude, longitude)
     issue = {
         "id": str(uuid.uuid4()), "description": description, "category": category,
         "image_url": image_url, "latitude": latitude, "longitude": longitude,
-        "status": "pending", "assigned_volunteer": None, "user_name": user_name,
+        "status": "pending",
+        "assigned_volunteer":      nearest["id"]   if nearest else None,
+        "assigned_volunteer_name": nearest["name"] if nearest else "Unassigned",
+        "user_name": user_name,
         "timestamp": _utc_now()
     }
     await write_issue(issue)
@@ -811,7 +818,12 @@ async def accept_issue(
         await update_issue_status(issue_id, "in_progress", volunteer_id)
         issue = _index_get("issues", issue_id)
         if issue is not None:
-            issue.update({"status": "in_progress", "assigned_volunteer": volunteer_id})
+            vol = get_volunteer_by_id(volunteer_id)
+            issue.update({
+                "status": "in_progress",
+                "assigned_volunteer": volunteer_id,
+                "assigned_volunteer_name": (vol or {}).get("name", issue.get("assigned_volunteer_name", "")),
+            })
             msg = {"type": "ISSUE_ACCEPTED", "data": issue}
 
             await _broadcast_event(
@@ -1247,6 +1259,22 @@ async def update_volunteer(
     if latitude  is not None: vol["latitude"]  = latitude
     if longitude is not None: vol["longitude"] = longitude
     vol["updated_at"] = _utc_now()
+
+    # Persist the mutated fields to PostgreSQL so the volunteer's live location
+    # and availability survive restarts/redeploys and stay correct for
+    # find_nearest_volunteer (previously this route only mutated in-memory).
+    persist: dict = {}
+    if status:                     persist["status"]    = status
+    if zone:                       persist["zone"]      = zone
+    if latitude  is not None:      persist["latitude"]  = latitude
+    if longitude is not None:      persist["longitude"] = longitude
+    if assigned_issue is not None: persist["assigned_issue"] = assigned_issue
+    if persist:
+        try:
+            await update_volunteer_fields(vid, persist)
+        except Exception as exc:
+            logger.debug("[Volunteer] PG persist skipped: %s", exc)
+
     safe = {k: v for k, v in vol.items() if k != "password"}
     msg = {"type": "VOLUNTEER_UPDATED", "data": safe}
     await cache_delete(Keys.VOLUNTEERS)
@@ -1334,12 +1362,16 @@ async def admin_update_volunteer(
     zone: Optional[str] = Form(None),
     status: Optional[str] = Form(None),
     password: Optional[str] = Form(None),
+    latitude: Optional[float] = Form(None),
+    longitude: Optional[float] = Form(None),
     _auth: None = Depends(require_admin_key),
 ):
     """
     Update any volunteer field.
     Requires X-Admin-Key header.
     If password is provided it is re-hashed.
+    latitude/longitude can be updated here so an admin can correct a
+    volunteer's position used by SOS/issue proximity routing.
     """
     # FIX: O(1) volunteer lookup — was a linear scan over DB["volunteers"].
     vol = get_volunteer_by_id(vid)
@@ -1351,6 +1383,8 @@ async def admin_update_volunteer(
     if phone:  vol["phone"]  = fields["phone"]  = phone.strip()
     if zone:   vol["zone"]   = fields["zone"]   = zone.strip()
     if status: vol["status"] = fields["status"] = status
+    if latitude  is not None: vol["latitude"]  = fields["latitude"]  = latitude
+    if longitude is not None: vol["longitude"] = fields["longitude"] = longitude
 
     if password:
         # FIX (perf): bcrypt off-loop — see admin_create_volunteer.
