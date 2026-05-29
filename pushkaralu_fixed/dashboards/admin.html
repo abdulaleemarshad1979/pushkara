@@ -2129,31 +2129,17 @@ const MED_SEED = [
   { id:'mf17', name:'Seven Hills Hospital Rajahmundry',            type:'private_hospital',    latitude:16.9758, longitude:81.7835, status:'active', beds:150, doctor:'Dr. S. Murthy',              phone:'0883-2471000', zone:'Central' },
 ];
 
-// Fetch the live medical list; fall back to MED_SEED so the panel + filters
-// always have data to work with.
+// Your backend is the SINGLE SOURCE OF TRUTH for medical facilities:
+//   data/sample_data.json -> GET /medical  (+ anything added via "+ Add Facility")
+// The embedded MED_SEED list is only a last-resort fallback so the panel is
+// never blank if the backend returns nothing at all (e.g. misconfigured deploy).
 async function loadMedical() {
-  let live = [];
+  let list = [];
   try {
     const d = await api('/medical');
-    live = (d && d.medical_facilities) ? d.medical_facilities : [];
-  } catch(e) { live = []; }
-
-  let list = live.length ? live.slice() : MED_SEED.slice();
-
-  // Guarantee every filter tab has data: if a whole category is absent from the
-  // live dataset, backfill it from the embedded reference set so Camps / Govt /
-  // Private are never silently empty (which looks like "the filter is broken").
-  const keys = ['type','facility_type','facilityType','category','kind','classification'];
-  ['medical_camp','government_hospital','private_hospital'].forEach(cat => {
-    const present = list.some(f => medCanonType(pickField(f, keys)) === cat);
-    if (!present) {
-      MED_SEED.filter(f => f.type === cat).forEach(f => {
-        if (!list.some(x => x.id === f.id)) list.push(f);
-      });
-    }
-  });
-
-  S.medical = list;
+    list = (d && d.medical_facilities) ? d.medical_facilities : [];
+  } catch(e) { list = []; }
+  S.medical = list.length ? list : MED_SEED.slice();
   renderMedical();
   if (mapInited) refreshMap();
 }
