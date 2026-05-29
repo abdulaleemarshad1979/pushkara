@@ -736,6 +736,22 @@ select.level-select{ font-size: 12px; padding: 5px 10px; }
 </div>
 
 <!-- EMERGENCY CONTACTS -->
+<div id="panel-contacts" class="panel">
+  <!-- Dynamic contacts (editable — from DB via API) -->
+  <div class="card">
+    <div class="card-hdr">
+      <div class="card-title">Emergency <span class="accent">Contacts</span></div>
+      <button class="btn btn-cyan btn-sm" onclick="openContactModal()">+ Add Contact</button>
+    </div>
+    <div class="filter-bar">
+      <button class="filter-btn active" onclick="filterContacts(this,'all')">All</button>
+      <button class="filter-btn" onclick="filterContacts(this,'police')">🚔 Police</button>
+      <button class="filter-btn" onclick="filterContacts(this,'hospital')">🏥 Hospitals</button>
+      <button class="filter-btn" onclick="filterContacts(this,'government')">🏛️ Govt Officials</button>
+      <button class="filter-btn" onclick="filterContacts(this,'emergency_help_desk')">🆘 Help Desk</button>
+    </div>
+    <div id="contacts-list"></div>
+  </div>
 
   <!-- Static Emergency Services Registry (read-only, from /emergency_services endpoint) -->
   <div class="card" style="margin-top:14px">
