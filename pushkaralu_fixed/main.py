@@ -1,24 +1,3 @@
-# ═══════════════════════════════════════════════════════════════════════════════
-# Godavari Pushkaralu 2027 — FastAPI Application  (v8.0 — FIXED)
-#
-# FIXES vs v7:
-#   - BUG FIX: Line ~961: error detail had a Windows path typo
-#     "Ghc:\Users\abdul\Downloads\auth.pyat not found" → "Ghat not found"
-#   - IMPORT FIX: auth / pg_store / storage moved to app/core/ package
-#     (root-level files were never importable via "from app.core.X import")
-#   - All three Depends() chains verified against corrected auth module path
-#
-# PRESERVED INTACT (no logic changes):
-#   - Self-Healing Orchestrator (5 guardian loops)
-#   - Physics-based Risk Engine (evaluate_from_dicts, RiskEngine)
-#   - WebSocket Manager (partitioned by ghat, heartbeat, orphan pruning)
-#   - Redis circuit breaker + pub/sub + rate limiting
-#   - Leader election for crowd_broadcast_loop
-#   - All v7 route signatures and response shapes
-#   - JWT Auth & RBAC (Task 1)
-#   - PostgreSQL as source of truth (Task 2)
-#   - S3/R2 object storage (Task 3)
-# ═══════════════════════════════════════════════════════════════════════════════
 
 from __future__ import annotations
 
