@@ -2132,13 +2132,28 @@ const MED_SEED = [
 // Fetch the live medical list; fall back to MED_SEED so the panel + filters
 // always have data to work with.
 async function loadMedical() {
+  let live = [];
   try {
     const d = await api('/medical');
-    const list = (d && d.medical_facilities) ? d.medical_facilities : [];
-    S.medical = list.length ? list : MED_SEED.slice();
-  } catch(e) {
-    if (!S.medical || !S.medical.length) S.medical = MED_SEED.slice();
-  }
+    live = (d && d.medical_facilities) ? d.medical_facilities : [];
+  } catch(e) { live = []; }
+
+  let list = live.length ? live.slice() : MED_SEED.slice();
+
+  // Guarantee every filter tab has data: if a whole category is absent from the
+  // live dataset, backfill it from the embedded reference set so Camps / Govt /
+  // Private are never silently empty (which looks like "the filter is broken").
+  const keys = ['type','facility_type','facilityType','category','kind','classification'];
+  ['medical_camp','government_hospital','private_hospital'].forEach(cat => {
+    const present = list.some(f => medCanonType(pickField(f, keys)) === cat);
+    if (!present) {
+      MED_SEED.filter(f => f.type === cat).forEach(f => {
+        if (!list.some(x => x.id === f.id)) list.push(f);
+      });
+    }
+  });
+
+  S.medical = list;
   renderMedical();
   if (mapInited) refreshMap();
 }
@@ -2264,8 +2279,11 @@ async function deleteMedical(id) {
 // FILTERS
 // ═══════════════════════════════════════════════════
 function setFilter(btns, btn) {
-  btns.forEach(b=>b.classList.remove('active'));
-  btn.classList.add('active');
+  // `btns` is usually an HTMLCollection (element.children), which does NOT
+  // implement forEach in browsers — calling it directly throws and aborts the
+  // click handler before the list re-renders. Array.from() makes it iterable.
+  Array.from(btns || []).forEach(b=>b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
 }
 function filterSOS(btn, f) { S.sosFilter=f; setFilter(btn.parentNode.children, btn); renderSOS(); }
 function filterIssues(btn, f) { S.issueFilter=f; setFilter(btn.parentNode.children, btn); renderIssues(); }
