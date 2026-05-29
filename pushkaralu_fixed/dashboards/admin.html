@@ -1199,27 +1199,54 @@ function catIcon(cat) {
 // empty list and made the filters look broken. These helpers fold any incoming
 // value into the canonical key the filter buttons expect, so classification is
 // resilient to how the data was entered.
+// Pull the raw classification off a record no matter which field the backend
+// used. The live/legacy API has shipped this under several names over time
+// (type, facility_type, category, …); reading only one of them is exactly why
+// the tabs silently showed nothing. We coalesce across every plausible key.
+function pickField(obj, keys) {
+  for (const k of keys) {
+    const v = obj && obj[k];
+    if (v !== undefined && v !== null && String(v).trim() !== '') return v;
+  }
+  return '';
+}
+
 function medCanonType(raw) {
   const t = String(raw || '').toLowerCase().replace(/[\s\-]+/g, '_');
   if (!t) return '';
-  if (t.includes('camp')) return 'medical_camp';
-  if (t.includes('private') || t.includes('pvt')) return 'private_hospital';
+  if (t.includes('camp') || t.includes('shibir') || t.includes('temporary')) return 'medical_camp';
+  if (t.includes('private') || t.includes('pvt') || t.includes('corporate') ||
+      t.includes('trust') || t.includes('charit')) return 'private_hospital';
   if (t.includes('govt') || t.includes('government') || t.includes('public') ||
-      t.includes('phc') || t.includes('chc') || t.includes('hospital')) return 'government_hospital';
+      t.includes('phc') || t.includes('chc') || t.includes('district') ||
+      t.includes('area') || t.includes('general') || t.includes('civil') ||
+      t.includes('hospital') || t.includes('clinic') || t.includes('dispensary')) return 'government_hospital';
   return t; // unknown — keep raw so the card still renders a label
 }
 
 function contactCanonCat(raw) {
   const c = String(raw || '').toLowerCase().replace(/[\s\-]+/g, '_');
   if (!c) return '';
-  if (c.includes('police')) return c.includes('officer') ? 'police_officer' : 'police_station';
-  // hospital/clinic first so "government_hospital" lands here, not in "government_official"
+  // police first — covers station, officer, SI, CI, DSP, SP, constable, beat, PCR
+  if (c.includes('police') || c.includes('cop') || c.includes('_si') || c.endsWith('_si') ||
+      c.includes('inspector') || c.includes('constable') || c.includes('dsp') ||
+      c.includes('pcr') || c.includes('thana') || c.includes('beat')) {
+    return (c.includes('officer') || c.includes('inspector') || c.includes('constable') ||
+            c.includes('dsp') || c.includes('_sp') || c.includes('si')) && !c.includes('station')
+            ? 'police_officer' : 'police_station';
+  }
+  // hospital/clinic next so "government_hospital" lands here, not in "government_official"
   if (c.includes('hospital') || c.includes('clinic') || c.includes('phc') || c.includes('chc') ||
+      c.includes('dispensary') || c.includes('doctor') ||
       (c.includes('medical') && !c.includes('camp'))) return 'government_hospital';
-  if (c.includes('help') || c.includes('desk') || c.includes('ndrf') || c.includes('ambulance') ||
-      c.includes('control') || c.includes('emergency')) return 'emergency_help_desk';
+  if (c.includes('help') || c.includes('desk') || c.includes('ndrf') || c.includes('sdrf') ||
+      c.includes('ambulance') || c.includes('108') || c.includes('control') ||
+      c.includes('emergency') || c.includes('fire') || c.includes('rescue') ||
+      c.includes('helpline') || c.includes('toll')) return 'emergency_help_desk';
   if (c.includes('official') || c.includes('collector') || c.includes('municipal') ||
-      c.includes('govt') || c.includes('government') || c.includes('admin')) return 'government_official';
+      c.includes('tahsil') || c.includes('mandal') || c.includes('revenue') ||
+      c.includes('rdo') || c.includes('mro') || c.includes('govt') ||
+      c.includes('government') || c.includes('admin')) return 'government_official';
   return c; // unknown — keep raw
 }
 
@@ -1907,7 +1934,9 @@ function renderContacts() {
   const el = document.getElementById('contacts-list');
   // Fold each contact's raw category into a canonical key so the filter tabs and
   // icons keep working even when the stored value drifts (legacy/variant strings).
-  let list = S.contacts.map(c => ({ ...c, _cat: contactCanonCat(c.category) }));
+  let list = S.contacts.map(c => ({ ...c, _cat: contactCanonCat(
+    pickField(c, ['category', 'type', 'classification', 'cat', 'group'])
+  ) }));
   if (S.contactFilter !== 'all') {
     const f = S.contactFilter;
     if (f === 'police')     list = list.filter(c => c._cat === 'police_station' || c._cat === 'police_officer');
@@ -2016,7 +2045,9 @@ function renderMedical() {
   const el = document.getElementById('medical-list');
   // Normalize: support both 'type' and 'facility_type' field names, and fold any
   // legacy/variant value into a canonical key so the filter tabs always match.
-  let list = S.medical.map(f => ({ ...f, _type: medCanonType(f.type || f.facility_type) }));
+  let list = S.medical.map(f => ({ ...f, _type: medCanonType(
+    pickField(f, ['type', 'facility_type', 'facilityType', 'category', 'kind', 'classification'])
+  ) }));
   if (S.medFilter !== 'all') list = list.filter(f => f._type === S.medFilter);
   const typeIcon = t => ({medical_camp:'⛺',government_hospital:'🏛️',private_hospital:'🏥'}[t]||'🏥');
   const typeClass = t => ({medical_camp:'med-type-camp',government_hospital:'med-type-govt',private_hospital:'med-type-private'}[t]||'');
