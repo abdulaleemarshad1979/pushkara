@@ -2129,16 +2129,17 @@ const MED_SEED = [
   { id:'mf17', name:'Seven Hills Hospital Rajahmundry',            type:'private_hospital',    latitude:16.9758, longitude:81.7835, status:'active', beds:150, doctor:'Dr. S. Murthy',              phone:'0883-2471000', zone:'Central' },
 ];
 
-// Fetch the live medical list; fall back to MED_SEED so the panel + filters
-// always have data to work with.
+// Your backend is the SINGLE SOURCE OF TRUTH for medical facilities:
+//   data/sample_data.json -> GET /medical  (+ anything added via "+ Add Facility")
+// The embedded MED_SEED list is only a last-resort fallback so the panel is
+// never blank if the backend returns nothing at all (e.g. misconfigured deploy).
 async function loadMedical() {
+  let list = [];
   try {
     const d = await api('/medical');
-    const list = (d && d.medical_facilities) ? d.medical_facilities : [];
-    S.medical = list.length ? list : MED_SEED.slice();
-  } catch(e) {
-    if (!S.medical || !S.medical.length) S.medical = MED_SEED.slice();
-  }
+    list = (d && d.medical_facilities) ? d.medical_facilities : [];
+  } catch(e) { list = []; }
+  S.medical = list.length ? list : MED_SEED.slice();
   renderMedical();
   if (mapInited) refreshMap();
 }
@@ -2264,8 +2265,11 @@ async function deleteMedical(id) {
 // FILTERS
 // ═══════════════════════════════════════════════════
 function setFilter(btns, btn) {
-  btns.forEach(b=>b.classList.remove('active'));
-  btn.classList.add('active');
+  // `btns` is usually an HTMLCollection (element.children), which does NOT
+  // implement forEach in browsers — calling it directly throws and aborts the
+  // click handler before the list re-renders. Array.from() makes it iterable.
+  Array.from(btns || []).forEach(b=>b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
 }
 function filterSOS(btn, f) { S.sosFilter=f; setFilter(btn.parentNode.children, btn); renderSOS(); }
 function filterIssues(btn, f) { S.issueFilter=f; setFilter(btn.parentNode.children, btn); renderIssues(); }
