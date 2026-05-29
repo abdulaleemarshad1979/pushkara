@@ -737,27 +737,12 @@ select.level-select{ font-size: 12px; padding: 5px 10px; }
 
 <!-- EMERGENCY CONTACTS -->
 <div id="panel-contacts" class="panel">
-  <!-- Dynamic contacts (editable — from DB via API) -->
+  <!-- Single editable Emergency Contacts list — backed by the official
+       Emergency Services Registry (/emergency_services) with full CRUD. -->
   <div class="card">
     <div class="card-hdr">
-      <div class="card-title">Emergency <span class="accent">Contacts</span></div>
-      <button class="btn btn-cyan btn-sm" onclick="openContactModal()">+ Add Contact</button>
-    </div>
-    <div class="filter-bar">
-      <button class="filter-btn active" onclick="filterContacts(this,'all')">All</button>
-      <button class="filter-btn" onclick="filterContacts(this,'police')">🚔 Police</button>
-      <button class="filter-btn" onclick="filterContacts(this,'hospital')">🏥 Hospitals</button>
-      <button class="filter-btn" onclick="filterContacts(this,'government')">🏛️ Govt Officials</button>
-      <button class="filter-btn" onclick="filterContacts(this,'emergency_help_desk')">🆘 Help Desk</button>
-    </div>
-    <div id="contacts-list"></div>
-  </div>
-
-  <!-- Static Emergency Services Registry (read-only, from /emergency_services endpoint) -->
-  <div class="card" style="margin-top:14px">
-    <div class="card-hdr">
-      <div class="card-title">📋 Emergency <span class="accent">Services Registry</span></div>
-      <span style="font-size:10px;font-family:'Source Code Pro',monospace;color:var(--text-dim);letter-spacing:1px">READ-ONLY · OFFICIAL DATASET</span>
+      <div class="card-title">📋 Emergency <span class="accent">Contacts</span></div>
+      <button class="btn btn-cyan btn-sm" onclick="openESModal()">+ Add Contact</button>
     </div>
     <!-- Category tabs -->
     <div class="filter-bar" id="es-filter-bar">
@@ -1064,31 +1049,43 @@ select.level-select{ font-size: 12px; padding: 5px 10px; }
   </div>
 </div>
 
-<!-- Contact Modal -->
+<!-- Emergency Contact / Service Modal (add + edit) -->
 <div class="modal-overlay" id="modal-contact">
   <div class="modal">
-    <div class="modal-title">Add Emergency Contact</div>
+    <div class="modal-title" id="es-modal-title">Add Emergency Contact</div>
+    <input type="hidden" id="es-id">
     <div class="form-grid">
-      <div class="form-group"><label>Name *</label><input type="text" id="c-name" placeholder="Contact name"></div>
+      <div class="form-group"><label>Name *</label><input type="text" id="es-name" placeholder="e.g. I Town Police Station"></div>
+      <div class="form-group"><label>Type</label>
+        <select id="es-type">
+          <option value="police">🚔 Police</option>
+          <option value="hospital">🏥 Hospital</option>
+          <option value="medical">🚑 Medical</option>
+          <option value="fire">🔥 Fire</option>
+          <option value="administration">🏛️ Administration</option>
+        </select>
+      </div>
       <div class="form-group"><label>Category</label>
-        <select id="c-cat">
-          <option value="police_station">Police Station</option>
-          <option value="police_officer">Police Officer</option>
-          <option value="government_official">Govt Official</option>
-          <option value="government_hospital">Govt Hospital</option>
-          <option value="emergency_help_desk">Help Desk</option>
+        <select id="es-cat">
+          <option value="station">Police Station</option>
+          <option value="control">Control Room</option>
+          <option value="medical">Hospital / Medical</option>
+          <option value="emergency">Fire / Emergency</option>
+          <option value="government">Govt Office</option>
+          <option value="helpline">Helpline (phone only)</option>
           <option value="other">Other</option>
         </select>
       </div>
-      <div class="form-group"><label>Designation *</label><input type="text" id="c-desig" placeholder="e.g. Inspector"></div>
-      <div class="form-group"><label>Department *</label><input type="text" id="c-dept" placeholder="e.g. AP Police"></div>
-      <div class="form-group"><label>Phone *</label><input type="text" id="c-phone" placeholder="Phone number"></div>
-      <div class="form-group full"><label>Address</label><input type="text" id="c-addr" placeholder="Address"></div>
-      <div class="form-group"><label>Latitude</label><input type="number" id="c-lat" placeholder="16.98" step="0.0001"></div>
-      <div class="form-group"><label>Longitude</label><input type="number" id="c-lon" placeholder="81.78" step="0.0001"></div>
+      <div class="form-group"><label>Phone *</label><input type="text" id="es-phone" placeholder="e.g. 100 or 08832471033"></div>
+      <div class="form-group full"><label>Address</label><input type="text" id="es-addr" placeholder="Address (optional)"></div>
+      <div class="form-group"><label>Latitude</label><input type="number" id="es-lat" placeholder="16.98" step="0.0001"></div>
+      <div class="form-group"><label>Longitude</label><input type="number" id="es-lon" placeholder="81.78" step="0.0001"></div>
+    </div>
+    <div style="font-size:11px;color:var(--text-dim);margin:-4px 0 10px;font-family:'Source Code Pro',monospace">
+      Leave latitude/longitude blank for phone-only helplines.
     </div>
     <div class="form-row">
-      <button class="btn btn-cyan" onclick="submitContact()">✓ Add Contact</button>
+      <button class="btn btn-cyan" onclick="submitES()" id="es-submit-btn">✓ Add Contact</button>
       <button class="btn btn-red" onclick="closeModal('modal-contact')">✕ Cancel</button>
     </div>
   </div>
@@ -1301,7 +1298,12 @@ function handleWS(msg) {
       }
       S.lost = msg.data.lost_persons || [];
       S.contacts = msg.data.emergency_contacts || [];
-      S.medical = msg.data.medical_facilities || [];
+      {
+        const med = msg.data.medical_facilities || [];
+        // Fall back to the embedded dataset so the panel/overview/map are never
+        // empty when the backend seed isn't loaded.
+        S.medical = med.length ? med : (typeof MED_SEED !== 'undefined' ? MED_SEED.slice() : []);
+      }
       renderAll();
       loadStats();
       break;
@@ -1354,17 +1356,27 @@ function handleWS(msg) {
       updateItem(S.lost, msg.data);
       renderLost(); updateTopbar();
       break;
-    case 'CONTACT_ADDED':
-      S.contacts.unshift(msg.data);
-      renderContacts();
+    case 'ES_ADDED':
+      if (!ES_DATA.find(s => String(s.id) === String(msg.data.id))) ES_DATA.unshift(msg.data);
+      renderEmergencyServices();
+      if (mapInited) refreshMap();
       break;
-    case 'CONTACT_DELETED':
-      S.contacts = S.contacts.filter(c=>c.id!==msg.data.id);
-      renderContacts();
+    case 'ES_UPDATED': {
+      const i = ES_DATA.findIndex(s => String(s.id) === String(msg.data.id));
+      if (i !== -1) ES_DATA[i] = msg.data; else ES_DATA.unshift(msg.data);
+      renderEmergencyServices();
+      if (mapInited) refreshMap();
+      break;
+    }
+    case 'ES_DELETED':
+      ES_DATA = ES_DATA.filter(s => String(s.id) !== String(msg.data.id));
+      renderEmergencyServices();
+      if (mapInited) refreshMap();
       break;
     case 'MEDICAL_ADDED':
       S.medical.unshift(msg.data);
       renderMedical();
+      if (mapInited) refreshMap();
       break;
     case 'VOLUNTEER_UPDATED':
       updateItem(S.volunteers, msg.data);
@@ -1405,8 +1417,8 @@ const PANEL_RENDERERS = {
   issues:     () => renderIssues(),
   lost:       () => renderLost(),
   volunteers: () => renderVolunteers(),
-  contacts:   () => { renderContacts(); renderEmergencyServices(); },
-  medical:    () => renderMedical(),
+  contacts:   () => renderEmergencyServices(),
+  medical:    () => loadMedical(),
   map:        () => { initMap(); refreshMap(); },
   analytics:  () => loadDailyAnalytics(),
   broadcast:  () => { populateBroadcastVolunteers(); renderBroadcastHistory(); },
@@ -1740,10 +1752,10 @@ function renderAll() {
   renderIssues();
   renderLost();
   renderVolunteers();
-  renderContacts();
   renderMedical();
   updateTopbar();
-  // Only re-render ES panel if it was previously loaded (avoid extra fetch on every WS INIT)
+  // Only re-render Emergency Contacts panel if it was previously loaded
+  // (avoids an extra fetch on every WS INIT).
   if (ES_DATA.length) renderEmergencyServices();
 }
 
@@ -1930,106 +1942,86 @@ function renderVolunteers() {
     </div>`).join('') : '<div class="empty-state"><div class="icon">👮</div>No volunteers yet. Click + Add Volunteer to create one.</div>';
 }
 
-function renderContacts() {
-  const el = document.getElementById('contacts-list');
-  // Fold each contact's raw category into a canonical key so the filter tabs and
-  // icons keep working even when the stored value drifts (legacy/variant strings).
-  let list = S.contacts.map(c => ({ ...c, _cat: contactCanonCat(
-    pickField(c, ['category', 'type', 'classification', 'cat', 'group'])
-  ) }));
-  if (S.contactFilter !== 'all') {
-    const f = S.contactFilter;
-    if (f === 'police')     list = list.filter(c => c._cat === 'police_station' || c._cat === 'police_officer');
-    else if (f === 'hospital')   list = list.filter(c => c._cat === 'government_hospital');
-    else if (f === 'government') list = list.filter(c => c._cat === 'government_official');
-    else                         list = list.filter(c => c._cat === f);
-  }
-  el.innerHTML = list.length ? list.map(c=>`
-    <div class="contact-card">
-      <div class="contact-icon">${catIcon(c._cat)}</div>
-      <div class="contact-info">
-        <div class="contact-name">${c.name}</div>
-        <div class="contact-meta">${c.designation} · ${c.department}</div>
-        <div class="contact-meta">📍 ${c.address||'—'}</div>
-      </div>
-      <div style="text-align:right">
-        <div class="contact-phone">${c.phone}</div>
-        <button class="btn btn-red btn-xs" style="margin-top:6px" onclick="deleteContact('${c.id}')">✕ Remove</button>
-      </div>
-    </div>`).join('') : '<div class="empty-state"><div class="icon">📞</div>No contacts found</div>';
-}
-
-// ── EMERGENCY SERVICES REGISTRY (Task 8) ──────────────────────────────────
-// Fetches from /emergency_services (read-only static dataset).
-// Cached in ES_DATA after first load; subsequent calls to filterES() are instant.
+// ── EMERGENCY CONTACTS (official Emergency Services Registry + CRUD) ───────
+// Single source of truth for the Emergency Contacts panel. Data comes from
+// /emergency_services and is fully editable by admins (add / edit / delete).
+// Cached in ES_DATA; filterES() re-renders instantly from the cache.
 let ES_DATA = [];
 let ES_FILTER = 'all';
 
 const ES_ICONS = {
-  police: '🚔', hospital: '🏥', fire: '🔥', administration: '🏛️',
+  police: '🚔', hospital: '🏥', medical: '🚑', fire: '🔥', administration: '🏛️',
 };
 const ES_CATEGORY_LABELS = {
   helpline: 'Helpline', station: 'Police Station', control: 'Control Room',
   medical: 'Hospital', emergency: 'Fire Station', government: 'Govt Office',
+  other: 'Other',
 };
 
-async function renderEmergencyServices() {
+function _esFilterList() {
+  if (ES_FILTER === 'all') return ES_DATA;
+  if (ES_FILTER === 'helpline') return ES_DATA.filter(s => s.category === 'helpline');
+  // "Hospitals" tab includes both 'hospital' and 'medical' types (e.g. Ambulance)
+  if (ES_FILTER === 'hospital') return ES_DATA.filter(s => s.type === 'hospital' || s.type === 'medical');
+  return ES_DATA.filter(s => s.type === ES_FILTER);
+}
+
+async function renderEmergencyServices(forceReload) {
   const el = document.getElementById('es-list');
   if (!el) return;
 
-  // Load once and cache; if already loaded just re-render with current filter
-  if (!ES_DATA.length) {
-    el.innerHTML = '<div class="empty-state">Loading emergency services...</div>';
+  // Load once and cache; subsequent filter clicks reuse ES_DATA.
+  if (forceReload || !ES_DATA.length) {
+    el.innerHTML = '<div class="empty-state">Loading emergency contacts...</div>';
     try {
       const d = await api('/emergency_services');
       ES_DATA = d.emergency_services || [];
     } catch(e) {
-      el.innerHTML = '<div class="empty-state"><div class="icon">⚠️</div>Could not load emergency services</div>';
+      el.innerHTML = '<div class="empty-state"><div class="icon">⚠️</div>Could not load emergency contacts</div>';
       return;
     }
   }
 
-  let list;
-  if (ES_FILTER === 'all') {
-    list = ES_DATA;
-  } else if (ES_FILTER === 'helpline') {
-    list = ES_DATA.filter(s => s.category === 'helpline');
-  } else if (ES_FILTER === 'hospital') {
-    // Include both 'hospital' type and 'medical' type (e.g. Ambulance)
-    list = ES_DATA.filter(s => s.type === 'hospital' || s.type === 'medical');
-  } else {
-    list = ES_DATA.filter(s => s.type === ES_FILTER);
-  }
-
+  const list = _esFilterList();
   if (!list.length) {
-    el.innerHTML = '<div class="empty-state"><div class="icon">📋</div>No services for this filter</div>';
+    el.innerHTML = '<div class="empty-state"><div class="icon">📋</div>No contacts for this filter. Click + Add Contact to create one.</div>';
     return;
   }
 
   el.innerHTML = list.map(s => {
     const icon  = ES_ICONS[s.type] || '📋';
-    const catLbl = ES_CATEGORY_LABELS[s.category] || s.category;
-    const hasLoc = s.lat !== undefined;
+    const catLbl = ES_CATEGORY_LABELS[s.category] || s.category || '—';
+    const hasLoc = s.lat !== undefined && s.lat !== null && s.lon !== undefined && s.lon !== null;
     return `
       <div class="contact-card">
         <div class="contact-icon">${icon}</div>
         <div class="contact-info">
-          <div class="contact-name">${s.name}</div>
+          <div class="contact-name">${esEsc(s.name)}</div>
           <div class="contact-meta">
-            ${catLbl}
-            ${s.address ? ` · 📍 ${s.address}` : ''}
+            ${esEsc(catLbl)}
+            ${s.address ? ` · 📍 ${esEsc(s.address)}` : ''}
           </div>
-          ${hasLoc ? `<div class="contact-meta" style="font-size:10px;opacity:.6">${s.lat.toFixed(4)}, ${s.lon.toFixed(4)}</div>` : ''}
+          ${hasLoc ? `<div class="contact-meta" style="font-size:10px;opacity:.6">${(+s.lat).toFixed(4)}, ${(+s.lon).toFixed(4)}</div>` : ''}
         </div>
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
-          <a href="tel:${s.phone}" class="contact-phone" style="text-decoration:none">📞 ${s.phone}</a>
-          ${hasLoc
-            ? `<a href="https://maps.google.com/?q=${s.lat},${s.lon}" target="_blank"
-                  class="btn btn-cyan btn-xs" style="text-decoration:none">🗺️ Map</a>`
-            : ''}
+          <a href="tel:${esEsc(s.phone)}" class="contact-phone" style="text-decoration:none">📞 ${esEsc(s.phone||'—')}</a>
+          <div style="display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end">
+            ${hasLoc
+              ? `<a href="https://maps.google.com/?q=${s.lat},${s.lon}" target="_blank"
+                    class="btn btn-cyan btn-xs" style="text-decoration:none">🗺️ Map</a>`
+              : ''}
+            <button class="btn btn-gold btn-xs" onclick="openESModal('${s.id}')">✏️ Edit</button>
+            <button class="btn btn-red btn-xs" onclick="deleteES('${s.id}')">✕ Remove</button>
+          </div>
         </div>
       </div>`;
   }).join('');
+}
+
+// Minimal HTML-escaper for user-entered registry text.
+function esEsc(v) {
+  return String(v == null ? '' : v)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
 function filterES(btn, type) {
@@ -2039,6 +2031,116 @@ function filterES(btn, type) {
   if (bar) Array.from(bar.children).forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   renderEmergencyServices();
+}
+
+// ── Emergency Contact add/edit/delete ─────────────────────────────────────
+function openESModal(id) {
+  const titleEl = document.getElementById('es-modal-title');
+  const btnEl   = document.getElementById('es-submit-btn');
+  const set = (elId, val) => { const e = document.getElementById(elId); if (e) e.value = val; };
+  if (id) {
+    const s = ES_DATA.find(x => String(x.id) === String(id));
+    if (!s) { toast('Contact not found', 'error'); return; }
+    set('es-id', s.id);
+    set('es-name', s.name || '');
+    set('es-type', s.type || 'administration');
+    set('es-cat', s.category || 'other');
+    set('es-phone', s.phone || '');
+    set('es-addr', s.address || '');
+    set('es-lat', (s.lat ?? '') === null ? '' : (s.lat ?? ''));
+    set('es-lon', (s.lon ?? '') === null ? '' : (s.lon ?? ''));
+    if (titleEl) titleEl.textContent = 'Edit Emergency Contact';
+    if (btnEl) btnEl.textContent = '✓ Save Changes';
+  } else {
+    set('es-id', '');
+    set('es-name', ''); set('es-type', 'police'); set('es-cat', 'station');
+    set('es-phone', ''); set('es-addr', ''); set('es-lat', ''); set('es-lon', '');
+    if (titleEl) titleEl.textContent = 'Add Emergency Contact';
+    if (btnEl) btnEl.textContent = '✓ Add Contact';
+  }
+  openModal('modal-contact');
+}
+
+async function submitES() {
+  const id    = document.getElementById('es-id').value.trim();
+  const name  = document.getElementById('es-name').value.trim();
+  const phone = document.getElementById('es-phone').value.trim();
+  if (!name || !phone) { toast('Name and phone are required', 'error'); return; }
+  const fd = new FormData();
+  fd.append('name', name);
+  fd.append('type', document.getElementById('es-type').value);
+  fd.append('category', document.getElementById('es-cat').value);
+  fd.append('phone', phone);
+  fd.append('address', document.getElementById('es-addr').value || '');
+  const lat = document.getElementById('es-lat').value;
+  const lon = document.getElementById('es-lon').value;
+  if (lat !== '') fd.append('lat', lat);
+  if (lon !== '') fd.append('lon', lon);
+  try {
+    const path = id ? ('/emergency_services/' + id) : '/emergency_services';
+    const d = await api(path, { method: id ? 'PUT' : 'POST', body: fd });
+    if (d && d.success) {
+      toast(id ? '✅ Contact updated' : '✅ Contact added', 'success');
+      closeModal('modal-contact');
+      await renderEmergencyServices(true);   // reload from server
+    } else {
+      toast((d && d.detail) || 'Failed to save contact', 'error');
+    }
+  } catch(e) { toast('Failed to save contact', 'error'); }
+}
+
+async function deleteES(id) {
+  if (!confirm('Remove this emergency contact?')) return;
+  try {
+    const d = await api('/emergency_services/' + id, { method: 'DELETE' });
+    if (d && d.success) {
+      ES_DATA = ES_DATA.filter(s => String(s.id) !== String(id));
+      renderEmergencyServices();
+      refreshMap();
+      toast('✅ Contact removed', 'success');
+    } else {
+      toast((d && d.detail) || 'Failed to remove contact', 'error');
+    }
+  } catch(e) { toast('Failed to remove contact', 'error'); }
+}
+
+// ── MEDICAL FACILITIES ─────────────────────────────────────────────────────
+// MED_SEED mirrors the medical facilities the pilgrim (user) dashboard shows —
+// medical camps, government hospitals and private hospitals across the festival
+// area. It is used as a guaranteed fallback so the admin panel is never empty
+// even if the live /medical fetch and the WS INIT are both unavailable.
+const MED_SEED = [
+  { id:'mf01', name:'Medical Camp — Pushkar Ghat (Main)',          type:'medical_camp',        latitude:16.9855, longitude:81.7820, status:'active', beds:30,  doctor:'Dr. B. Ramaiah (Duty)',      phone:'9848011111', zone:'Zone A' },
+  { id:'mf02', name:'Medical Camp — Rajamahendravaram Ghat',       type:'medical_camp',        latitude:16.9828, longitude:81.7892, status:'active', beds:20,  doctor:'Dr. K. Srinivas (Duty)',     phone:'9848022222', zone:'Zone A' },
+  { id:'mf03', name:'Medical Camp — Dowleswaram Barrage Ghat',     type:'medical_camp',        latitude:16.9391, longitude:81.8053, status:'active', beds:25,  doctor:'Dr. S. Padmavathi (Duty)',   phone:'9848033333', zone:'Zone B' },
+  { id:'mf04', name:'Medical Camp — Innispeta Ghat',               type:'medical_camp',        latitude:16.9905, longitude:81.7745, status:'active', beds:15,  doctor:'Dr. V. Rao (Duty)',          phone:'9848044444', zone:'Zone A' },
+  { id:'mf05', name:'Medical Camp — Havelock Bridge Ghat',         type:'medical_camp',        latitude:16.9870, longitude:81.7805, status:'active', beds:20,  doctor:'Dr. M. Lakshmi (Duty)',      phone:'9848055555', zone:'Zone A' },
+  { id:'mf06', name:'Medical Camp — Antarvedi Ghat',               type:'medical_camp',        latitude:16.5920, longitude:82.2314, status:'active', beds:20,  doctor:'Dr. R. Suresh (Duty)',       phone:'9848066666', zone:'Zone D' },
+  { id:'mf07', name:'Medical Camp — Kotipalli Ghat',               type:'medical_camp',        latitude:16.5320, longitude:81.9850, status:'active', beds:15,  doctor:'Dr. T. Naidu (Duty)',        phone:'9848077777', zone:'Zone C' },
+  { id:'mf08', name:'Medical Camp — Alamuru Ghat',                 type:'medical_camp',        latitude:16.7800, longitude:81.8950, status:'active', beds:15,  doctor:'Dr. P. Rani (Duty)',         phone:'9848088888', zone:'Zone B' },
+  { id:'mf09', name:'Government General Hospital (GGH) Rajahmundry',type:'government_hospital', latitude:16.9832, longitude:81.7738, status:'active', beds:600, doctor:'Dr. Ch. Venkataramaiah (MS)',phone:'0883-2435622', zone:'Central' },
+  { id:'mf10', name:'Area Hospital Rajahmundry',                   type:'government_hospital', latitude:16.9798, longitude:81.7800, status:'active', beds:200, doctor:'Dr. Suresh Babu (Supt.)',    phone:'0883-2461220', zone:'Central' },
+  { id:'mf11', name:'Community Health Centre — Dowleswaram',       type:'government_hospital', latitude:16.9385, longitude:81.8048, status:'active', beds:50,  doctor:'Dr. A. Lakshmi (MO)',        phone:'0883-2461315', zone:'Zone B' },
+  { id:'mf12', name:'PHC — Rajahmundry Rural',                     type:'government_hospital', latitude:16.9750, longitude:81.7920, status:'active', beds:30,  doctor:'Dr. K. Prasad (MO)',         phone:'0883-2426700', zone:'Zone A' },
+  { id:'mf13', name:'Govt. AYUSH Hospital Rajahmundry',            type:'government_hospital', latitude:16.9820, longitude:81.7750, status:'active', beds:60,  doctor:'Dr. V. Srikanth',            phone:'0883-2436100', zone:'Central' },
+  { id:'mf14', name:'GSL Medical College & General Hospital',      type:'private_hospital',    latitude:16.9615, longitude:81.7672, status:'active', beds:1000,doctor:'Dr. Srinivasa Rao (Director)',phone:'0883-2464646', zone:'South Zone' },
+  { id:'mf15', name:'Lalitha Super Specialities Hospital',         type:'private_hospital',    latitude:16.9822, longitude:81.7778, status:'active', beds:200, doctor:'Dr. P. Rama Rao',            phone:'0883-2451234', zone:'Central' },
+  { id:'mf16', name:'Rajahmundry Institute of Medical Sciences (RIMS)',type:'private_hospital',latitude:16.9788, longitude:81.7855, status:'active', beds:300, doctor:'Dr. K. Anjaneyulu',          phone:'0883-2463000', zone:'Central' },
+  { id:'mf17', name:'Seven Hills Hospital Rajahmundry',            type:'private_hospital',    latitude:16.9758, longitude:81.7835, status:'active', beds:150, doctor:'Dr. S. Murthy',              phone:'0883-2471000', zone:'Central' },
+];
+
+// Fetch the live medical list; fall back to MED_SEED so the panel + filters
+// always have data to work with.
+async function loadMedical() {
+  try {
+    const d = await api('/medical');
+    const list = (d && d.medical_facilities) ? d.medical_facilities : [];
+    S.medical = list.length ? list : MED_SEED.slice();
+  } catch(e) {
+    if (!S.medical || !S.medical.length) S.medical = MED_SEED.slice();
+  }
+  renderMedical();
+  if (mapInited) refreshMap();
 }
 
 function renderMedical() {
@@ -2147,22 +2249,13 @@ async function markFound(pid) {
   }
 }
 
-async function deleteContact(id) {
-  if (!confirm('Remove this contact?')) return;
-  try {
-    await api('/contacts/' + id, {method:'DELETE'});
-    S.contacts = S.contacts.filter(c=>c.id!==id);
-    renderContacts();
-    toast('✅ Contact removed', 'success');
-  } catch(e) { toast('Failed to delete contact', 'error'); }
-}
-
 async function deleteMedical(id) {
   if (!confirm('Remove this facility?')) return;
   try {
     await api('/medical/' + id, {method:'DELETE'});
     S.medical = S.medical.filter(f=>f.id!==id);
     renderMedical();
+    if (mapInited) refreshMap();
     toast('✅ Facility removed', 'success');
   } catch(e) { toast('Failed to delete', 'error'); }
 }
@@ -2178,7 +2271,6 @@ function filterSOS(btn, f) { S.sosFilter=f; setFilter(btn.parentNode.children, b
 function filterIssues(btn, f) { S.issueFilter=f; setFilter(btn.parentNode.children, btn); renderIssues(); }
 function filterLost(btn, f) { S.lostFilter=f; setFilter(btn.parentNode.children, btn); renderLost(); }
 function filterVols(btn, f) { S.volFilter=f; setFilter(btn.parentNode.children, btn); renderVolunteers(); }
-function filterContacts(btn, f) { S.contactFilter=f; setFilter(btn.parentNode.children, btn); renderContacts(); }
 function filterMed(btn, f) { S.medFilter=f; setFilter(btn.parentNode.children, btn); renderMedical(); }
 
 // ═══════════════════════════════════════════════════
@@ -2187,7 +2279,6 @@ function filterMed(btn, f) { S.medFilter=f; setFilter(btn.parentNode.children, b
 function openModal(id) { document.getElementById(id).classList.add('open'); }
 function closeModal(id) { document.getElementById(id).classList.remove('open'); }
 function openLostModal() { openModal('modal-lost'); }
-function openContactModal() { openModal('modal-contact'); }
 function openMedModal() { openModal('modal-med'); }
 
 // openAssignModal and submitAssignSOS removed — volunteer assignment is handled
@@ -2225,30 +2316,6 @@ async function submitLost() {
       renderLost(); updateTopbar();
     }
   } catch(e) { toast('Failed to register', 'error'); }
-}
-
-async function submitContact() {
-  const name = document.getElementById('c-name').value.trim();
-  const phone = document.getElementById('c-phone').value.trim();
-  const desig = document.getElementById('c-desig').value.trim();
-  const dept = document.getElementById('c-dept').value.trim();
-  if (!name||!phone||!desig||!dept) { toast('Fill required fields', 'error'); return; }
-  const fd = new FormData();
-  fd.append('name', name); fd.append('designation', desig); fd.append('department', dept);
-  fd.append('phone', phone); fd.append('category', document.getElementById('c-cat').value);
-  fd.append('address', document.getElementById('c-addr').value||'');
-  fd.append('latitude', document.getElementById('c-lat').value||16.98);
-  fd.append('longitude', document.getElementById('c-lon').value||81.78);
-  try {
-    const d = await api('/contacts', {method:'POST', body:fd});
-    if (d.success) {
-      toast('✅ Contact added', 'success');
-      closeModal('modal-contact');
-      const r = await api('/contacts');
-      S.contacts = r.contacts || [];
-      renderContacts();
-    }
-  } catch(e) { toast('Failed to add contact', 'error'); }
 }
 
 async function submitMedical() {
@@ -2358,7 +2425,7 @@ function _refreshCmdCounts() {
   setC('vols',     (S.volunteers||[]).length);
   setC('sos',      (S.sos_alerts||[]).filter(a=>a.status==='active').length);
   setC('medical',  (S.medical||[]).length);
-  setC('contacts', (S.contacts||[]).length);
+  setC('contacts', (typeof ES_DATA !== 'undefined' ? ES_DATA : []).filter(s=>s.lat!=null&&s.lon!=null).length);
   setC('lost',     (S.lost||[]).filter(p=>p.status==='missing').length);
 }
 
@@ -2520,11 +2587,11 @@ function refreshMap() {
     markers.medical.push(m);
   });
 
-  if (_cmdLayer.contacts) S.contacts.forEach(c=>{
-    if (!c.latitude || !c.longitude) return;
-    const m = L.marker([c.latitude, c.longitude], {icon:makeIcon('#aa44ff','📞')})
+  if (_cmdLayer.contacts) ES_DATA.forEach(c=>{
+    if (c.lat == null || c.lon == null) return;
+    const m = L.marker([c.lat, c.lon], {icon:makeIcon('#aa44ff','📞')})
       .addTo(map)
-      .bindPopup(`<b>${c.name}</b><br>${c.designation}<br>📞 ${c.phone}`);
+      .bindPopup(`<b>${esEsc(c.name)}</b><br>${esEsc(ES_CATEGORY_LABELS[c.category]||c.category||'')}<br>📞 ${esEsc(c.phone||'—')}`);
     markers.contacts.push(m);
   });
 
