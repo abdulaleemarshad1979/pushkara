@@ -1264,7 +1264,8 @@ function _onVolBroadcast(d) {
              : cat === 'weather' ? '🌧️'
              : '📣';
   if (typeof toast === 'function') {
-    toast(`${icon} ${d.title || 'Command Centre'}`, d.message, cat === 'evacuation' || cat === 'safety' ? 't-sos' : 't-issue');
+    // Admin broadcasts appear instantly (over WS) and stay visible for 10 seconds.
+    toast(`${icon} ${d.title || 'Command Centre'}`, d.message, cat === 'evacuation' || cat === 'safety' ? 't-sos' : 't-issue', 10000);
   }
   if (typeof playAlert === 'function' && (cat === 'safety' || cat === 'evacuation')) playAlert(900);
 }
@@ -1992,13 +1993,13 @@ function switchSection(sec) {
 }
 
 // ─── TOAST ────────────────────────────────────────────────────────────────────
-function toast(title, body, type = '') {
+function toast(title, body, type = '', duration = 5000) {
   const stack = document.getElementById('toast-stack');
   const el = document.createElement('div');
   el.className = `toast-item ${type}`;
   el.innerHTML = `<div style="font-size:1.3rem;flex-shrink:0">${type==='t-sos'?'🆘':type==='t-success'?'✅':type==='t-error'?'❌':'📋'}</div><div><div class="toast-title">${title}</div><div class="toast-body">${body}</div></div>`;
   stack.appendChild(el);
-  setTimeout(() => { el.style.opacity='0'; el.style.transform='translateX(16px)'; el.style.transition='all 0.3s'; setTimeout(()=>el.remove(),300); }, 5000);
+  setTimeout(() => { el.style.opacity='0'; el.style.transform='translateX(16px)'; el.style.transition='all 0.3s'; setTimeout(()=>el.remove(),300); }, duration);
 }
 
 // ─── AUDIO ALERT ──────────────────────────────────────────────────────────────
@@ -2020,6 +2021,39 @@ document.getElementById('login-password').addEventListener('keydown', e => { if 
 
 // ─── AUTO REFRESH ──────────────────────────────────────────────────────────────
 setInterval(() => { if (currentVol) loadAll(); }, 30000);
+
+// ─── PERIODIC GHAT CROWD STATUS POPUP ───────────────────────────────────────────
+// Every 60s, surface a quick snapshot of all ghat crowd levels for ~6s so
+// volunteers get a recurring at-a-glance picture without opening the map.
+function _crowdStatusSummary(ghats) {
+  if (!ghats || !ghats.length) return null;
+  const counts = { critical: 0, high: 0, medium: 0, low: 0 };
+  ghats.forEach(g => {
+    const lv = (g.crowd_level || 'low').toLowerCase();
+    if (counts[lv] !== undefined) counts[lv]++;
+  });
+  const order = { critical: 0, high: 1, medium: 2, low: 3 };
+  const busiest = [...ghats]
+    .sort((a, b) => (order[(a.crowd_level || '').toLowerCase()] ?? 9) - (order[(b.crowd_level || '').toLowerCase()] ?? 9))
+    .filter(g => ['critical', 'high'].includes((g.crowd_level || '').toLowerCase()))
+    .slice(0, 3).map(g => g.name).filter(Boolean);
+  const parts = [];
+  if (counts.critical) parts.push(`🟣 ${counts.critical} critical`);
+  if (counts.high)     parts.push(`🔴 ${counts.high} high`);
+  if (counts.medium)   parts.push(`🟡 ${counts.medium} moderate`);
+  if (counts.low)      parts.push(`🟢 ${counts.low} low`);
+  let body = parts.join(' · ');
+  if (busiest.length) body += `<br>Busiest: ${busiest.join(', ')}`;
+  return body;
+}
+function showGhatCrowdStatus() {
+  if (!currentVol) return;
+  const body = _crowdStatusSummary(allGhats);
+  if (!body) return;
+  // 6s display sits within the 5–7s window.
+  toast('🌊 Ghat Crowd Status', body, 't-issue', 6000);
+}
+setInterval(showGhatCrowdStatus, 60000);
 
 // ─── WS CLIENT HEARTBEAT ───────────────────────────────────────────────────────
 // Sends a ping every 25 s so Render's 55 s idle-disconnect never triggers.

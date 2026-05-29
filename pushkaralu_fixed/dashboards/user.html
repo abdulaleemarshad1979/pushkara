@@ -3989,11 +3989,11 @@ async function triggerSOS(){
 }
 
 // ═══ TOAST ════════════════════════════════════════════════════
-function toast(title,body,type=''){
+function toast(title,body,type='',duration=5000){
   const s=document.getElementById('ts');const el=document.createElement('div');
   el.className=`toast ${type}`;
   el.innerHTML=`<div style="font-size:1.2rem;flex-shrink:0">${type==='sos'?'🆘':type==='ok'?'✅':type==='err'?'❌':'ℹ️'}</div><div><div style="font-weight:700;font-size:13px;margin-bottom:2px">${title}</div>${body?`<div style="font-size:11px;color:var(--t3);line-height:1.4">${body}</div>`:''}</div>`;
-  s.appendChild(el);setTimeout(()=>{el.style.opacity='0';el.style.transform='translateX(16px)';el.style.transition='all .3s';setTimeout(()=>el.remove(),300);},5000);
+  s.appendChild(el);setTimeout(()=>{el.style.opacity='0';el.style.transform='translateX(16px)';el.style.transition='all .3s';setTimeout(()=>el.remove(),300);},duration);
 }
 function beep(){try{const c=new AudioContext();const o=c.createOscillator();const g=c.createGain();o.connect(g);g.connect(c.destination);o.frequency.value=880;g.gain.setValueAtTime(.15,c.currentTime);g.gain.exponentialRampToValueAtTime(.001,c.currentTime+.8);o.start();o.stop(c.currentTime+.8);}catch(e){}}
 function ago(ts){const s=Math.floor((Date.now()-new Date(ts).getTime())/1000);if(s<60)return s+'s ago';if(s<3600)return Math.floor(s/60)+'m ago';if(s<86400)return Math.floor(s/3600)+'h ago';return Math.floor(s/86400)+'d ago';}
@@ -5437,6 +5437,39 @@ function handleUserWSMessage(msg) {
 // Start WS connection after a short delay (don't block first paint)
 setTimeout(connectUserWS, 3000);
 
+// ─── PERIODIC GHAT CROWD STATUS POPUP ─────────────────────────────
+// Every 60s, surface a quick snapshot of all ghat crowd levels for ~6s
+// so pilgrims get a recurring at-a-glance picture without opening the map.
+function _crowdStatusSummary(ghats){
+  if(!ghats || !ghats.length) return null;
+  const counts = { critical:0, high:0, medium:0, low:0 };
+  ghats.forEach(g => {
+    const lv = (g.crowd_level || 'low').toLowerCase();
+    if(counts[lv] !== undefined) counts[lv]++;
+  });
+  const order = { critical:0, high:1, medium:2, low:3 };
+  const busiest = [...ghats]
+    .sort((a,b) => (order[(a.crowd_level||'').toLowerCase()] ?? 9) - (order[(b.crowd_level||'').toLowerCase()] ?? 9))
+    .filter(g => ['critical','high'].includes((g.crowd_level||'').toLowerCase()))
+    .slice(0,3).map(g => g.name).filter(Boolean);
+  const parts = [];
+  if(counts.critical) parts.push(`🟣 ${counts.critical} critical`);
+  if(counts.high)     parts.push(`🔴 ${counts.high} high`);
+  if(counts.medium)   parts.push(`🟡 ${counts.medium} moderate`);
+  if(counts.low)      parts.push(`🟢 ${counts.low} low`);
+  let body = parts.join(' · ');
+  if(busiest.length) body += `<br>Busiest: ${busiest.join(', ')}`;
+  return body;
+}
+function showGhatCrowdStatus(){
+  if(document.hidden) return;             // don't pop while tab is backgrounded
+  const body = _crowdStatusSummary(window.allGhats || allGhats);
+  if(!body) return;
+  // 6s display sits within the 5–7s window.
+  if(typeof toast === 'function') toast('🌊 Ghat Crowd Status', body, 'info', 6000);
+}
+setInterval(showGhatCrowdStatus, 60000);
+
 // ─── BROADCAST + SAFETY ALERT HANDLERS (Phase 2 / Phase 3) ────────
 // Sticky safety banners are rendered into #safety-banner-stack and persisted
 // in localStorage so they survive page reloads / offline. Per-user dismissals
@@ -5507,23 +5540,20 @@ function _onBroadcast(d){
   if(!d || !d.message) return;
   const tgt = (d.target || 'all').toLowerCase();
   if(tgt.startsWith('volunteer:')) return; // pilgrim ignores per-volunteer targets
-  const cat = d.category || 'info';
-  if(cat === 'safety' || cat === 'warning' || cat === 'evacuation' || cat === 'weather'){
-    const sev = (cat === 'evacuation') ? 'evacuation' : 'warning';
-    _onSafetyAlert({
-      id:        d.id || ('bc-' + Date.now()),
-      title:     d.title || 'Notice',
-      message:   d.message,
-      severity:  sev,
-      location:  '',
-      issued_at: d.ts || new Date().toISOString(),
-      expires_at: new Date(Date.now() + 30*60*1000).toISOString(),
-      active:    true,
-    });
-  } else {
-    if(typeof toast === 'function'){
-      toast(d.title || 'Notice', d.message, 'info');
-    }
+  const cat = (d.category || 'info').toLowerCase();
+  const icon = (cat === 'safety' || cat === 'evacuation') ? '🚨'
+             : cat === 'warning' ? '⚠️'
+             : cat === 'weather' ? '🌧️'
+             : '📣';
+  const type = (cat === 'safety' || cat === 'evacuation') ? 'sos'
+             : cat === 'warning' ? 'err'
+             : 'info';
+  // Admin broadcasts arrive instantly over WebSocket and stay visible for 10s.
+  if(typeof toast === 'function'){
+    toast(`${icon} ${d.title || 'Notice'}`, d.message, type, 10000);
+  }
+  if(cat === 'safety' || cat === 'evacuation'){
+    try { if(navigator.vibrate) navigator.vibrate([120, 60, 120]); } catch(e) {}
   }
 }
 (function _bootSafetyAlerts(){
