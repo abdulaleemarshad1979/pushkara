@@ -745,8 +745,9 @@ select.level-select{ font-size: 12px; padding: 5px 10px; }
     </div>
     <div class="filter-bar">
       <button class="filter-btn active" onclick="filterContacts(this,'all')">All</button>
-      <button class="filter-btn" onclick="filterContacts(this,'police_station')">🚔 Police</button>
-      <button class="filter-btn" onclick="filterContacts(this,'government_hospital')">🏥 Hospitals</button>
+      <button class="filter-btn" onclick="filterContacts(this,'police')">🚔 Police</button>
+      <button class="filter-btn" onclick="filterContacts(this,'hospital')">🏥 Hospitals</button>
+      <button class="filter-btn" onclick="filterContacts(this,'government')">🏛️ Govt Officials</button>
       <button class="filter-btn" onclick="filterContacts(this,'emergency_help_desk')">🆘 Help Desk</button>
     </div>
     <div id="contacts-list"></div>
@@ -1284,12 +1285,8 @@ function handleWS(msg) {
       }
       renderGhats(); renderOverview(); updateTopbar();
       if (mapInited) refreshMap();
-      if (msg.data.level === 'high' || msg.data.level === 'critical') {
-        toast('🌊 ' + (msg.data.name||'Ghat') + ' → ' + msg.data.level.toUpperCase(), 'info');
-      }
       break;
     case 'SURGE_ALERT':
-      toast('🚨 SURGE: ' + (msg.data.name||'Ghat') + ' — crowd rising rapidly!', 'error');
       break;
     case 'LOST_REGISTERED':
       S.lost.unshift(msg.data);
@@ -1878,7 +1875,13 @@ function renderVolunteers() {
 function renderContacts() {
   const el = document.getElementById('contacts-list');
   let list = S.contacts;
-  if (S.contactFilter !== 'all') list = list.filter(c=>c.category===S.contactFilter);
+  if (S.contactFilter !== 'all') {
+    const f = S.contactFilter;
+    if (f === 'police')     list = list.filter(c => c.category === 'police_station' || c.category === 'police_officer');
+    else if (f === 'hospital')   list = list.filter(c => c.category === 'government_hospital');
+    else if (f === 'government') list = list.filter(c => c.category === 'government_official');
+    else                         list = list.filter(c => c.category === f);
+  }
   el.innerHTML = list.length ? list.map(c=>`
     <div class="contact-card">
       <div class="contact-icon">${catIcon(c.category)}</div>
@@ -1924,11 +1927,17 @@ async function renderEmergencyServices() {
     }
   }
 
-  let list = ES_FILTER === 'all'
-    ? ES_DATA
-    : ES_FILTER === 'helpline'
-      ? ES_DATA.filter(s => s.category === 'helpline')
-      : ES_DATA.filter(s => s.type === ES_FILTER);
+  let list;
+  if (ES_FILTER === 'all') {
+    list = ES_DATA;
+  } else if (ES_FILTER === 'helpline') {
+    list = ES_DATA.filter(s => s.category === 'helpline');
+  } else if (ES_FILTER === 'hospital') {
+    // Include both 'hospital' type and 'medical' type (e.g. Ambulance)
+    list = ES_DATA.filter(s => s.type === 'hospital' || s.type === 'medical');
+  } else {
+    list = ES_DATA.filter(s => s.type === ES_FILTER);
+  }
 
   if (!list.length) {
     el.innerHTML = '<div class="empty-state"><div class="icon">📋</div>No services for this filter</div>';
@@ -1972,20 +1981,21 @@ function filterES(btn, type) {
 
 function renderMedical() {
   const el = document.getElementById('medical-list');
-  let list = S.medical;
-  if (S.medFilter !== 'all') list = list.filter(f=>f.type===S.medFilter);
+  // Normalize: support both 'type' and 'facility_type' field names
+  let list = S.medical.map(f => ({ ...f, _type: f.type || f.facility_type || '' }));
+  if (S.medFilter !== 'all') list = list.filter(f => f._type === S.medFilter);
   const typeIcon = t => ({medical_camp:'⛺',government_hospital:'🏛️',private_hospital:'🏥'}[t]||'🏥');
   const typeClass = t => ({medical_camp:'med-type-camp',government_hospital:'med-type-govt',private_hospital:'med-type-private'}[t]||'');
   el.innerHTML = list.length ? list.map(f=>`
     <div class="med-card">
-      <div class="med-icon ${typeClass(f.type)}">${typeIcon(f.type)}</div>
+      <div class="med-icon ${typeClass(f._type)}">${typeIcon(f._type)}</div>
       <div class="contact-info">
         <div class="contact-name">${f.name}</div>
-        <div class="contact-meta">${f.type.replace(/_/g,' ')} · Zone: ${f.zone||'—'} · Beds: ${f.beds||'—'}</div>
+        <div class="contact-meta">${(f._type||'facility').replace(/_/g,' ')} · Zone: ${f.zone||'—'} · Beds: ${f.beds||'—'}</div>
         <div class="contact-meta">👨‍⚕️ ${f.doctor||'—'} &nbsp;|&nbsp; 📞 ${f.phone||'—'}</div>
       </div>
       <div>
-        <span class="level-badge ${f.status==='active'?'level-low':'level-high'}">${f.status}</span>
+        <span class="level-badge ${f.status==='active'?'level-low':'level-high'}">${f.status||'active'}</span>
         <button class="btn btn-red btn-xs" style="margin-top:6px;display:block" onclick="deleteMedical('${f.id}')">✕ Remove</button>
       </div>
     </div>`).join('') : '<div class="empty-state"><div class="icon">🏥</div>No facilities found</div>';
