@@ -642,7 +642,7 @@ async def metrics():
 def root():
     return {"message": "Godavari Pushkaralu 2027 API", "version": "8.0.0",
             "instance": INSTANCE_ID, "location": "Rajahmundry, East Godavari",
-            "festival_dates": "July 11-22, 2027"}
+            "festival_dates": "June 26 - July 7, 2027"}
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # Authentication endpoints
