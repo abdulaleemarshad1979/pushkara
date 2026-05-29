@@ -784,7 +784,7 @@ body.dark-mode .time-ago{
         </button>
         <button class="theme-toggle" id="theme-toggle" onclick="toggleTheme()" title="Toggle Dark/Light Mode">🌓</button>
         <button class="btn-logout" onclick="doLogout()">⬅ Logout</button>
-        <a href="https://pushkara.vercel.app" class="a-href-vol" style="background:rgba(255,107,0,0.2);border:1px solid var(--saffron);color:var(--gold-light);padding:6px 12px;border-radius:3px;font-size:12px;font-weight:600;text-decoration:none;" target="_blank">🙏 Pilgrim Portal</a>
+        <a href="user.html" class="a-href-vol" style="background:rgba(255,107,0,0.2);border:1px solid var(--saffron);color:var(--gold-light);padding:6px 12px;border-radius:3px;font-size:12px;font-weight:600;text-decoration:none;" target="_blank">🙏 Pilgrim Portal</a>
       </div>
     </div>
 
@@ -1187,10 +1187,6 @@ function handleWS(msg) {
     case 'CROWD_UPDATE': {
       const gi = allGhats ? allGhats.findIndex(g => g.id === msg.data.ghat_id) : -1;
       if (gi >= 0) allGhats[gi].crowd_level = msg.data.level;
-      // Only toast for HIGH/CRITICAL crowd — not every ghat update (too noisy)
-      if (msg.data.level === 'high' || msg.data.level === 'critical') {
-        toast('🌊 Crowd Alert', `${msg.data.name || 'Ghat'} → ${msg.data.level.toUpperCase()}`, 't-issue');
-      }
       break;
     }
     case 'LOST_REGISTERED':
@@ -2022,38 +2018,7 @@ document.getElementById('login-password').addEventListener('keydown', e => { if 
 // ─── AUTO REFRESH ──────────────────────────────────────────────────────────────
 setInterval(() => { if (currentVol) loadAll(); }, 30000);
 
-// ─── PERIODIC GHAT CROWD STATUS POPUP ───────────────────────────────────────────
-// Every 60s, surface a quick snapshot of all ghat crowd levels for ~6s so
-// volunteers get a recurring at-a-glance picture without opening the map.
-function _crowdStatusSummary(ghats) {
-  if (!ghats || !ghats.length) return null;
-  const counts = { critical: 0, high: 0, medium: 0, low: 0 };
-  ghats.forEach(g => {
-    const lv = (g.crowd_level || 'low').toLowerCase();
-    if (counts[lv] !== undefined) counts[lv]++;
-  });
-  const order = { critical: 0, high: 1, medium: 2, low: 3 };
-  const busiest = [...ghats]
-    .sort((a, b) => (order[(a.crowd_level || '').toLowerCase()] ?? 9) - (order[(b.crowd_level || '').toLowerCase()] ?? 9))
-    .filter(g => ['critical', 'high'].includes((g.crowd_level || '').toLowerCase()))
-    .slice(0, 3).map(g => g.name).filter(Boolean);
-  const parts = [];
-  if (counts.critical) parts.push(`🟣 ${counts.critical} critical`);
-  if (counts.high)     parts.push(`🔴 ${counts.high} high`);
-  if (counts.medium)   parts.push(`🟡 ${counts.medium} moderate`);
-  if (counts.low)      parts.push(`🟢 ${counts.low} low`);
-  let body = parts.join(' · ');
-  if (busiest.length) body += `<br>Busiest: ${busiest.join(', ')}`;
-  return body;
-}
-function showGhatCrowdStatus() {
-  if (!currentVol) return;
-  const body = _crowdStatusSummary(allGhats);
-  if (!body) return;
-  // 6s display sits within the 5–7s window.
-  toast('🌊 Ghat Crowd Status', body, 't-issue', 6000);
-}
-setInterval(showGhatCrowdStatus, 60000);
+
 
 // ─── WS CLIENT HEARTBEAT ───────────────────────────────────────────────────────
 // Sends a ping every 25 s so Render's 55 s idle-disconnect never triggers.
