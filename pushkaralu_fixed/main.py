@@ -44,7 +44,13 @@ from fastapi.staticfiles import StaticFiles
 import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from state.emergency_services import EMERGENCY_SERVICES, AMBULANCE_NUMBER, FIRE_NUMBER, POLICE_NUMBER
+from state.emergency_services import (
+    EMERGENCY_SERVICES, AMBULANCE_NUMBER, FIRE_NUMBER, POLICE_NUMBER,
+    add_service as es_add_service,
+    update_service as es_update_service,
+    delete_service as es_delete_service,
+    get_service as es_get_service,
+)
 from services.emergency_service import (
     find_nearest_police, find_nearest_hospital, get_all_services_by_category,
 )
@@ -2108,6 +2114,73 @@ def list_emergency_services(service_type: Optional[str] = None, category: Option
 @app.get("/emergency_services/grouped")
 def grouped_emergency_services():
     return {"grouped": get_all_services_by_category()}
+
+
+# ── Emergency Services Registry — admin CRUD ─────────────────────────────────
+# The registry is the single, authoritative "Emergency Contacts" dataset shown
+# in the admin portal. These routes let government officials manage it from the
+# UI (X-Admin-Key) or a volunteer JWT. Mutations are in-memory + broadcast over
+# WS so connected dashboards update live.
+
+@app.post("/emergency_services")
+async def create_emergency_service(
+    name: str = Form(...),
+    type: str = Form(default="administration"),
+    category: str = Form(default="other"),
+    phone: str = Form(default=""),
+    address: str = Form(default=""),
+    lat: Optional[float] = Form(default=None),
+    lon: Optional[float] = Form(default=None),
+    _auth: dict = Depends(require_volunteer_or_admin),
+):
+    svc = es_add_service({
+        "name": name, "type": type, "category": category,
+        "phone": phone, "address": address, "lat": lat, "lon": lon,
+    })
+    await _broadcast_event(
+        {"type": "ES_ADDED", "data": svc},
+        label="EmergencyService",
+    )
+    return {"success": True, "service": svc}
+
+
+@app.put("/emergency_services/{sid}")
+async def edit_emergency_service(
+    sid: int,
+    name: Optional[str] = Form(default=None),
+    type: Optional[str] = Form(default=None),
+    category: Optional[str] = Form(default=None),
+    phone: Optional[str] = Form(default=None),
+    address: Optional[str] = Form(default=None),
+    lat: Optional[float] = Form(default=None),
+    lon: Optional[float] = Form(default=None),
+    _auth: dict = Depends(require_volunteer_or_admin),
+):
+    svc = es_update_service(sid, {
+        "name": name, "type": type, "category": category,
+        "phone": phone, "address": address, "lat": lat, "lon": lon,
+    })
+    if svc is None:
+        raise HTTPException(status_code=404, detail="Emergency service not found")
+    await _broadcast_event(
+        {"type": "ES_UPDATED", "data": svc},
+        label="EmergencyService",
+    )
+    return {"success": True, "service": svc}
+
+
+@app.delete("/emergency_services/{sid}")
+async def remove_emergency_service(
+    sid: int,
+    _auth: dict = Depends(require_volunteer_or_admin),
+):
+    if not es_delete_service(sid):
+        raise HTTPException(status_code=404, detail="Emergency service not found")
+    await _broadcast_event(
+        {"type": "ES_DELETED", "data": {"id": sid}},
+        label="EmergencyService",
+    )
+    return {"success": True}
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # TourGo Explorer  (unchanged)

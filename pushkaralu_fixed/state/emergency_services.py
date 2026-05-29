@@ -1,10 +1,19 @@
 # ═══════════════════════════════════════════════════════════════════
 # Godavari Pushkaralu 2027 — Emergency Services Registry
 # Central dataset for all emergency services in Rajahmundry / East Godavari
-# READ-ONLY — never mutate at runtime; treated like a seed file
+#
+# Runtime-mutable store. The list below is the SEED; the admin portal can
+# add / edit / delete entries at runtime through the CRUD helpers at the
+# bottom of this module (add_service / update_service / delete_service).
+#
+# NOTE: mutations are in-memory and process-local (consistent with how this
+# registry has always been loaded — there is no dedicated Postgres table).
+# Edits are reset on process restart and are not synced across instances.
 # ═══════════════════════════════════════════════════════════════════
 
-EMERGENCY_SERVICES = [
+from typing import List, Optional
+
+EMERGENCY_SERVICES: List[dict] = [
 
     # ── NATIONAL HELPLINES (no lat/lon — phone-only) ──────────────
     {"id": 1,  "name": "National Emergency",              "type": "police",         "category": "helpline",   "phone": "112"},
@@ -64,12 +73,105 @@ EMERGENCY_SERVICES = [
      "address": "Collectorate, Kakinada"},
 ]
 
-# Convenience lookups
-HELPLINES     = [s for s in EMERGENCY_SERVICES if s["category"] == "helpline"]
-POLICE        = [s for s in EMERGENCY_SERVICES if s["type"] == "police"   and "lat" in s]
-HOSPITALS     = [s for s in EMERGENCY_SERVICES if s["type"] == "hospital" and "lat" in s]
-FIRE_STATIONS = [s for s in EMERGENCY_SERVICES if s["type"] == "fire"     and "lat" in s]
-ALL_LOCATED   = [s for s in EMERGENCY_SERVICES if "lat" in s]
+# ─────────────────────────────────────────────────────────────────────
+# Dynamic accessors
+# These are computed on every call (not snapshotted at import) so that
+# runtime add/edit/delete operations are immediately reflected everywhere
+# — find_nearest_*, the grouped view, and the public /emergency_services API.
+# ─────────────────────────────────────────────────────────────────────
+
+def list_services() -> List[dict]:
+    """Return the live list of all emergency services."""
+    return EMERGENCY_SERVICES
+
+
+def helplines() -> List[dict]:
+    return [s for s in EMERGENCY_SERVICES if s.get("category") == "helpline"]
+
+
+def located_services(service_type: Optional[str] = None) -> List[dict]:
+    """All services that have coordinates, optionally filtered by type."""
+    out = [s for s in EMERGENCY_SERVICES if "lat" in s and "lon" in s]
+    if service_type:
+        out = [s for s in out if s.get("type") == service_type]
+    return out
+
+
+# ─────────────────────────────────────────────────────────────────────
+# CRUD helpers (used by the admin portal via main.py endpoints)
+# ─────────────────────────────────────────────────────────────────────
+
+# Allowed values — kept permissive but documented so the UI and API agree.
+SERVICE_TYPES      = ("police", "hospital", "medical", "fire", "administration")
+SERVICE_CATEGORIES = ("helpline", "station", "control", "medical",
+                       "emergency", "government", "other")
+
+
+def _next_id() -> int:
+    """Next integer id (max existing + 1, min 1)."""
+    existing = [int(s["id"]) for s in EMERGENCY_SERVICES
+                if isinstance(s.get("id"), (int, str)) and str(s.get("id")).isdigit()]
+    return (max(existing) + 1) if existing else 1
+
+
+def get_service(service_id) -> Optional[dict]:
+    try:
+        sid = int(service_id)
+    except (TypeError, ValueError):
+        return None
+    return next((s for s in EMERGENCY_SERVICES if int(s["id"]) == sid), None)
+
+
+def _clean(fields: dict) -> dict:
+    """Keep only the known, non-empty service fields with correct types."""
+    out: dict = {}
+    for key in ("name", "type", "category", "phone", "address"):
+        val = fields.get(key)
+        if val is not None and str(val).strip() != "":
+            out[key] = str(val).strip()
+    for key in ("lat", "lon"):
+        val = fields.get(key)
+        if val is not None and str(val).strip() != "":
+            try:
+                out[key] = float(val)
+            except (TypeError, ValueError):
+                pass
+    return out
+
+
+def add_service(fields: dict) -> dict:
+    """Create a new service entry and return it."""
+    data = _clean(fields)
+    data["id"] = _next_id()
+    data.setdefault("type", "administration")
+    data.setdefault("category", "other")
+    EMERGENCY_SERVICES.append(data)
+    return data
+
+
+def update_service(service_id, fields: dict) -> Optional[dict]:
+    """Update an existing service in place; returns the updated dict or None."""
+    svc = get_service(service_id)
+    if svc is None:
+        return None
+    updates = _clean(fields)
+    svc.update(updates)
+    # Allow explicit clearing of coordinates (e.g. converting to a phone-only
+    # helpline) when both are sent blank.
+    if str(fields.get("lat", "")).strip() == "" and "lat" in svc and "lat" in fields:
+        svc.pop("lat", None)
+        svc.pop("lon", None)
+    return svc
+
+
+def delete_service(service_id) -> bool:
+    """Remove a service by id. Returns True if something was removed."""
+    svc = get_service(service_id)
+    if svc is None:
+        return False
+    EMERGENCY_SERVICES.remove(svc)
+    return True
+
 
 AMBULANCE_NUMBER = "108"
 FIRE_NUMBER      = "101"

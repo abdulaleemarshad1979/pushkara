@@ -6,7 +6,7 @@
 from typing import Optional
 from state.emergency_services import (
     EMERGENCY_SERVICES,
-    POLICE, HOSPITALS, FIRE_STATIONS, ALL_LOCATED,
+    located_services,
     AMBULANCE_NUMBER, FIRE_NUMBER, POLICE_NUMBER,
 )
 from utils.location_utils import nearest_in_list
@@ -17,13 +17,16 @@ def find_nearest(user_lat: float, user_lon: float, service_type: str) -> Optiona
     Return the nearest service of `service_type` to the user.
     service_type: 'police' | 'hospital' | 'fire' | 'any'
     Helplines (no coordinates) are excluded — they are returned separately.
+
+    Pools are computed from the live registry on every call so that runtime
+    add/edit/delete operations from the admin portal are reflected immediately.
     """
     pool = {
-        "police":   POLICE,
-        "hospital": HOSPITALS,
-        "fire":     FIRE_STATIONS,
-        "any":      ALL_LOCATED,
-    }.get(service_type, ALL_LOCATED)
+        "police":   located_services("police"),
+        "hospital": located_services("hospital"),
+        "fire":     located_services("fire"),
+        "any":      located_services(),
+    }.get(service_type, located_services())
 
     return nearest_in_list(user_lat, user_lon, pool)
 
