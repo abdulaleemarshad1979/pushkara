@@ -617,11 +617,17 @@ async def delete_volunteer(vid: str) -> bool:
 
 
 async def update_volunteer_fields(vid: str, fields: dict) -> bool:
-    """UPDATE mutable volunteer fields (name, phone, zone, status)."""
+    """UPDATE mutable volunteer fields.
+
+    latitude/longitude are included so a volunteer's live GPS position (pushed
+    from the dashboard) is persisted — find_nearest_volunteer relies on these
+    columns to route SOS / issues to the closest responder.
+    """
     pool = await get_pg_pool()
     if pool is None:
         return False
-    allowed = {"name", "phone", "zone", "status", "assigned_issue"}
+    allowed = {"name", "phone", "zone", "status", "assigned_issue",
+               "latitude", "longitude"}
     sets, vals, idx = [], [], 1
     for k, v in fields.items():
         if k in allowed and v is not None:

@@ -586,6 +586,24 @@ code, pre, .cred-row, .form-control, .ws-badge {
 /* ASSIGNED CHIP */
 .assigned-chip { font-size: 11px; color: var(--info); background: var(--info-bg); padding: 2px 8px; border-radius: 3px; border: 1px solid rgba(21,101,192,0.15); }
 
+/* ═══ "ASSIGNED TO YOU" EMPHASIS ═════════════════════════════════════ */
+/* The nearest-volunteer dispatch routes an alert to one responder. That
+   responder's card is highlighted so they can act immediately, while other
+   volunteers still see the item in their list for situational awareness. */
+.mine-alert { border-left-width: 5px !important; border-left-color: var(--saffron) !important; box-shadow: 0 0 0 2px rgba(255,107,0,0.25), var(--shadow); background: linear-gradient(0deg, rgba(255,107,0,0.05), transparent); }
+.mine-badge { display:inline-block; margin-left:8px; background: var(--saffron); color:#fff; font-size:9.5px; font-weight:800; letter-spacing:.4px; padding:2px 8px; border-radius:10px; vertical-align:middle; text-transform:uppercase; animation: mine-pulse 1.6s ease-in-out infinite; }
+.unassigned-badge { display:inline-block; margin-left:8px; background: var(--gray-200); color: var(--gray-600); font-size:9.5px; font-weight:800; letter-spacing:.4px; padding:2px 8px; border-radius:10px; vertical-align:middle; text-transform:uppercase; }
+@keyframes mine-pulse { 0%,100%{opacity:1} 50%{opacity:.55} }
+
+/* ═══ LOCATION STATUS CHIP (volunteer GPS) ═══════════════════════════ */
+.loc-chip { display:inline-flex; align-items:center; gap:6px; background: rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2); border-radius:3px; padding:5px 10px; font-size:11px; color: rgba(255,255,255,0.85); cursor:pointer; font-family:'DM Sans',sans-serif; transition: all .15s; }
+.loc-chip:hover { background: rgba(255,255,255,0.18); }
+.loc-chip .loc-dot { width:8px; height:8px; border-radius:50%; background:#868E96; flex-shrink:0; }
+.loc-chip.loc-ok   .loc-dot { background:#2ECC71; box-shadow:0 0 6px rgba(46,204,113,.7); }
+.loc-chip.loc-wait .loc-dot { background:#F5B942; animation: blink 1.2s infinite; }
+.loc-chip.loc-err  .loc-dot { background: var(--danger); }
+@media(max-width:600px){ .loc-chip .loc-label{ display:none; } }
+
 /* ═══ MOBILE RESPONSIVE ═══════════════════════════════════════════ */
 @media (max-width: 600px) {
   .dash-topbar-inner { padding: 8px 12px; gap: 8px; }
@@ -777,6 +795,11 @@ body.dark-mode .time-ago{
             <div class="vol-info-zone" id="vol-zone">–</div>
           </div>
         </div>
+        <button class="loc-chip" id="loc-chip" onclick="_pushVolunteerLocation(true)"
+                title="Your live GPS location is used to route the nearest SOS/issues to you. Tap to refresh.">
+          <span class="loc-dot"></span>
+          <span class="loc-label" id="loc-label">Locating…</span>
+        </button>
         <button class="avail-toggle" id="avail-toggle" onclick="toggleAvailability()"
                 title="Toggle availability for SOS auto-assignment" aria-pressed="true">
           <span class="avail-dot"></span>
@@ -1015,8 +1038,10 @@ function showDashboard() {
   _pushAvailability(currentVol.status, /*silent=*/true);
   connectWS();
   loadAll();
-  // Send volunteer GPS location to backend so SOS proximity works correctly
+  // Capture GPS immediately so nearest-volunteer routing can reach us, then
+  // keep it fresh as the volunteer moves. Status is shown in the topbar chip.
   _pushVolunteerLocation();
+  _startLocationTracking();
 }
 
 // ── Availability toggle: cycles Active (available) ↔ On Break (offline)
@@ -1029,6 +1054,9 @@ function toggleAvailability() {
   try { localStorage.setItem('vol_availability_' + currentVol.id, next); } catch(e) {}
   applyAvailabilityUI();
   _pushAvailability(next);
+  // Coming back on duty → refresh GPS so nearest-volunteer routing has a
+  // current position for this responder.
+  if (next === 'available') _pushVolunteerLocation();
 }
 
 function applyAvailabilityUI() {
@@ -1059,16 +1087,98 @@ function _pushAvailability(status, silent) {
     });
 }
 
-function _pushVolunteerLocation() {
-  if (!navigator.geolocation || !currentVol) return;
-  navigator.geolocation.getCurrentPosition(pos => {
-    const fd = new FormData();
-    fd.append('latitude', pos.coords.latitude);
-    fd.append('longitude', pos.coords.longitude);
-    authFetch(`${API_BASE}/volunteer/${currentVol.id}`, { method: 'PUT', body: fd })
-      .then(r => r.ok && console.log('[Volunteer] Location pushed to backend'))
-      .catch(() => {});  // silent — non-critical
-  }, () => {}, { timeout: 8000, maximumAge: 0 });
+// ── Volunteer GPS location ────────────────────────────────────────────────────
+// SOS / issue dispatch picks the NEAREST available volunteer, so a volunteer
+// who never shares their location can never be the "nearest" and effectively
+// drops out of auto-routing. We therefore capture location on login, keep it
+// fresh with watchPosition, and surface a clear status the volunteer can see
+// and retry — instead of the previous silent one-shot attempt.
+let _locWatchId = null;
+let _lastLocPush = 0;
+
+function _setLocStatus(state, label) {
+  const chip = document.getElementById('loc-chip');
+  const lbl  = document.getElementById('loc-label');
+  if (!chip || !lbl) return;
+  chip.classList.remove('loc-ok', 'loc-wait', 'loc-err');
+  if (state) chip.classList.add(state);
+  lbl.textContent = label;
+}
+
+// Send a single fix to the backend. `interactive` = triggered by the user
+// tapping the chip → show toasts and force a fresh reading.
+function _pushVolunteerLocation(interactive) {
+  if (!currentVol) return;
+  if (!navigator.geolocation) {
+    _setLocStatus('loc-err', 'No GPS');
+    if (interactive && typeof toast === 'function') toast('⚠️ Location unavailable', 'This device/browser has no geolocation support.', 't-error');
+    return;
+  }
+  _setLocStatus('loc-wait', 'Locating…');
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      currentVol.latitude  = pos.coords.latitude;
+      currentVol.longitude = pos.coords.longitude;
+      _lastLocPush = Date.now();
+      const fd = new FormData();
+      fd.append('latitude',  pos.coords.latitude);
+      fd.append('longitude', pos.coords.longitude);
+      authFetch(`${API_BASE}/volunteer/${currentVol.id}`, { method: 'PUT', body: fd })
+        .then(r => {
+          if (r.ok) {
+            _setLocStatus('loc-ok', '📍 Location on');
+            if (interactive && typeof toast === 'function') toast('✅ Location updated', 'You can now receive nearby SOS/issues.', 't-success');
+          } else {
+            _setLocStatus('loc-err', 'Sync failed');
+          }
+        })
+        .catch(() => _setLocStatus('loc-err', 'Sync failed'));
+    },
+    err => {
+      // Permission denied / timeout — make it visible & actionable, because
+      // without it this volunteer is invisible to nearest-volunteer routing.
+      const denied = err && err.code === 1;
+      _setLocStatus('loc-err', denied ? 'Location off' : 'No fix');
+      if (typeof toast === 'function') {
+        toast('⚠️ Share your location',
+              denied ? 'Enable location permission so SOS/issues route to you. Tap the location chip to retry.'
+                     : 'Could not get a GPS fix. Tap the location chip to retry.',
+              't-error', 9000);
+      }
+    },
+    { enableHighAccuracy: true, timeout: 10000, maximumAge: interactive ? 0 : 30000 }
+  );
+}
+
+// Continuous tracking — keeps the stored position current as the volunteer
+// moves around the ghats, throttled so we don't hammer the backend.
+function _startLocationTracking() {
+  if (!navigator.geolocation || _locWatchId !== null) return;
+  _locWatchId = navigator.geolocation.watchPosition(
+    pos => {
+      if (!currentVol) return;
+      currentVol.latitude  = pos.coords.latitude;
+      currentVol.longitude = pos.coords.longitude;
+      // Throttle pushes to at most one per 60 s.
+      if (Date.now() - _lastLocPush < 60000) { _setLocStatus('loc-ok', '📍 Location on'); return; }
+      _lastLocPush = Date.now();
+      const fd = new FormData();
+      fd.append('latitude',  pos.coords.latitude);
+      fd.append('longitude', pos.coords.longitude);
+      authFetch(`${API_BASE}/volunteer/${currentVol.id}`, { method: 'PUT', body: fd })
+        .then(r => _setLocStatus(r.ok ? 'loc-ok' : 'loc-err', r.ok ? '📍 Location on' : 'Sync failed'))
+        .catch(() => {});
+    },
+    () => { /* errors already surfaced by _pushVolunteerLocation */ },
+    { enableHighAccuracy: true, timeout: 15000, maximumAge: 30000 }
+  );
+}
+
+function _stopLocationTracking() {
+  if (_locWatchId !== null && navigator.geolocation) {
+    try { navigator.geolocation.clearWatch(_locWatchId); } catch(e) {}
+  }
+  _locWatchId = null;
 }
 
 // ── intentionalLogout flag — prevents WS auto-reconnect after logout ──
@@ -1076,6 +1186,7 @@ let intentionalLogout = false;
 
 function doLogout() {
   intentionalLogout = true;          // ← stop reconnection loop
+  _stopLocationTracking();           // ← stop GPS watch
   if (ws) { try { ws.close(); } catch(e) {} ws = null; }
   currentVol = null;
   allIssues = []; allSOS = []; myTasks = 0;
@@ -1084,6 +1195,7 @@ function doLogout() {
   // reset badges
   document.getElementById('sos-badge').textContent = '0';
   document.getElementById('issues-badge').textContent = '0';
+  _setLocStatus('', 'Locating…');
 }
 
 // ─── WEBSOCKET ────────────────────────────────────────────────────────────────
@@ -1139,6 +1251,34 @@ function connectWS() {
   }
 }
 
+// ── Alert targeting helpers ───────────────────────────────────────────────────
+// An alert/issue is "for me" when the backend routed it to this volunteer
+// (assigned_volunteer === my id). find_nearest_volunteer picks the closest
+// AVAILABLE volunteer, so this is how "nearest volunteer" dispatch reaches the
+// right person instead of blasting everyone.
+function _isForMe(item) {
+  return !!(currentVol && item && item.assigned_volunteer &&
+            item.assigned_volunteer === currentVol.id);
+}
+// True when no volunteer was matched (none available / none had a location).
+// In that case every volunteer is alerted as a safety fallback.
+function _isUnassigned(item) {
+  return !item || !item.assigned_volunteer;
+}
+// Best-effort native notification (works even if the tab is backgrounded).
+function _notifyBrowser(title, body) {
+  try {
+    if (!('Notification' in window)) return;
+    if (Notification.permission === 'granted') {
+      new Notification(title, { body, icon: 'icon-192.svg' });
+    } else if (Notification.permission !== 'denied') {
+      Notification.requestPermission().then(p => {
+        if (p === 'granted') new Notification(title, { body, icon: 'icon-192.svg' });
+      });
+    }
+  } catch(e) {}
+}
+
 function handleWS(msg) {
   if (!currentVol) return; // safety guard
   switch(msg.type) {
@@ -1160,13 +1300,34 @@ function handleWS(msg) {
       msg.data._new = true; allIssues.unshift(msg.data);
       renderIssues(); updateBadges();
       if (mapInitialized) renderIssueMarkers(allIssues); // live map update
-      toast('📋 New Issue', msg.data.description, 't-issue');
+      // Targeted alert: only the nearest (assigned) volunteer is actively
+      // notified. Everyone else keeps it in their list silently for awareness.
+      if (_isForMe(msg.data)) {
+        toast('📋 Issue Assigned to You', msg.data.description, 't-issue');
+        playAlert(660);
+      } else if (_isUnassigned(msg.data)) {
+        // No nearest volunteer could be matched — surface to all as a fallback
+        // so a report is never left unseen.
+        toast('📋 New Issue (Unassigned)', msg.data.description, 't-issue');
+      }
       break;
     case 'SOS_ALERT':
       allSOS.unshift(msg.data); renderSOS(); updateBadges();
       if (mapInitialized) renderSOSMarkers(allSOS); // live map update
-      toast('🆘 SOS EMERGENCY!', `From: ${msg.data.user_name} · Vol: ${msg.data.assigned_volunteer_name}`, 't-sos');
-      playAlert(880);
+      if (_isForMe(msg.data)) {
+        // This SOS was routed to ME (closest available volunteer).
+        toast('🆘 SOS ASSIGNED TO YOU!', `From: ${msg.data.user_name} · Tap SOS tab to respond`, 't-sos', 12000);
+        playAlert(880);
+        _notifyBrowser('🆘 SOS assigned to you', `${msg.data.user_name} needs help nearby`);
+      } else if (_isUnassigned(msg.data)) {
+        // No available volunteer had a known location — alert everyone so the
+        // emergency is never missed (safety fallback).
+        toast('🆘 SOS — NO NEAREST VOLUNTEER', `From: ${msg.data.user_name} · Anyone available please respond`, 't-sos', 12000);
+        playAlert(880);
+      } else {
+        // Handled by another (closer) volunteer — quiet awareness only.
+        toast('🆘 SOS nearby', `From: ${msg.data.user_name} · Assigned: ${msg.data.assigned_volunteer_name || '—'}`, 't-issue');
+      }
       break;
     case 'ISSUE_RESOLVED':
     case 'ISSUE_ACCEPTED': {
@@ -1614,11 +1775,16 @@ function renderSOS() {
   const el = document.getElementById('sos-list');
   let data = sosFilter === 'all' ? allSOS : allSOS.filter(s => s.status === sosFilter);
   if (!data.length) { el.innerHTML = `<div class="empty-state"><div class="empty-icon">✅</div><p>No SOS alerts${sosFilter !== 'all' ? ' for this filter' : ''}</p></div>`; return; }
-  el.innerHTML = data.map(a => `
-    <div class="sos-card ${a.status === 'active' ? 'active-sos' : ''}">
+  el.innerHTML = data.map(a => {
+    const mine = _isForMe(a);
+    const unassigned = _isUnassigned(a);
+    return `
+    <div class="sos-card ${a.status === 'active' ? 'active-sos' : ''} ${mine && a.status === 'active' ? 'mine-alert' : ''}">
       <div class="card-top">
         <div>
-          <div class="card-title">🆘 ${a.user_name || 'Unknown Pilgrim'}</div>
+          <div class="card-title">🆘 ${a.user_name || 'Unknown Pilgrim'}
+            ${mine ? '<span class="mine-badge">ASSIGNED TO YOU</span>' : (unassigned && a.status === 'active' ? '<span class="unassigned-badge">UNASSIGNED</span>' : '')}
+          </div>
           <div class="card-meta">📞 ${a.phone || 'No phone'} · 📍 ${a.latitude?.toFixed(4)}, ${a.longitude?.toFixed(4)}</div>
           <div class="card-meta">🕐 ${timeAgo(a.timestamp)} · 👤 Vol: ${a.assigned_volunteer_name || 'Unassigned'}</div>
         </div>
@@ -1630,24 +1796,29 @@ function renderSOS() {
         ${a.status === 'active' ? `<button class="action-btn btn-sos-resolve" onclick="resolveSOS('${a.id}')">✓ Mark Resolved</button>` : ''}
       </div>
     </div>
-  `).join('');
+  `; }).join('');
 }
 
 function renderIssues() {
   const el = document.getElementById('issues-list');
   let data = issueFilter === 'all' ? allIssues : allIssues.filter(i => i.status === issueFilter);
   if (!data.length) { el.innerHTML = `<div class="empty-state"><div class="empty-icon">📭</div><p>No issues${issueFilter !== 'all' ? ' for this filter' : ''}</p></div>`; return; }
-  el.innerHTML = data.map(issue => `
-    <div class="issue-card cat-${issue.category} ${issue._new ? 'new-item' : ''}">
+  el.innerHTML = data.map(issue => {
+    const mine = _isForMe(issue);
+    const assignedName = issue.assigned_volunteer_name || issue.assigned_volunteer || '';
+    return `
+    <div class="issue-card cat-${issue.category} ${issue._new ? 'new-item' : ''} ${mine && issue.status !== 'resolved' ? 'mine-alert' : ''}">
       <div class="card-top">
         <div style="flex:1">
-          <div class="issue-title">${issue.description}</div>
+          <div class="issue-title">${issue.description}
+            ${mine && issue.status !== 'resolved' ? '<span class="mine-badge">ASSIGNED TO YOU</span>' : ''}
+          </div>
           <div class="issue-meta">
             <span class="cat-badge cat-${issue.category}">${issue.category}</span>
             <span class="meta-tag">👤 ${issue.user_name || 'Anonymous'}</span>
             <span class="meta-tag">📍 ${issue.latitude?.toFixed(4)}, ${issue.longitude?.toFixed(4)}</span>
             <span class="time-ago">${timeAgo(issue.timestamp)}</span>
-            ${issue.assigned_volunteer ? `<span class="assigned-chip">Assigned: ${issue.assigned_volunteer}</span>` : ''}
+            ${assignedName ? `<span class="assigned-chip">🙋 ${assignedName}</span>` : ''}
           </div>
         </div>
         <span class="status-pill s-${issue.status}">${issue.status?.replace('_',' ')?.toUpperCase()}</span>
@@ -1669,7 +1840,7 @@ function renderIssues() {
         ${issue.status !== 'resolved' && issue.status !== 'pending' && issue.status !== 'in_progress' ? `<button class="action-btn btn-resolve" onclick="resolveIssue('${issue.id}')">✓ Done</button>` : ''}
       </div>
     </div>
-  `).join('');
+  `; }).join('');
 }
 
 function renderMapIssues() {
